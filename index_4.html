@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>Prime Bet – Painel</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;font-size:14px}
+input,select,textarea,button{font-family:inherit;font-size:14px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.hidden{display:none!important}
+
+/* LOGIN */
+#login{min-height:100vh;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:24px}
+.lg-box{width:100%;max-width:340px}
+.lg-inp{width:100%;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;color:#e2e8f0;font-size:15px;outline:none;display:block;margin-bottom:12px}
+
+/* TOPBAR */
+.tb{background:#0f172a;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:50;flex-shrink:0}
+.tb-logo{color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px;min-width:140px}
+.tb-logo small{color:#64748b;font-weight:400;font-size:11px}
+.tb-nav{display:flex;gap:4px;align-items:center}
+.tb-btn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.tb-btn:hover{border-color:#3b82f6;color:#e2e8f0}
+.tb-sair{background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.tb-sair:hover{background:#ef4444;border-color:#ef4444;color:#fff}
+.tb-menu-btn{background:transparent;border:1px solid #334155;color:#e2e8f0;padding:7px 11px;border-radius:6px;cursor:pointer;font-size:17px;line-height:1}
+
+/* PAINEL LAYOUT */
+#painel{min-height:100vh;display:flex;flex-direction:column}
+.painel-body{padding:16px 20px;flex:1}
+
+/* TÍTULO */
+.page-title{font-size:17px;font-weight:700;color:#0f172a;margin-bottom:2px}
+.page-sub{font-size:12px;color:#64748b;margin-bottom:14px}
+
+/* FILTROS */
+.filter-box{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.filter-label{font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.filter-grid{display:grid;grid-template-columns:120px 1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+.filter-grid2{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:8px}
+.filter-grid3{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.f-lbl{font-size:10px;color:#9ca3af;font-weight:600;margin-bottom:3px}
+.f-inp{width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px;font-size:12px;outline:none;color:#374151;background:#fff}
+.f-inp:focus{border-color:#3b82f6}
+.filter-hint{font-size:11px;color:#9ca3af;font-style:italic;margin-bottom:8px}
+.filter-actions{display:flex;gap:8px;justify-content:flex-end}
+
+/* MÉTRICAS */
+.metrics-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px}
+.metrics-row2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;max-width:500px}
+.mc{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;position:relative;overflow:hidden}
+.mc-ico{position:absolute;right:10px;top:10px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px}
+.mc-lbl{font-size:9px;font-weight:700;color:#9ca3af;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+.mc-val{font-size:20px;font-weight:700}
+.mc-sub{font-size:11px;color:#9ca3af;margin-top:2px}
+
+/* TABELA */
+.tbl-wrap{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}
+.tbl-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{background:#2563eb}
+thead th{color:#fff;font-weight:600;padding:10px 8px;text-align:left;white-space:nowrap;font-size:11px}
+thead th.th-r{text-align:right}
+thead th.th-c{text-align:center}
+tbody tr{border-bottom:1px solid #f1f5f9}
+tbody tr:nth-child(even){background:#f8fafc}
+tbody tr:nth-child(odd){background:#fff}
+tbody td{padding:8px;vertical-align:middle}
+tbody td.td-r{text-align:right}
+tbody td.td-c{text-align:center}
+.th-sticky{position:sticky;right:0;background:#2563eb;box-shadow:-3px 0 6px rgba(0,0,0,.15)}
+.td-sticky{position:sticky;right:0;box-shadow:-3px 0 6px rgba(0,0,0,.06);z-index:1}
+.tbl-footer{padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #f1f5f9}
+
+/* INPUTS INLINE */
+.inp{border:1px solid #e5e7eb;border-radius:5px;padding:5px 7px;font-size:12px;background:#fff;outline:none}
+.inp:focus{border-color:#3b82f6}
+.inp-w{border-color:#f59e0b!important;background:#fffbeb!important}
+.inp-full{width:100%}
+
+/* STATUS SELECT */
+.st-sel{border:none;border-radius:5px;padding:4px 7px;font-size:11px;font-weight:700;cursor:pointer;outline:none;min-width:100px}
+
+/* BADGES */
+.badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;display:inline-block}
+
+/* BOTÕES */
+.btn{border:none;padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn-blue{background:#2563eb;color:#fff}
+.btn-blue:hover{background:#1d4ed8}
+.btn-green{background:#15803d;color:#fff}
+.btn-green:hover{background:#166534}
+.btn-gray{background:#f1f5f9;color:#374151;border:1px solid #e5e7eb}
+.btn-red-o{background:#fff;color:#ef4444;border:1px solid #fca5a5}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-icon{background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:13px}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:12px}
+.modal{background:#fff;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;width:100%}
+.modal-sm{max-width:480px;max-height:90vh}
+.modal-md{max-width:700px;max-height:90vh}
+.modal-lg{max-width:1100px;max-height:90vh}
+.modal-hdr{padding:14px 18px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-hdr-left{display:flex;align-items:center;gap:10px}
+.modal-body{overflow-y:auto;flex:1}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280;line-height:1;padding:2px 6px}
+.modal-close:hover{color:#374151}
+
+/* MENU MOBILE */
+.mob-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200}
+.mob-panel{position:absolute;right:0;top:0;bottom:0;width:220px;background:#0f172a;padding:20px 14px;display:flex;flex-direction:column;gap:8px}
+.mob-item{background:transparent;border:1px solid #334155;color:#e2e8f0;padding:11px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;text-align:left;width:100%}
+.mob-sair{background:#ef4444;border:none;color:#fff;padding:11px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;margin-top:8px;text-align:left;width:100%}
+
+/* REGISTRO CARDS MOBILE */
+.rc{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:10px}
+.rc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.rc-r{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f8fafc;font-size:12px;gap:6px}
+.rc-l{color:#9ca3af;font-weight:600;font-size:11px;white-space:nowrap;min-width:80px}
+.rc-btns{display:flex;gap:8px;margin-top:10px}
+
+/* PAGINAÇÃO */
+.pagination{display:flex;gap:6px;align-items:center}
+.pg-info{font-size:11px;color:#6b7280}
+
+/* DESKTOP/MOBILE */
+.desk-only{display:block}
+.mob-only{display:none}
+
+@media(max-width:768px){
+  .desk-only{display:none!important}
+  .mob-only{display:block!important}
+  .tb-nav{display:none}
+  .tb-menu-btn{display:flex!important}
+  .painel-body{padding:10px 12px}
+  .metrics-row{grid-template-columns:1fr 1fr}
+  .metrics-row2{grid-template-columns:1fr 1fr;max-width:100%}
+  .filter-grid,.filter-grid2,.filter-grid3{grid-template-columns:1fr 1fr}
+  .modal-bg{padding:0;align-items:flex-end}
+  .modal{border-radius:14px 14px 0 0;max-height:92vh!important;max-width:100%!important}
+}
+@media(min-width:769px){
+  .tb-menu-btn{display:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="login">
+  <div class="lg-box">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px">
+      <div style="width:48px;height:48px;border-radius:12px;background:#2563eb;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🎯</div>
+      <div><div style="color:#fff;font-size:22px;font-weight:700">Prime Bet</div><div style="color:#64748b;font-size:12px">Painel de Gerenciamento</div></div>
+    </div>
+    <label style="color:#94a3b8;font-size:11px;font-weight:700;display:block;margin-bottom:5px;letter-spacing:.05em">USUÁRIO</label>
+    <input id="lg-u" class="lg-inp" placeholder="ex: ADMIN" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <label style="color:#94a3b8;font-size:11px;font-weight:700;display:block;margin-bottom:5px;letter-spacing:.05em">SENHA</label>
+    <div style="position:relative;margin-bottom:8px">
+      <input id="lg-p" class="lg-inp" type="password" placeholder="••••••" style="margin-bottom:0;padding-right:44px" onkeydown="if(event.key==='Enter')doLogin()"/>
+      <span id="lg-eye" onclick="toggleEye()" style="position:absolute;right:13px;top:50%;transform:translateY(-50%);color:#64748b;cursor:pointer;font-size:18px">👁️</span>
+    </div>
+    <div id="lg-err" class="hidden" style="color:#ef4444;font-size:12px;margin-bottom:8px"></div>
+    <div style="color:#475569;font-size:11px;margin-bottom:18px">Demo: <b style="color:#94a3b8">ADMIN</b> / <b style="color:#94a3b8">admin123</b></div>
+    <button onclick="doLogin()" style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:13px;font-size:15px;font-weight:700;cursor:pointer">Entrar no painel →</button>
+    <div style="color:#334155;font-size:11px;text-align:center;margin-top:20px">© 2026 PrimeBet Fechamentos</div>
+  </div>
+</div>
+
+<!-- ═══════════════ PAINEL ADMIN ═══════════════ -->
+<div id="painel" class="hidden">
+  <!-- TOPBAR -->
+  <div class="tb">
+    <div class="tb-logo">🎯 Primebet <small>Painel de Controle</small></div>
+    <div class="tb-nav">
+      <button class="tb-btn" onclick="showModal('modal-cli')">👥 Clientes</button>
+      <button class="tb-btn" onclick="showModal('modal-af')">🤝 Afiliados</button>
+      <button class="tb-btn" onclick="showModal('modal-fech')">📊 Fechamento</button>
+      <button class="tb-btn" onclick="showModal('modal-fech-af')">📋 Fechamento Afiliado</button>
+      <button class="tb-sair" onclick="doLogout()">↪ Sair</button>
+    </div>
+    <button class="tb-menu-btn mob-only" onclick="document.getElementById('mob-menu').classList.remove('hidden')">☰</button>
+  </div>
+
+  <!-- MENU MOBILE -->
+  <div id="mob-menu" class="mob-bg hidden" onclick="this.classList.add('hidden')">
+    <div class="mob-panel" onclick="event.stopPropagation()">
+      <div style="color:#64748b;font-size:10px;font-weight:700;letter-spacing:.1em;margin-bottom:4px">MENU</div>
+      <button class="mob-item" onclick="showModal('modal-cli');closeMobMenu()">👥 Clientes</button>
+      <button class="mob-item" onclick="showModal('modal-af');closeMobMenu()">🤝 Afiliados</button>
+      <button class="mob-item" onclick="showModal('modal-fech');closeMobMenu()">📊 Fechamento</button>
+      <button class="mob-item" onclick="showModal('modal-fech-af');closeMobMenu()">📋 Fech. Afiliado</button>
+      <button class="mob-item" onclick="showModal('modal-novo');closeMobMenu()">➕ Novo Registro</button>
+      <button class="mob-sair" onclick="doLogout()" style="background:#ef4444;border:none;color:#fff;padding:11px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;margin-top:8px;text-align:left;width:100%">🚪 Sair</button>
+    </div>
+  </div>
+
+  <div class="painel-body">
+    <div class="page-title">Primebet – Controle (Semana Atual)</div>
+    <div class="page-sub">Registros</div>
+
+    <!-- FILTROS -->
+    <div class="filter-box">
+      <div class="filter-label">Filtros</div>
+      <div class="filter-grid">
+        <div><div class="f-lbl">ID</div><input id="f-id" class="f-inp" placeholder="ex: 10" oninput="renderRegs()"/></div>
+        <div><div class="f-lbl">Data início</div><input id="f-dt1" type="date" class="f-inp" /></div>
+        <div><div class="f-lbl">Data fim</div><input id="f-dt2" type="date" class="f-inp"/></div>
+        <div><div class="f-lbl">Período Rápido</div>
+          <select id="f-period" class="f-inp" onchange="applyPeriod()">
+            <option value="">—</option>
+            <option value="hoje">Hoje</option>
+            <option value="ontem">Ontem</option>
+            <option value="semana">Esta Semana</option>
+            <option value="semana_ant">Semana Passada</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-grid2">
+        <div><div class="f-lbl">Nome</div>
+          <select id="f-nome" class="f-inp" onchange="renderRegs()"><option value="">— Selecione um cliente —</option></select>
+        </div>
+        <div><div class="f-lbl">Jogo contém</div><input id="f-jogo" class="f-inp" placeholder="Jogo contém" oninput="renderRegs()"/></div>
+        <div><div class="f-lbl">Odd mín</div><input id="f-odd-min" type="number" step="0.01" class="f-inp" placeholder="odd mín" oninput="renderRegs()"/></div>
+        <div><div class="f-lbl">Odd máx</div><input id="f-odd-max" type="number" step="0.01" class="f-inp" placeholder="odd máx" oninput="renderRegs()"/></div>
+        <div><div class="f-lbl">Entradas mín</div><input id="f-val-min" type="number" class="f-inp" placeholder="entradas mín" oninput="renderRegs()"/></div>
+        <div><div class="f-lbl">Entradas máx</div><input id="f-val-max" type="number" class="f-inp" placeholder="entradas máx" oninput="renderRegs()"/></div>
+      </div>
+      <div class="filter-grid3">
+        <div><div class="f-lbl">Status</div>
+          <select id="f-st" class="f-inp" onchange="renderRegs()"><option value="">— Selecione um status —</option></select>
+        </div>
+        <div><div class="f-lbl">Descarrego contém</div><input id="f-dc" class="f-inp" placeholder="Descarrego contém" oninput="renderRegs()"/></div>
+        <div><div class="f-lbl">Baixa Liquidez</div>
+          <select id="f-bl" class="f-inp" onchange="renderRegs()"><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select>
+        </div>
+        <div><div class="f-lbl">Advertido</div>
+          <select id="f-adv" class="f-inp" onchange="renderRegs()"><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select>
+        </div>
+        <div><div class="f-lbl">Irregular</div>
+          <select id="f-irr" class="f-inp" onchange="renderRegs()"><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select>
+        </div>
+        <div><div class="f-lbl">Ordenação</div>
+          <select id="f-ord" class="f-inp" onchange="renderRegs()">
+            <option value="data_desc">data ↓</option>
+            <option value="data_asc">data ↑</option>
+            <option value="val_desc">entradas ↓</option>
+            <option value="val_asc">entradas ↑</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-hint">Dica: se não preencher datas, ele traz a semana atual (seg → dom).</div>
+      <div class="filter-actions">
+        <button class="btn btn-gray" onclick="limparFiltros()">Limpar</button>
+        <button class="btn btn-blue" onclick="renderRegs()">Filtrar</button>
+        <button class="btn btn-green" onclick="showModal('modal-novo')">+ Novo registro</button>
+      </div>
+    </div>
+
+    <!-- MÉTRICAS -->
+    <div class="metrics-row" id="metrics-row1">
+      <div class="mc"><div class="mc-ico" style="background:#16a34a22">💰</div><div class="mc-lbl">ENTRADA</div><div class="mc-val" id="m-val" style="color:#16a34a">R$ 0,00</div><div class="mc-sub" id="m-n">0 linhas</div></div>
+      <div class="mc"><div class="mc-ico" style="background:#2563eb22">⏳</div><div class="mc-lbl">EM ABERTO</div><div class="mc-val" id="m-ab" style="color:#2563eb">R$ 0,00</div><div class="mc-sub" id="m-nab">0 linhas</div></div>
+      <div class="mc"><div class="mc-ico" style="background:#8b5cf622">📊</div><div class="mc-lbl">SALDO BRUTO</div><div class="mc-val" id="m-sb">R$ 0,00</div></div>
+      <div class="mc"><div class="mc-ico" style="background:#dc262622">%</div><div class="mc-lbl">COMISSÃO</div><div class="mc-val" id="m-cm" style="color:#dc2626">R$ 0,00</div></div>
+      <div class="mc"><div class="mc-ico" style="background:#16a34a22">✅</div><div class="mc-lbl">SALDO LÍQUIDO</div><div class="mc-val" id="m-sl">R$ 0,00</div></div>
+    </div>
+    <div class="metrics-row2">
+      <div class="mc"><div class="mc-ico" style="background:#dc262622">✕</div><div class="mc-lbl">COMISSÃO AFILIADOS</div><div class="mc-val" id="m-caf" style="color:#dc2626">R$ 0,00</div></div>
+      <div class="mc"><div class="mc-ico" style="background:#16a34a22">+</div><div class="mc-lbl">TOTAL FECHAMENTO</div><div class="mc-val" id="m-fech" style="color:#16a34a">R$ 0,00</div></div>
+    </div>
+
+    <div id="reg-info" style="font-size:12px;color:#6b7280;margin-bottom:8px"></div>
+
+    <!-- TABELA DESKTOP -->
+    <div class="tbl-wrap desk-only">
+      <div class="tbl-scroll">
+        <table id="tbl-regs">
+          <thead><tr>
+            <th>id</th><th>data</th><th>Nome</th><th>Jogo</th>
+            <th>odd</th><th>entradas</th><th>status</th><th>Descarrego</th>
+            <th class="th-r">Saldo Bruto</th><th class="th-r">Comissão</th>
+            <th class="th-c">Baixa Liquidez</th><th class="th-r">Saldo Líquido</th>
+            <th class="th-sticky th-c">Ações</th>
+          </tr></thead>
+          <tbody id="tbl-regs-body"></tbody>
+        </table>
+      </div>
+      <div class="tbl-footer">
+        <span id="tbl-info" class="pg-info"></span>
+        <div class="pagination">
+          <button class="btn btn-gray btn-sm">Anterior</button>
+          <button class="btn btn-gray btn-sm">Próxima</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARDS MOBILE -->
+    <div id="regs-mob" class="mob-only"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ PAINEL CLIENTE ═══════════════ -->
+<div id="painel-cli" class="hidden">
+  <div style="background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50">
+    <div id="cli-title" style="font-weight:700;font-size:15px;color:#0f172a">🎯 Prime Bet</div>
+    <div style="display:flex;gap:6px">
+      <button id="cli-pdf" class="btn btn-sm" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe">📄 Gerar PDF</button>
+      <button onclick="doLogout()" class="btn btn-sm btn-red-o">Sair</button>
+    </div>
+  </div>
+  <div style="padding:12px 14px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div><div class="f-lbl">Período</div><select id="cli-period" class="f-inp"><option>Semana Atual</option><option>Semana Passada</option><option>Este Mês</option></select></div>
+      <div><div class="f-lbl">Status</div><select id="cli-st" class="f-inp"><option>Todos</option></select></div>
+    </div>
+    <div style="margin-bottom:10px"><div class="f-lbl">Jogo</div><input id="cli-jogo" class="f-inp" placeholder="Ex: Arsenal v Wigan"/></div>
+    <div style="font-size:11px;color:#9ca3af;margin-bottom:8px" id="cli-period-label"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:14px">
+      <button class="btn btn-gray">Limpar</button>
+      <button class="btn btn-blue">Filtrar</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">
+      <div class="mc"><div class="mc-lbl">ENTRADA</div><div class="mc-val" id="cm-val" style="color:#16a34a">R$ 0,00</div><div class="mc-sub" id="cm-n">0 linhas</div></div>
+      <div class="mc"><div class="mc-lbl">EM ABERTO</div><div class="mc-val" id="cm-ab" style="color:#2563eb">R$ 0,00</div><div class="mc-sub" id="cm-nab">0 linhas</div></div>
+      <div class="mc"><div class="mc-lbl">SALDO BRUTO</div><div class="mc-val" id="cm-sb">R$ 0,00</div><div class="mc-sub">Total</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+      <div class="mc"><div class="mc-lbl">COMISSÃO</div><div class="mc-val" id="cm-cm" style="color:#dc2626">R$ 0,00</div><div class="mc-sub">Total</div></div>
+      <div class="mc"><div class="mc-lbl">SALDO LÍQUIDO</div><div class="mc-val" id="cm-sl">R$ 0,00</div><div class="mc-sub">Fechamento</div></div>
+      <div class="mc"><div class="mc-lbl">SALDO CALÇÃO</div><div class="mc-val" id="cm-cal">R$ 0,00</div><div class="mc-sub" id="cm-calcao-sub"></div></div>
+    </div>
+    <div class="tbl-wrap desk-only"><div class="tbl-scroll"><table><thead><tr>
+      <th>DATA</th><th>JOGO</th><th>ODD</th><th>ENTRADAS</th><th>STATUS</th>
+      <th class="th-r">SALDO BRUTO</th><th class="th-r">COMISSÃO</th><th class="th-c">BAIXA LIQ.</th><th class="th-r">SALDO LÍQUIDO</th>
+    </tr></thead><tbody id="cli-tbl-body"></tbody></table></div>
+    <div class="tbl-footer"><span id="cli-tbl-info" class="pg-info"></span></div></div>
+    <div id="cli-regs-mob" class="mob-only"></div>
+    <div style="text-align:center;color:#9ca3af;font-size:11px;margin-top:16px">© 2026 PrimeBet Fechamentos</div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL CLIENTES ═══════════════ -->
+<div id="modal-cli" class="modal-bg hidden">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <div class="modal-hdr-left">
+        <span style="font-weight:700;font-size:15px">Clientes</span>
+        <button class="btn btn-green btn-sm" onclick="novoCliente()">+ Novo Cliente</button>
+      </div>
+      <button class="modal-close" onclick="hideModal('modal-cli')">✕</button>
+    </div>
+    <div style="padding:8px 16px;font-size:12px;color:#6b7280;border-bottom:1px solid #f1f5f9;flex-shrink:0">
+      Edite os campos e clique em <b>Salvar</b>. A senha será usada para o cliente acessar o painel.
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div class="tbl-scroll"><table id="tbl-cli">
+        <thead><tr>
+          <th>ID</th><th>Nome</th><th>Senha</th><th>Ativo</th>
+          <th class="th-r">Calção</th><th class="th-r">Desconto</th><th>Comissão</th>
+          <th>Supervisor</th><th>Comissão Afiliado</th><th class="th-sticky th-c">Ações</th>
+        </tr></thead>
+        <tbody id="tbl-cli-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL AFILIADOS ═══════════════ -->
+<div id="modal-af" class="modal-bg hidden">
+  <div class="modal modal-md">
+    <div class="modal-hdr">
+      <div class="modal-hdr-left">
+        <span style="font-weight:700;font-size:15px">Afiliados</span>
+        <button class="btn btn-green btn-sm" onclick="novoAfiliado()">+ Novo Afiliado</button>
+      </div>
+      <button class="modal-close" onclick="hideModal('modal-af')">✕</button>
+    </div>
+    <div style="padding:8px 16px;font-size:12px;color:#6b7280;border-bottom:1px solid #f1f5f9;flex-shrink:0">
+      Edite os campos e clique em <b>Salvar</b>. A comissão será usada no cadastro dos clientes vinculados ao afiliado.
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div class="tbl-scroll"><table id="tbl-af">
+        <thead><tr><th>ID</th><th>Nome</th><th>Comissão</th><th class="th-sticky th-c">Ações</th></tr></thead>
+        <tbody id="tbl-af-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL FECHAMENTO ═══════════════ -->
+<div id="modal-fech" class="modal-bg hidden">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <span style="font-weight:700;font-size:15px">Fechamento</span>
+      <button class="modal-close" onclick="hideModal('modal-fech')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;padding:14px 16px;border-bottom:1px solid #f1f5f9">
+        <div><div class="f-lbl">Data início</div><input id="fech-dt1" type="date" class="f-inp" style="width:auto"/></div>
+        <div><div class="f-lbl">Data fim</div><input id="fech-dt2" type="date" class="f-inp" style="width:auto"/></div>
+        <div><div class="f-lbl">Período Rápido</div>
+          <select id="fech-period" class="f-inp" style="width:160px" onchange="applyFechPeriod()">
+            <option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option>
+            <option value="semana">Esta Semana</option><option value="semana_ant">Semana Passada</option>
+          </select>
+        </div>
+        <button class="btn btn-blue" onclick="renderFechamento()">Buscar</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 16px;border-bottom:1px solid #f1f5f9" id="fech-metrics"></div>
+      <div style="padding:0"><div class="tbl-scroll"><table>
+        <thead><tr>
+          <th>Cliente</th><th class="th-r">Calção</th><th class="th-r">Saldo Calção</th>
+          <th class="th-r">Total Apostado</th><th class="th-r">Em Aberto</th>
+          <th class="th-r">Saldo Bruto</th><th class="th-r">Comissão</th>
+          <th class="th-r">Comissão Afiliado</th><th class="th-r">Saldo Líquido</th>
+          <th class="th-sticky th-c">Ações</th>
+        </tr></thead>
+        <tbody id="fech-body"></tbody>
+      </table></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL FECHAMENTO AFILIADO ═══════════════ -->
+<div id="modal-fech-af" class="modal-bg hidden">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <span style="font-weight:700;font-size:15px">Fechamento Afiliado</span>
+      <button class="modal-close" onclick="hideModal('modal-fech-af')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;padding:14px 16px;border-bottom:1px solid #f1f5f9">
+        <div><div class="f-lbl">Data inicial</div><input id="faf-dt1" type="date" class="f-inp" style="width:auto"/></div>
+        <div><div class="f-lbl">Data final</div><input id="faf-dt2" type="date" class="f-inp" style="width:auto"/></div>
+        <div><div class="f-lbl">Período Rápido</div>
+          <select id="faf-period" class="f-inp" style="width:160px">
+            <option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option>
+            <option value="semana">Esta Semana</option><option value="semana_ant">Semana Passada</option>
+          </select>
+        </div>
+        <button class="btn btn-blue" onclick="renderFechAf()">Buscar</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 16px;border-bottom:1px solid #f1f5f9" id="faf-metrics"></div>
+      <div style="padding:0"><div class="tbl-scroll"><table>
+        <thead><tr>
+          <th>Supervisor</th><th class="th-c">Logins</th><th class="th-r">Entrada</th>
+          <th class="th-r">Em Aberto</th><th class="th-r">Saldo Bruto</th>
+          <th class="th-r">Comissão</th><th class="th-r">Comissão Afiliado</th>
+          <th class="th-r">Saldo Líquido</th><th class="th-sticky th-c">Ações</th>
+        </tr></thead>
+        <tbody id="faf-body"></tbody>
+      </table></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL NOVO REGISTRO ═══════════════ -->
+<div id="modal-novo" class="modal-bg hidden">
+  <div class="modal modal-sm">
+    <div class="modal-hdr"><span style="font-weight:700;font-size:15px">Novo Registro</span><button class="modal-close" onclick="hideModal('modal-novo')">✕</button></div>
+    <div class="modal-body" style="padding:16px">
+      <div style="margin-bottom:12px"><div class="f-lbl">Cliente *</div><select id="n-cli" class="f-inp"><option value="">— Selecione —</option></select></div>
+      <div style="margin-bottom:12px"><div class="f-lbl">Jogo *</div><textarea id="n-jogo" rows="3" class="f-inp" style="resize:vertical" placeholder="Descreva o jogo..."></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div><div class="f-lbl">Odd *</div><input id="n-odd" type="number" step="0.01" placeholder="ex: 1.89" class="f-inp"/></div>
+        <div><div class="f-lbl">Entradas (R$) *</div><input id="n-val" type="number" placeholder="ex: 500" class="f-inp"/></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div><div class="f-lbl">Status</div><select id="n-st" class="f-inp"></select></div>
+        <div><div class="f-lbl">Descarrego</div><select id="n-dc" class="f-inp"></select></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button onclick="hideModal('modal-novo')" class="btn btn-gray" style="flex:1">Cancelar</button>
+        <button onclick="salvarNovo()" class="btn btn-green" style="flex:1">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════ DADOS ═══════════
+const AFILIADOS_INIT = [
+  {id:5,nome:"Heitor Escossia",com:0},
+  {id:7,nome:"Lucas Tiger",com:10},
+  {id:8,nome:"Renan Cardoso",com:10},
+  {id:3,nome:"Samuel Henriquer",com:15},
+  {id:4,nome:"Samuel Henrique",com:15},
+  {id:6,nome:"Yuri Honorio",com:0},
+];
+let AFILIADOS = JSON.parse(JSON.stringify(AFILIADOS_INIT));
+
+const CLIS_INIT = [
+  {id:12,nome:"AHLEFELD",     s:"102030",on:true, cal:0,   desc:0.01,com:6,sup:null,            af:0},
+  {id:28,nome:"ALE_FALTAS",   s:"",       on:true, cal:0,   desc:0.01,com:6,sup:null,            af:15},
+  {id:27,nome:"ALE_NBA",      s:"",       on:true, cal:0,   desc:0.01,com:6,sup:null,            af:15},
+  {id:26,nome:"ALECORNERS",   s:"",       on:true, cal:0,   desc:0.01,com:6,sup:null,            af:15},
+  {id:50,nome:"BRUNOFIRMINO", s:"666666", on:true, cal:0,   desc:0.01,com:6,sup:"Samuel Henrique",af:15},
+  {id:19,nome:"BRUNOGIRAO",   s:"",       on:false,cal:0,   desc:0.01,com:6,sup:null,            af:0},
+  {id:9, nome:"BRUXO",        s:"",       on:false,cal:0,   desc:0.01,com:6,sup:null,            af:0},
+  {id:20,nome:"CARIOCA",      s:"",       on:false,cal:0,   desc:0.01,com:6,sup:null,            af:0},
+  {id:51,nome:"CAVALCANTE",   s:"909090", on:true, cal:3000,desc:0.01,com:6,sup:null,            af:0},
+  {id:22,nome:"CRISTIAN",     s:"102030", on:true, cal:2045,desc:0.01,com:6,sup:"Heitor Escossia",af:10},
+  {id:16,nome:"DAVID",        s:"050505", on:true, cal:1957,desc:0.01,com:6,sup:null,            af:0},
+  {id:37,nome:"DAVIDBDS",     s:"",       on:true, cal:0,   desc:0.01,com:6,sup:null,            af:0},
+  {id:39,nome:"DAVIDLOPES",   s:"010101", on:true, cal:0,   desc:0,   com:6,sup:"Samuel Henrique",af:15},
+  {id:31,nome:"DIEGOMORAIS",  s:"858585", on:true, cal:0,   desc:0.01,com:6,sup:"Samuel Henrique",af:15},
+  {id:41,nome:"DRMURIELL",    s:"131313", on:true, cal:1500,desc:0.01,com:6,sup:"Heitor Escossia",af:10},
+];
+let CLIS = JSON.parse(JSON.stringify(CLIS_INIT));
+
+let REGS = [
+  {id:7184,dt:"2026-05-18 21:54",cId:22,jogo:"1) Cruzeiro (F) v Corinthians (F) (Odd 2,04)\n• Corinthians (F) – Resultado Final",odd:1.89,val:962, st:"EM ABERTO",dc:"",     sb:0,   cm:0,    caf:0, sl:0, bl:false,adv:false,irr:false},
+  {id:7311,dt:"2026-05-18 21:28",cId:28,jogo:"1) Arsenal – Burnley (Odd 1,56)\n• Menos de 30.5 – Total de chutes\n• Menos de 6.5 – Total de Gols",odd:1.56,val:886, st:"EM ABERTO",dc:"BETANO",sb:0,   cm:0,    caf:0, sl:0, bl:false,adv:false,irr:false},
+  {id:7316,dt:"2026-05-18 11:39",cId:12,jogo:"1) Cruzeiro (F) v Corinthians (F) (Odd 2,04)\n• Corinthians (F) – Resultado Final",odd:2.09,val:538, st:"EM ABERTO",dc:"BET365",sb:0,   cm:0,    caf:0, sl:0, bl:false,adv:false,irr:false},
+  {id:7100,dt:"2026-05-17 14:20",cId:50,jogo:"1) Bayern v Dortmund\n• Bayern – Resultado Final",                                                   odd:1.72,val:1200,st:"GREEN",    dc:"BETANO",sb:864, cm:51.84,caf:7.78,sl:804.38,bl:false,adv:false,irr:false},
+  {id:7090,dt:"2026-05-17 10:05",cId:22,jogo:"1) PSG v Marseille\n• PSG – Resultado Final",                                                        odd:1.84,val:500, st:"RED",      dc:"",     sb:-500,cm:0,    caf:0, sl:-500, bl:false,adv:false,irr:false},
+  {id:7080,dt:"2026-05-16 20:00",cId:16,jogo:"1) Liverpool v Arsenal\n• Menos de 2.5 gols",                                                        odd:2.10,val:750, st:"GREEN",    dc:"BET365",sb:825, cm:49.5, caf:0, sl:775.5,bl:false,adv:false,irr:false},
+];
+
+const STS = ["EM ABERTO","GREEN","MEIO GREEN","MEIO RED","RED","REEMBOLSO"];
+const DCS = ["","BETANO","BET365","SPORTINGBET","SUPERBET","PIXBET"];
+const SC  = {"EM ABERTO":{bg:"#2563eb",t:"#fff"},"GREEN":{bg:"#16a34a",t:"#fff"},"MEIO GREEN":{bg:"#86efac",t:"#14532d"},"MEIO RED":{bg:"#fca5a5",t:"#7f1d1d"},"RED":{bg:"#dc2626",t:"#fff"},"REEMBOLSO":{bg:"#7c3aed",t:"#fff"}};
+
+const fmt = n => Number(n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const clr = n => n>0?"#16a34a":n<0?"#dc2626":"#2563eb";
+const cMap = () => Object.fromEntries(CLIS.map(c=>[c.id,c]));
+
+let drafts = {};
+let currentUser = null;
+
+// ═══════════ UTILS ═══════════
+function badge(s){const c=SC[s]||{bg:"#e5e7eb",t:"#374151"};return `<span class="badge" style="background:${c.bg};color:${c.t}">${s}</span>`;}
+function stStyle(s){const c=SC[s]||{bg:"#e5e7eb",t:"#374151"};return `background:${c.bg};color:${c.t}`;}
+function stOpts(cur){return STS.map(s=>`<option value="${s}" style="${stStyle(s)}" ${cur===s?'selected':''}>${s}</option>`).join('');}
+function dcOpts(cur){return DCS.map(d=>`<option value="${d}" ${cur===d?'selected':''}>${d||'—'}</option>`).join('');}
+function mcHtml(lbl,val,color,sub=''){return `<div class="mc"><div class="mc-lbl">${lbl}</div><div class="mc-val" style="color:${color}">${val}</div>${sub?`<div class="mc-sub">${sub}</div>`:''}</div>`;}
+
+// ═══════════ AUTH ═══════════
+function toggleEye(){
+  const p=document.getElementById('lg-p');
+  const e=document.getElementById('lg-eye');
+  p.type=p.type==='password'?'text':'password';
+  e.textContent=p.type==='password'?'👁️':'🙈';
+}
+function doLogin(){
+  const u=document.getElementById('lg-u').value.trim().toUpperCase();
+  const p=document.getElementById('lg-p').value;
+  const err=document.getElementById('lg-err');
+  err.classList.add('hidden');
+  if(u==='ADMIN'&&p==='admin123'){currentUser={role:'admin',nome:'Admin'};initAdmin();return;}
+  const c=CLIS.find(c=>c.nome===u&&c.s===p&&c.on);
+  if(c){currentUser={role:'cliente',...c};initCliente();return;}
+  err.textContent='Usuário ou senha incorretos.';err.classList.remove('hidden');
+}
+function doLogout(){
+  currentUser=null;
+  document.getElementById('painel').classList.add('hidden');
+  document.getElementById('painel-cli').classList.add('hidden');
+  document.getElementById('login').classList.remove('hidden');
+  document.getElementById('lg-u').value='';
+  document.getElementById('lg-p').value='';
+}
+function closeMobMenu(){document.getElementById('mob-menu').classList.add('hidden');}
+
+// ═══════════ INIT ADMIN ═══════════
+function initAdmin(){
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('painel').classList.remove('hidden');
+  // preencher selects de filtro
+  const fN=document.getElementById('f-nome');
+  fN.innerHTML='<option value="">— Selecione um cliente —</option>';
+  CLIS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.nome;fN.appendChild(o);});
+  const fSt=document.getElementById('f-st');
+  fSt.innerHTML='<option value="">— Selecione um status —</option>';
+  STS.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;fSt.appendChild(o);});
+  // novo registro selects
+  const nCli=document.getElementById('n-cli');
+  nCli.innerHTML='<option value="">— Selecione —</option>';
+  CLIS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.nome;nCli.appendChild(o);});
+  const nSt=document.getElementById('n-st');
+  nSt.innerHTML='';
+  STS.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;nSt.appendChild(o);});
+  const nDc=document.getElementById('n-dc');
+  nDc.innerHTML='';
+  DCS.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d||'—';nDc.appendChild(o);});
+  renderRegs();
+}
+
+// ═══════════ FILTROS ═══════════
+function applyPeriod(){
+  const v=document.getElementById('f-period').value;
+  const dt1=document.getElementById('f-dt1');
+  const dt2=document.getElementById('f-dt2');
+  const today=new Date();
+  if(v==='hoje'){const d=fmtDate(today);dt1.value=d;dt2.value=d;}
+  else if(v==='ontem'){const d=new Date(today);d.setDate(d.getDate()-1);const ds=fmtDate(d);dt1.value=ds;dt2.value=ds;}
+  else if(v==='semana'){const mon=new Date(today);mon.setDate(today.getDate()-today.getDay()+1);const sun=new Date(mon);sun.setDate(mon.getDate()+6);dt1.value=fmtDate(mon);dt2.value=fmtDate(sun);}
+  else if(v==='semana_ant'){const mon=new Date(today);mon.setDate(today.getDate()-today.getDay()-6);const sun=new Date(mon);sun.setDate(mon.getDate()+6);dt1.value=fmtDate(mon);dt2.value=fmtDate(sun);}
+  renderRegs();
+}
+function applyFechPeriod(){
+  const v=document.getElementById('fech-period').value;
+  const today=new Date();
+  const dt1=document.getElementById('fech-dt1');
+  const dt2=document.getElementById('fech-dt2');
+  if(v==='hoje'){const d=fmtDate(today);dt1.value=d;dt2.value=d;}
+  else if(v==='ontem'){const d=new Date(today);d.setDate(d.getDate()-1);const ds=fmtDate(d);dt1.value=ds;dt2.value=ds;}
+  else if(v==='semana'){const mon=new Date(today);mon.setDate(today.getDate()-today.getDay()+1);const sun=new Date(mon);sun.setDate(mon.getDate()+6);dt1.value=fmtDate(mon);dt2.value=fmtDate(sun);}
+  else if(v==='semana_ant'){const mon=new Date(today);mon.setDate(today.getDate()-today.getDay()-6);const sun=new Date(mon);sun.setDate(mon.getDate()+6);dt1.value=fmtDate(mon);dt2.value=fmtDate(sun);}
+}
+function fmtDate(d){return d.toISOString().split('T')[0];}
+
+function getFiltered(){
+  const fId=document.getElementById('f-id').value;
+  const fN=document.getElementById('f-nome').value;
+  const fSt=document.getElementById('f-st').value;
+  const fJ=document.getElementById('f-jogo').value.toLowerCase();
+  const fOMin=document.getElementById('f-odd-min').value;
+  const fOMax=document.getElementById('f-odd-max').value;
+  const fVMin=document.getElementById('f-val-min').value;
+  const fVMax=document.getElementById('f-val-max').value;
+  const fDc=document.getElementById('f-dc').value.toLowerCase();
+  const fBl=document.getElementById('f-bl').value;
+  const fAdv=document.getElementById('f-adv').value;
+  const fIrr=document.getElementById('f-irr').value;
+  const ord=document.getElementById('f-ord').value;
+
+  let res=REGS.filter(r=>{
+    if(fId&&!String(r.id).includes(fId))return false;
+    if(fN&&r.cId!==Number(fN))return false;
+    if(fSt&&r.st!==fSt)return false;
+    if(fJ&&!r.jogo.toLowerCase().includes(fJ))return false;
+    if(fOMin&&r.odd<Number(fOMin))return false;
+    if(fOMax&&r.odd>Number(fOMax))return false;
+    if(fVMin&&r.val<Number(fVMin))return false;
+    if(fVMax&&r.val>Number(fVMax))return false;
+    if(fDc&&!r.dc.toLowerCase().includes(fDc))return false;
+    if(fBl==='sim'&&!r.bl)return false;
+    if(fBl==='nao'&&r.bl)return false;
+    if(fAdv==='sim'&&!r.adv)return false;
+    if(fAdv==='nao'&&r.adv)return false;
+    if(fIrr==='sim'&&!r.irr)return false;
+    if(fIrr==='nao'&&r.irr)return false;
+    return true;
+  });
+  if(ord==='data_asc')res.sort((a,b)=>a.dt.localeCompare(b.dt));
+  else if(ord==='data_desc')res.sort((a,b)=>b.dt.localeCompare(a.dt));
+  else if(ord==='val_desc')res.sort((a,b)=>b.val-a.val);
+  else if(ord==='val_asc')res.sort((a,b)=>a.val-b.val);
+  return res;
+}
+function limparFiltros(){
+  ['f-id','f-dt1','f-dt2','f-jogo','f-odd-min','f-odd-max','f-val-min','f-val-max','f-dc'].forEach(id=>{document.getElementById(id).value='';});
+  ['f-nome','f-st','f-period','f-bl','f-adv','f-irr'].forEach(id=>{document.getElementById(id).value='';});
+  document.getElementById('f-ord').value='data_desc';
+  renderRegs();
+}
+
+// ═══════════ RENDER REGISTROS ═══════════
+function renderRegs(){
+  const fil=getFiltered();
+  const cm=cMap();
+  // totais
+  const tot={v:0,ab:0,sb:0,cm:0,caf:0,sl:0,n:0,nab:0};
+  fil.forEach(r=>{tot.v+=r.val;if(r.st==='EM ABERTO'){tot.ab+=r.val;tot.nab++;}tot.sb+=r.sb;tot.cm+=r.cm;tot.caf+=r.caf;tot.sl+=r.sl;tot.n++;});
+  document.getElementById('m-val').textContent='R$ '+fmt(tot.v);document.getElementById('m-val').style.color='#16a34a';
+  document.getElementById('m-n').textContent=tot.n+' linhas';
+  document.getElementById('m-ab').textContent='R$ '+fmt(tot.ab);
+  document.getElementById('m-nab').textContent=tot.nab+' linhas';
+  document.getElementById('m-sb').textContent='R$ '+fmt(tot.sb);document.getElementById('m-sb').style.color=clr(tot.sb);
+  document.getElementById('m-cm').textContent='R$ '+fmt(tot.cm);
+  document.getElementById('m-sl').textContent='R$ '+fmt(tot.sl);document.getElementById('m-sl').style.color=clr(tot.sl);
+  document.getElementById('m-caf').textContent='R$ '+fmt(tot.caf);
+  document.getElementById('m-fech').textContent='R$ '+fmt(tot.sl-tot.caf);document.getElementById('m-fech').style.color=clr(tot.sl-tot.caf);
+  const semana=getSemanaAtual();
+  document.getElementById('reg-info').textContent=`Semana ${semana.ini} até ${semana.fim} | Página 1 — exibindo ${fil.length} de ${fil.length}`;
+  document.getElementById('tbl-info').textContent=`${fil.length} registros`;
+
+  // tabela desktop
+  document.getElementById('tbl-regs-body').innerHTML=fil.map((r,i)=>{
+    const c=cm[r.cId]||{};
+    const d=drafts[r.id]||{};
+    const bg=d._saved?'#f0fdf4':Object.keys(d).filter(k=>k!=='_saved').length>0?'#fffbeb':i%2===0?'#fff':'#f8fafc';
+    const dW=(f)=>(d[f]!==undefined?' inp-w':'');
+    const dV=(f)=>d[f]!==undefined?d[f]:r[f];
+    const btnBg=d._saved?'#15803d':Object.keys(d).filter(k=>k!=='_saved').length>0?'#d97706':'#2563eb';
+    const btnTxt=d._saved?'✓ Salvo':'Salvar';
+    return `<tr style="background:${bg};transition:background .3s">
+      <td style="font-weight:700;color:#374151">${r.id}</td>
+      <td><input class="inp${dW('dt')}" value="${dV('dt')}" oninput="updDraft(${r.id},'dt',this.value)" style="width:130px;font-size:11px"/></td>
+      <td style="font-weight:700;white-space:nowrap">${c.nome||r.cId}</td>
+      <td style="max-width:200px">${r.jogo.split('\n').map((l,ii)=>`<div style="font-size:${ii===0?11:10}px;color:${ii===0?'#111':'#6b7280'}">${l}</div>`).join('')}</td>
+      <td><input type="number" step="0.01" class="inp${dW('odd')}" value="${dV('odd')}" oninput="updDraft(${r.id},'odd',this.value)" style="width:58px;font-size:11px"/></td>
+      <td><input type="number" step="0.01" class="inp${dW('val')}" value="${dV('val')}" oninput="updDraft(${r.id},'val',this.value)" style="width:76px;font-size:11px;color:#2563eb;font-weight:700"/></td>
+      <td><select class="st-sel" style="${stStyle(r.st)}" onchange="updRegSt(${r.id},this.value,this)">${stOpts(r.st)}</select></td>
+      <td><select class="inp" onchange="updReg(${r.id},'dc',this.value)" style="font-size:11px">${dcOpts(r.dc)}</select></td>
+      <td class="td-r" style="font-weight:600;color:${clr(r.sb)}">${fmt(r.sb)}</td>
+      <td class="td-r" style="font-weight:600;color:${clr(r.cm)}">${fmt(r.cm)}</td>
+      <td class="td-c"><select class="inp" onchange="updReg(${r.id},'bl',this.value==='Sim')" style="font-size:11px"><option ${!r.bl?'selected':''}>Não</option><option ${r.bl?'selected':''}>Sim</option></select></td>
+      <td class="td-r" style="font-weight:700;color:${clr(r.sl)}">${fmt(r.sl)}</td>
+      <td class="td-sticky td-c" style="background:${bg}">
+        <div style="display:flex;gap:4px;justify-content:center">
+          <button class="btn btn-sm" onclick="saveReg(${r.id})" style="background:${btnBg};color:#fff">${btnTxt}</button>
+          <button class="btn btn-sm btn-red-o" onclick="delReg(${r.id})">✕</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // cards mobile
+  document.getElementById('regs-mob').innerHTML=fil.map((r,i)=>{
+    const c=cm[r.cId]||{};
+    const d=drafts[r.id]||{};
+    const bg=d._saved?'#f0fdf4':Object.keys(d).filter(k=>k!=='_saved').length>0?'#fffbeb':'#fff';
+    const dW=(f)=>(d[f]!==undefined?' inp-w':'');
+    const dV=(f)=>d[f]!==undefined?d[f]:r[f];
+    const btnBg=d._saved?'#15803d':Object.keys(d).filter(k=>k!=='_saved').length>0?'#d97706':'#2563eb';
+    return `<div class="rc" style="background:${bg}">
+      <div class="rc-h">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-weight:700;color:#374151;font-size:12px">#${r.id}</span>
+          <span style="font-weight:700;color:#111;font-size:14px">${c.nome||r.cId}</span>
+        </div>${badge(r.st)}</div>
+      <div class="rc-r"><span class="rc-l">Data/Hora</span><input class="inp${dW('dt')}" value="${dV('dt')}" oninput="updDraft(${r.id},'dt',this.value)" style="width:154px;text-align:right;font-size:12px"/></div>
+      <div class="rc-r"><span class="rc-l">Jogo</span><span style="font-size:11px;text-align:right;flex:1;margin-left:8px">${r.jogo.split('\n').map((l,ii)=>`<div style="color:${ii===0?'#111':'#6b7280'}">${l}</div>`).join('')}</span></div>
+      <div class="rc-r"><span class="rc-l">Odd</span><input type="number" step="0.01" class="inp${dW('odd')}" value="${dV('odd')}" oninput="updDraft(${r.id},'odd',this.value)" style="width:90px;text-align:right;font-weight:700"/></div>
+      <div class="rc-r"><span class="rc-l">Entradas</span><input type="number" step="0.01" class="inp${dW('val')}" value="${dV('val')}" oninput="updDraft(${r.id},'val',this.value)" style="width:110px;text-align:right;font-weight:700;color:#2563eb"/></div>
+      <div class="rc-r"><span class="rc-l">Status</span><div style="flex:1;margin-left:8px"><select class="st-sel inp-full" style="${stStyle(r.st)}" onchange="updRegSt(${r.id},this.value,this)">${stOpts(r.st)}</select></div></div>
+      <div class="rc-r"><span class="rc-l">Descarrego</span><select class="inp" onchange="updReg(${r.id},'dc',this.value)" style="width:auto">${dcOpts(r.dc)}</select></div>
+      <div class="rc-r"><span class="rc-l">S.Bruto</span><span style="font-weight:600;color:${clr(r.sb)}">R$ ${fmt(r.sb)}</span></div>
+      <div class="rc-r"><span class="rc-l">Comissão</span><span style="font-weight:600;color:${clr(r.cm)}">R$ ${fmt(r.cm)}</span></div>
+      <div class="rc-r"><span class="rc-l">S.Líquido</span><span style="font-weight:700;color:${clr(r.sl)}">R$ ${fmt(r.sl)}</span></div>
+      <div class="rc-btns">
+        <button class="btn" onclick="saveReg(${r.id})" style="background:${btnBg};color:#fff;flex:1">${d._saved?'✓ Salvo':'Salvar'}</button>
+        <button class="btn btn-red-o" onclick="delReg(${r.id})">Excluir</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getSemanaAtual(){
+  const today=new Date();
+  const mon=new Date(today);mon.setDate(today.getDate()-today.getDay()+1);
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  return{ini:fmtDate(mon),fim:fmtDate(sun)};
+}
+
+function updDraft(id,f,v){if(!drafts[id])drafts[id]={};drafts[id][f]=v;const el=document.getElementById('rc-'+id)||null;}
+function updReg(id,f,v){REGS=REGS.map(r=>r.id===id?{...r,[f]:v}:r);}
+function updRegSt(id,v,sel){
+  REGS=REGS.map(r=>r.id===id?{...r,st:v}:r);
+  const c=SC[v]||{bg:'#e5e7eb',t:'#374151'};
+  sel.style.background=c.bg;sel.style.color=c.t;
+}
+function saveReg(id){
+  const d=drafts[id]||{};
+  REGS=REGS.map(r=>{
+    if(r.id!==id)return r;
+    return{...r,...(d.dt!==undefined?{dt:d.dt}:{}),...(d.odd!==undefined?{odd:Number(d.odd)}:{}),...(d.val!==undefined?{val:Number(d.val)}:{})};
+  });
+  drafts[id]={_saved:true};
+  setTimeout(()=>{delete drafts[id];renderRegs();},1800);
+  renderRegs();
+}
+function delReg(id){if(confirm('Excluir este registro?')){REGS=REGS.filter(r=>r.id!==id);renderRegs();}}
+function salvarNovo(){
+  const cId=document.getElementById('n-cli').value;
+  const jogo=document.getElementById('n-jogo').value;
+  const odd=document.getElementById('n-odd').value;
+  const val=document.getElementById('n-val').value;
+  if(!cId||!jogo||!odd||!val){alert('Preencha todos os campos obrigatórios.');return;}
+  REGS.unshift({id:Date.now(),dt:new Date().toLocaleString('pt-BR').replace(',',''),cId:Number(cId),jogo,odd:Number(odd),val:Number(val),st:document.getElementById('n-st').value,dc:document.getElementById('n-dc').value,sb:0,cm:0,caf:0,sl:0,bl:false,adv:false,irr:false});
+  hideModal('modal-novo');
+  ['n-jogo','n-odd','n-val'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('n-cli').value='';
+  renderRegs();
+}
+
+// ═══════════ CLIENTES ═══════════
+function renderCli(){
+  const supOpts=['—',...AFILIADOS.map(a=>a.nome)];
+  document.getElementById('tbl-cli-body').innerHTML=CLIS.map((c,i)=>{
+    const supSel=supOpts.map(s=>`<option value="${s}" ${c.sup===s||(s==='—'&&!c.sup)?'selected':''}>${s}</option>`).join('');
+    const bg=i%2===0?'#fff':'#f8fafc';
+    return `<tr style="background:${bg}">
+      <td style="font-weight:600;color:#374151">${c.id}</td>
+      <td style="font-weight:700">${c.nome}</td>
+      <td><input class="inp" value="${c.s}" placeholder="Senha do cliente" oninput="updCli(${c.id},'s',this.value)" style="width:110px"/></td>
+      <td><select class="inp" onchange="updCli(${c.id},'on',this.value==='Sim')">
+        <option ${c.on?'selected':''}>Sim</option><option ${!c.on?'selected':''}>Não</option>
+      </select></td>
+      <td class="td-r"><input type="number" class="inp" value="${c.cal}" oninput="updCli(${c.id},'cal',Number(this.value))" style="width:80px;text-align:right"/></td>
+      <td class="td-r" style="color:#374151">${fmt(c.desc)}</td>
+      <td style="color:#374151">${c.com},00%</td>
+      <td><select class="inp" onchange="updCli(${c.id},'sup',this.value==='—'?null:this.value)" style="min-width:120px">${supSel}</select></td>
+      <td style="color:#374151">${c.af},00%</td>
+      <td class="td-sticky td-c" style="background:${bg}"><button class="btn btn-blue btn-sm" onclick="saveCli(${c.id})">Salvar</button></td>
+    </tr>`;
+  }).join('');
+}
+function updCli(id,f,v){CLIS=CLIS.map(c=>c.id===id?{...c,[f]:v}:c);}
+function saveCli(id){alert('Cliente salvo!');}
+function novoCliente(){
+  const nome=prompt('Nome do novo cliente (em maiúsculas):');
+  if(!nome)return;
+  const newId=Math.max(...CLIS.map(c=>c.id))+1;
+  CLIS.push({id:newId,nome:nome.toUpperCase(),s:'',on:true,cal:0,desc:0.01,com:6,sup:null,af:0});
+  renderCli();
+}
+
+// ═══════════ AFILIADOS ═══════════
+function renderAf(){
+  document.getElementById('tbl-af-body').innerHTML=AFILIADOS.map((a,i)=>{
+    const bg=i%2===0?'#fff':'#f8fafc';
+    return `<tr style="background:${bg}">
+      <td style="font-weight:600;color:#374151">${a.id}</td>
+      <td><input class="inp inp-full" value="${a.nome}" oninput="updAf(${a.id},'nome',this.value)"/></td>
+      <td style="color:#374151">${a.com},00%</td>
+      <td class="td-sticky td-c" style="background:${bg}"><button class="btn btn-blue btn-sm" onclick="saveAf(${a.id})">Salvar</button></td>
+    </tr>`;
+  }).join('');
+}
+function updAf(id,f,v){AFILIADOS=AFILIADOS.map(a=>a.id===id?{...a,[f]:v}:a);}
+function saveAf(id){alert('Afiliado salvo!');}
+function novoAfiliado(){
+  const nome=prompt('Nome do novo afiliado:');
+  if(!nome)return;
+  const newId=Math.max(...AFILIADOS.map(a=>a.id))+1;
+  AFILIADOS.push({id:newId,nome,com:0});
+  renderAf();
+}
+
+// ═══════════ FECHAMENTO ═══════════
+function renderFechamento(){
+  const cm=cMap();
+  const rows=CLIS.map(c=>{
+    const rs=REGS.filter(r=>r.cId===c.id);
+    const val=rs.reduce((s,r)=>s+r.val,0);
+    const ab=rs.filter(r=>r.st==='EM ABERTO').reduce((s,r)=>s+r.val,0);
+    const sb=rs.reduce((s,r)=>s+r.sb,0);
+    const cm2=rs.reduce((s,r)=>s+r.cm,0);
+    const caf=rs.reduce((s,r)=>s+r.caf,0);
+    const sl=sb-cm2-caf;
+    const saldoCal=c.cal+sl;
+    return{...c,val,ab,sb,cm:cm2,caf,sl,saldoCal};
+  }).filter(r=>r.val>0);
+
+  const g={cal:rows.reduce((s,r)=>s+r.cal,0),saldoCal:rows.reduce((s,r)=>s+r.saldoCal,0),val:rows.reduce((s,r)=>s+r.val,0),ab:rows.reduce((s,r)=>s+r.ab,0),sb:rows.reduce((s,r)=>s+r.sb,0),cm:rows.reduce((s,r)=>s+r.cm,0),caf:rows.reduce((s,r)=>s+r.caf,0),sl:rows.reduce((s,r)=>s+r.sl,0)};
+  document.getElementById('fech-metrics').innerHTML=
+    mcHtml('CALÇÃO',`R$ ${fmt(g.cal)}`,'#111827')+
+    mcHtml('SALDO CALÇÃO',`R$ ${fmt(g.saldoCal)}`,clr(g.saldoCal))+
+    mcHtml('TOTAL APOSTADO',`R$ ${fmt(g.val)}`,'#16a34a')+
+    mcHtml('EM ABERTO',`R$ ${fmt(g.ab)}`,'#2563eb')+
+    mcHtml('SALDO BRUTO',`R$ ${fmt(g.sb)}`,clr(g.sb))+
+    mcHtml('COMISSÃO',`R$ ${fmt(g.cm)}`,'#dc2626')+
+    mcHtml('COMISSÃO AFILIADO',`R$ ${fmt(g.caf)}`,'#dc2626')+
+    mcHtml('SALDO LÍQUIDO',`R$ ${fmt(g.sl)}`,clr(g.sl));
+  document.getElementById('fech-metrics').style.gridTemplateColumns='repeat(4,1fr)';
+
+  document.getElementById('fech-body').innerHTML=rows.map((r,i)=>{
+    const bg=i%2===0?'#fff':'#f8fafc';
+    return `<tr style="background:${bg}">
+      <td style="font-weight:700">${r.nome}</td>
+      <td class="td-r">${fmt(r.cal)}</td>
+      <td class="td-r" style="color:${clr(r.saldoCal)};font-weight:600">${fmt(r.saldoCal)}</td>
+      <td class="td-r" style="color:#16a34a;font-weight:600">${fmt(r.val)}</td>
+      <td class="td-r" style="color:#2563eb">${fmt(r.ab)}</td>
+      <td class="td-r" style="color:${clr(r.sb)};font-weight:600">${fmt(r.sb)}</td>
+      <td class="td-r" style="color:#dc2626;font-weight:600">${fmt(r.cm)}</td>
+      <td class="td-r" style="color:#dc2626">${fmt(r.caf)}</td>
+      <td class="td-r" style="color:${clr(r.sl)};font-weight:700">${fmt(r.sl)}</td>
+      <td class="td-sticky td-c" style="background:${bg}"><button class="btn-icon" title="Baixar PDF">⬇</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════ FECHAMENTO AFILIADO ═══════════
+function renderFechAf(){
+  const supervisores=[...new Set(CLIS.filter(c=>c.sup).map(c=>c.sup))];
+  const rows=supervisores.map(sup=>{
+    const clients=CLIS.filter(c=>c.sup===sup);
+    const cIds=clients.map(c=>c.id);
+    const rs=REGS.filter(r=>cIds.includes(r.cId));
+    const val=rs.reduce((s,r)=>s+r.val,0);
+    const ab=rs.filter(r=>r.st==='EM ABERTO').reduce((s,r)=>s+r.val,0);
+    const sb=rs.reduce((s,r)=>s+r.sb,0);
+    const cm=rs.reduce((s,r)=>s+r.cm,0);
+    const caf=rs.reduce((s,r)=>s+r.caf,0);
+    const sl=sb-cm-caf;
+    const logins=clients.length;
+    return{sup,logins,val,ab,sb,cm,caf,sl};
+  });
+
+  const g={logins:rows.reduce((s,r)=>s+r.logins,0),val:rows.reduce((s,r)=>s+r.val,0),ab:rows.reduce((s,r)=>s+r.ab,0),sb:rows.reduce((s,r)=>s+r.sb,0),cm:rows.reduce((s,r)=>s+r.cm,0),caf:rows.reduce((s,r)=>s+r.caf,0),sl:rows.reduce((s,r)=>s+r.sl,0)};
+  document.getElementById('faf-metrics').innerHTML=
+    mcHtml('LOGINS',g.logins,'#2563eb')+
+    mcHtml('ENTRADA',`R$ ${fmt(g.val)}`,'#16a34a')+
+    mcHtml('SALDO BRUTO',`R$ ${fmt(g.sb)}`,clr(g.sb))+
+    mcHtml('COMISSÃO',`R$ ${fmt(g.cm)}`,'#dc2626')+
+    mcHtml('COMISSÃO AFILIADO',`R$ ${fmt(g.caf)}`,'#dc2626')+
+    mcHtml('SALDO LÍQUIDO',`R$ ${fmt(g.sl)}`,clr(g.sl));
+  document.getElementById('faf-metrics').style.gridTemplateColumns='repeat(3,1fr)';
+
+  document.getElementById('faf-body').innerHTML=rows.map((r,i)=>{
+    const bg=i%2===0?'#fff':'#f8fafc';
+    return `<tr style="background:${bg}">
+      <td style="font-weight:700">${r.sup}</td>
+      <td class="td-c" style="color:#2563eb;font-weight:600">${r.logins}</td>
+      <td class="td-r" style="color:#16a34a;font-weight:600">${fmt(r.val)}</td>
+      <td class="td-r" style="color:#2563eb">${fmt(r.ab)}</td>
+      <td class="td-r" style="color:${clr(r.sb)};font-weight:600">${fmt(r.sb)}</td>
+      <td class="td-r" style="color:#dc2626;font-weight:600">${fmt(r.cm)}</td>
+      <td class="td-r" style="color:#dc2626">${fmt(r.caf)}</td>
+      <td class="td-r" style="color:${clr(r.sl)};font-weight:700">${fmt(r.sl)}</td>
+      <td class="td-sticky td-c" style="background:${bg}"><button class="btn-icon" title="Baixar PDF">⬇</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════ PAINEL CLIENTE ═══════════
+function initCliente(){
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('painel-cli').classList.remove('hidden');
+  document.getElementById('cli-title').textContent='🎯 Prime Bet • '+currentUser.nome;
+  const semana=getSemanaAtual();
+  document.getElementById('cli-period-label').textContent=`Período aplicado: ${semana.ini} até ${semana.fim}`;
+  const stSel=document.getElementById('cli-st');
+  stSel.innerHTML='<option>Todos</option>';
+  STS.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;stSel.appendChild(o);});
+  renderCliente();
+}
+function renderCliente(){
+  const mRegs=REGS.filter(r=>r.cId===currentUser.id);
+  const tot={v:mRegs.reduce((s,r)=>s+r.val,0),ab:mRegs.filter(r=>r.st==='EM ABERTO').reduce((s,r)=>s+r.val,0),sb:mRegs.reduce((s,r)=>s+r.sb,0),cm:mRegs.reduce((s,r)=>s+r.cm,0),sl:mRegs.reduce((s,r)=>s+r.sl,0),n:mRegs.length,nab:mRegs.filter(r=>r.st==='EM ABERTO').length};
+  document.getElementById('cm-val').textContent='R$ '+fmt(tot.v);document.getElementById('cm-val').style.color='#16a34a';
+  document.getElementById('cm-n').textContent=tot.n+' linhas';
+  document.getElementById('cm-ab').textContent='R$ '+fmt(tot.ab);
+  document.getElementById('cm-nab').textContent=tot.nab+' linhas';
+  document.getElementById('cm-sb').textContent='R$ '+fmt(tot.sb);document.getElementById('cm-sb').style.color=clr(tot.sb);
+  document.getElementById('cm-cm').textContent='R$ '+fmt(tot.cm);
+  document.getElementById('cm-sl').textContent='R$ '+fmt(tot.sl);document.getElementById('cm-sl').style.color=clr(tot.sl);
+  document.getElementById('cm-cal').textContent='R$ '+fmt(currentUser.cal||0);
+  document.getElementById('cm-calcao-sub').textContent='Calção: '+fmt(currentUser.cal||0);
+
+  document.getElementById('cli-tbl-body').innerHTML=mRegs.map((r,i)=>`
+    <tr style="background:${i%2===0?'#fff':'#f8fafc'}">
+      <td style="color:#6b7280;white-space:nowrap;font-size:11px">${r.dt}</td>
+      <td style="max-width:220px">${r.jogo.split('\n').map((l,ii)=>`<div style="font-size:${ii===0?11:10}px;color:${ii===0?'#111':'#6b7280'}">${l}</div>`).join('')}</td>
+      <td style="font-weight:600">${r.odd}</td>
+      <td class="td-r" style="font-weight:700;color:#2563eb">${fmt(r.val)}</td>
+      <td>${badge(r.st)}</td>
+      <td class="td-r" style="font-weight:600;color:${clr(r.sb)}">${fmt(r.sb)}</td>
+      <td class="td-r" style="color:#dc2626">${fmt(r.cm)}</td>
+      <td class="td-c">${r.bl?'Sim':'Não'}</td>
+      <td class="td-r" style="font-weight:700;color:${clr(r.sl)}">${fmt(r.sl)}</td>
+    </tr>`).join('');
+
+  document.getElementById('cli-tbl-info').textContent=`0–${mRegs.length} de ${mRegs.length}`;
+  document.getElementById('cli-regs-mob').innerHTML=mRegs.map(r=>`
+    <div class="rc">
+      <div class="rc-h"><span style="font-size:11px;color:#6b7280">${r.dt}</span>${badge(r.st)}</div>
+      <div style="font-size:12px;margin-bottom:8px">${r.jogo.split('\n').map((l,ii)=>`<div style="color:${ii===0?'#111':'#6b7280'}">${l}</div>`).join('')}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px">
+        <div><span style="color:#9ca3af">Odd: </span><b>${r.odd}</b></div>
+        <div><span style="color:#9ca3af">Entradas: </span><b style="color:#2563eb">R$ ${fmt(r.val)}</b></div>
+        <div><span style="color:#9ca3af">S.Bruto: </span><b style="color:${clr(r.sb)}">R$ ${fmt(r.sb)}</b></div>
+        <div><span style="color:#9ca3af">S.Líquido: </span><b style="color:${clr(r.sl)}">R$ ${fmt(r.sl)}</b></div>
+      </div>
+    </div>`).join('');
+}
+
+// ═══════════ MODAIS ═══════════
+function showModal(id){
+  document.getElementById(id).classList.remove('hidden');
+  if(id==='modal-cli')renderCli();
+  if(id==='modal-af')renderAf();
+  if(id==='modal-fech')renderFechamento();
+  if(id==='modal-fech-af')renderFechAf();
+}
+function hideModal(id){document.getElementById(id).classList.add('hidden');}
+
+// fechar modal clicando fora
+document.querySelectorAll('.modal-bg').forEach(el=>{
+  el.addEventListener('click',function(e){if(e.target===this)this.classList.add('hidden');});
+});
+</script>
+</body>
+</html>
