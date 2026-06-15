@@ -1,10 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas } from './types';
-import { criarAposta, atualizarAposta, excluirAposta, listarApostas } from './actions';
+import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp } from './types';
+import {
+  criarAposta, atualizarAposta, excluirAposta, listarApostas,
+  criarCliente, atualizarCliente, criarAfiliado, atualizarAfiliado,
+  fechamentoClientes, fechamentoAfiliados,
+} from './actions';
 
 interface Draft { dt?: string; odd?: string; val?: string; _saved?: boolean }
 
@@ -39,8 +43,23 @@ const filtrosVazios = {
 
 const inp = 'w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-sm text-slate-800 dark:text-slate-100 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20';
 const lbl = 'mb-1 block text-[11px] font-medium text-slate-400 dark:text-slate-500';
+const cinp = 'rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-amber-500';
 
-export default function PainelModerno({ email, clientesIni, apostasIni, semana }: {
+function Modal({ title, onClose, max = 'max-w-3xl', children }: { title: ReactNode; onClose: () => void; max?: string; children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4" onClick={onClose}>
+      <div className={`my-6 flex max-h-[88vh] w-full ${max} flex-col overflow-hidden rounded-2xl bg-white dark:bg-slate-900`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3.5 dark:border-slate-800">
+          <div className="text-base font-medium">{title}</div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <div className="overflow-y-auto p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export default function PainelModerno({ email, clientesIni, afiliadosIni, apostasIni, semana }: {
   email: string; clientesIni: Cliente[]; afiliadosIni: Afiliado[]; apostasIni: ApostasPage; semana: { d1: string; d2: string };
 }) {
   const router = useRouter();
@@ -55,8 +74,16 @@ export default function PainelModerno({ email, clientesIni, apostasIni, semana }
   const [total, setTotal] = useState(apostasIni.total);
   const [totals, setTotals] = useState<Totals>(apostasIni.totals);
   const [reloadKey, setReloadKey] = useState(0);
-  const [clientes] = useState<Cliente[]>(clientesIni);
+  const [clientes, setClientes] = useState<Cliente[]>(clientesIni);
+  const [afiliados, setAfiliados] = useState<Afiliado[]>(afiliadosIni);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
+  const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf'>(null);
+  const [novoCli, setNovoCli] = useState({ open: false, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '' });
+  const [novoAf, setNovoAf] = useState({ open: false, nome: '', com: '0' });
+  const [fech, setFech] = useState({ dt1: semana.d1, dt2: semana.d2, period: 'semana' });
+  const [faf, setFaf] = useState({ dt1: semana.d1, dt2: semana.d2, period: 'semana' });
+  const [fechRes, setFechRes] = useState<FechCliResp | null>(null);
+  const [fafRes, setFafRes] = useState<FechAfResp | null>(null);
   const [filtros, setFiltros] = useState({ ...filtrosVazios, dt1: semana.d1, dt2: semana.d2, period: 'semana' });
   const [debFiltros, setDebFiltros] = useState(filtros);
   const [page, setPage] = useState(1);
@@ -90,6 +117,7 @@ export default function PainelModerno({ email, clientesIni, apostasIni, semana }
   }, [debFiltros, page, reloadKey]);
 
   const reload = () => setReloadKey((k) => k + 1);
+  const navBtn = 'rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/15';
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageSafe = Math.min(Math.max(1, page), totalPages);
   const start = (pageSafe - 1) * PAGE_SIZE;
@@ -122,7 +150,40 @@ export default function PainelModerno({ email, clientesIni, apostasIni, semana }
     } catch { toast('Erro ao adicionar.'); }
   }
   async function sair() { const s = createClient(); await s.auth.signOut(); router.replace('/login'); }
-  const emBreve = () => toast('Essa tela entra na próxima iteração do moderno.');
+
+  // clientes
+  function updCli(id: number, patch: Partial<Cliente>) { setClientes((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c))); }
+  async function saveCli(id: number) {
+    const c = clientes.find((x) => x.id === id); if (!c) return;
+    try {
+      const res = await atualizarCliente(id, { nome: c.nome, s: c.s, on: c.on, cal: c.cal, desc: c.desc, com: c.com, sup: c.sup, af: c.af, link: c.link });
+      setClientes((cs) => cs.map((x) => (x.id === id ? res.cliente : x))); reload(); toast('Cliente salvo!');
+    } catch { toast('Erro ao salvar cliente.'); }
+  }
+  function copiarLink(link: string | null) { if (!link) { toast('Cliente sem link.'); return; } const u = window.location.origin + link; navigator.clipboard?.writeText(u).then(() => toast('Link copiado!'), () => toast(u)); }
+  function novoCliente() { setNovoCli({ open: true, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '' }); }
+  async function salvarNovoCliente() {
+    if (!novoCli.nome.trim()) { alert('Informe o nome.'); return; }
+    try {
+      const c = await criarCliente({ nome: novoCli.nome, senha: novoCli.senha, calcao: Number(novoCli.cal) || 0, desconto: Number(novoCli.desc) || 0, comissao: Number(novoCli.com) || 0, comissaoSup: Number(novoCli.af) || 0, sup: novoCli.sup || null });
+      setClientes((cs) => [...cs, c].sort((a, b) => a.nome.localeCompare(b.nome))); setNovoCli((s) => ({ ...s, open: false })); toast('Cliente criado!');
+    } catch { toast('Erro ao criar cliente.'); }
+  }
+  // afiliados
+  function updAf(id: number, patch: Partial<Afiliado>) { setAfiliados((as) => as.map((a) => (a.id === id ? { ...a, ...patch } : a))); }
+  async function saveAf(id: number) { const a = afiliados.find((x) => x.id === id); if (!a) return; try { const res = await atualizarAfiliado(id, { nome: a.nome, com: a.com }); setAfiliados((as) => as.map((x) => (x.id === id ? res : x))); toast('Afiliado salvo!'); } catch { toast('Erro ao salvar afiliado.'); } }
+  function novoAfiliado() { setNovoAf({ open: true, nome: '', com: '0' }); }
+  async function salvarNovoAfiliado() { if (!novoAf.nome.trim()) { alert('Informe o nome.'); return; } try { const a = await criarAfiliado(novoAf.nome, Number(novoAf.com) || 0); setAfiliados((as) => [...as, a].sort((x, y) => x.nome.localeCompare(y.nome))); setNovoAf((s) => ({ ...s, open: false })); toast('Afiliado criado!'); } catch { toast('Erro ao criar afiliado.'); } }
+  // fechamento
+  function loadFech(d1: string, d2: string) { fechamentoClientes(d1 || null, d2 || null).then(setFechRes).catch(() => toast('Erro no fechamento.')); }
+  function loadFaf(d1: string, d2: string) { fechamentoAfiliados(d1 || null, d2 || null).then(setFafRes).catch(() => toast('Erro no fechamento.')); }
+  useEffect(() => {
+    if (modal === 'fech') loadFech(fech.dt1, fech.dt2);
+    if (modal === 'faf') loadFaf(faf.dt1, faf.dt2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modal]);
+  const fechData = fechRes ?? { rows: [], g: { cal: 0, saldoCal: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 } };
+  const fafData = fafRes ?? { rows: [], g: { logins: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 } };
 
   return (
     <div className={dark ? 'dark' : ''}>
@@ -137,15 +198,17 @@ export default function PainelModerno({ email, clientesIni, apostasIni, semana }
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {['Clientes', 'Afiliados', 'Fechamento'].map((t) => (
-              <button key={t} onClick={emBreve} className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/15">{t}</button>
-            ))}
+            <button onClick={() => setModal('cli')} className={navBtn}>Clientes</button>
+            <button onClick={() => setModal('af')} className={navBtn}>Afiliados</button>
+            <button onClick={() => setModal('fech')} className={navBtn}>Fechamento</button>
+            <button onClick={() => setModal('faf')} className={navBtn}>Fech. afiliado</button>
+            <a href="/admin" className={navBtn} title="Ir para o painel clássico">↩ Clássico</a>
             <button onClick={toggleTheme} title="Tema" className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
             <button onClick={sair} className="rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6">
+        <main className="w-full px-4 py-5 sm:px-6">
           <div className="mb-1 text-lg font-medium">Primebet — Controle</div>
           <div className="mb-4 text-xs text-slate-400">Registros — {email}</div>
 
@@ -278,6 +341,138 @@ export default function PainelModerno({ email, clientesIni, apostasIni, semana }
               </div>
             </div>
           </div>
+        )}
+
+        {/* CLIENTES */}
+        {modal === 'cli' && (
+          <Modal onClose={() => setModal(null)} max="max-w-6xl" title={<div className="flex items-center gap-3"><span>Clientes</span><button onClick={novoCliente} className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700">+ Novo</button></div>}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead><tr className="text-left text-slate-400">
+                  <th className="px-2 py-2 font-medium">ID</th><th className="px-2 py-2 font-medium">Nome</th><th className="px-2 py-2 font-medium">Senha</th><th className="px-2 py-2 font-medium">Ativo</th><th className="px-2 py-2 font-medium">Calção</th><th className="px-2 py-2 font-medium">Desc.</th><th className="px-2 py-2 font-medium">Com.%</th><th className="px-2 py-2 font-medium">Supervisor</th><th className="px-2 py-2 font-medium">C.Afil.%</th><th className="px-2 py-2 font-medium">Link</th><th className="px-2 py-2 font-medium">Ações</th>
+                </tr></thead>
+                <tbody>{clientes.map((c) => (
+                  <tr key={c.id} className="border-t border-slate-100 dark:border-slate-800">
+                    <td className="px-2 py-1.5 text-slate-500">{c.id}</td>
+                    <td className="px-2 py-1.5"><input className={`${cinp} w-36 font-medium`} value={c.nome} onChange={(e) => updCli(c.id, { nome: e.target.value.toUpperCase() })} /></td>
+                    <td className="px-2 py-1.5"><input className={`${cinp} w-24`} value={c.s} onChange={(e) => updCli(c.id, { s: e.target.value })} /></td>
+                    <td className="px-2 py-1.5"><select className={cinp} value={c.on ? 'Sim' : 'Não'} onChange={(e) => updCli(c.id, { on: e.target.value === 'Sim' })}><option>Sim</option><option>Não</option></select></td>
+                    <td className="px-2 py-1.5"><input type="number" className={`${cinp} w-20 text-right`} value={c.cal} onChange={(e) => updCli(c.id, { cal: Number(e.target.value) })} /></td>
+                    <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-16 text-right`} value={c.desc} onChange={(e) => updCli(c.id, { desc: Number(e.target.value) })} /></td>
+                    <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-14`} value={c.com} onChange={(e) => updCli(c.id, { com: Number(e.target.value) })} /></td>
+                    <td className="px-2 py-1.5"><select className={`${cinp} w-32`} value={c.sup ?? '—'} onChange={(e) => updCli(c.id, { sup: e.target.value === '—' ? null : e.target.value })}><option>—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></td>
+                    <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-14`} value={c.af} onChange={(e) => updCli(c.id, { af: Number(e.target.value) })} /></td>
+                    <td className="px-2 py-1.5"><div className="flex items-center gap-1"><input className={`${cinp} w-36`} value={c.link ?? ''} onChange={(e) => updCli(c.id, { link: e.target.value })} /><button onClick={() => copiarLink(c.link)} title="Copiar" className="rounded-md border border-slate-200 px-1.5 py-1 dark:border-slate-700">⧉</button></div></td>
+                    <td className="px-2 py-1.5"><button onClick={() => saveCli(c.id)} className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700">Salvar</button></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </Modal>
+        )}
+
+        {/* AFILIADOS */}
+        {modal === 'af' && (
+          <Modal onClose={() => setModal(null)} max="max-w-xl" title={<div className="flex items-center gap-3"><span>Afiliados</span><button onClick={novoAfiliado} className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700">+ Novo</button></div>}>
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-slate-400"><th className="px-2 py-2 font-medium">ID</th><th className="px-2 py-2 font-medium">Nome</th><th className="px-2 py-2 font-medium">Comissão %</th><th className="px-2 py-2 font-medium">Ações</th></tr></thead>
+              <tbody>{afiliados.map((a) => (
+                <tr key={a.id} className="border-t border-slate-100 dark:border-slate-800">
+                  <td className="px-2 py-1.5 text-slate-500">{a.id}</td>
+                  <td className="px-2 py-1.5"><input className={`${cinp} w-full`} value={a.nome} onChange={(e) => updAf(a.id, { nome: e.target.value })} /></td>
+                  <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-24`} value={a.com} onChange={(e) => updAf(a.id, { com: Number(e.target.value) })} /></td>
+                  <td className="px-2 py-1.5"><button onClick={() => saveAf(a.id)} className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700">Salvar</button></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </Modal>
+        )}
+
+        {/* FECHAMENTO */}
+        {modal === 'fech' && (
+          <Modal onClose={() => setModal(null)} max="max-w-6xl" title="Fechamento">
+            <div className="mb-4 flex flex-wrap items-end gap-3">
+              <div><span className={lbl}>Data início</span><input type="date" className={inp} value={fech.dt1} onChange={(e) => setFech((f) => ({ ...f, dt1: e.target.value, period: '' }))} /></div>
+              <div><span className={lbl}>Data fim</span><input type="date" className={inp} value={fech.dt2} onChange={(e) => setFech((f) => ({ ...f, dt2: e.target.value, period: '' }))} /></div>
+              <div><span className={lbl}>Período</span><select className={inp} value={fech.period} onChange={(e) => { const p = periodDates(e.target.value); setFech({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); loadFech(p.d1, p.d2); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta semana</option><option value="semana_ant">Semana passada</option></select></div>
+              <button onClick={() => loadFech(fech.dt1, fech.dt2)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Buscar</button>
+            </div>
+            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {([['Calção', fechData.g.cal], ['Saldo calção', fechData.g.saldoCal], ['Total apostado', fechData.g.val], ['Em aberto', fechData.g.ab], ['Saldo bruto', fechData.g.sb], ['Comissão', fechData.g.cm], ['Com. afiliado', fechData.g.caf], ['Saldo líquido', fechData.g.sl]] as [string, number][]).map(([l, v]) => (
+                <div key={l} className="rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50"><div className="text-[11px] text-slate-400">{l}</div><div className="text-sm font-semibold tabular-nums">R$ {fmt(v)}</div></div>
+              ))}
+            </div>
+            <div className="overflow-x-auto"><table className="w-full text-xs">
+              <thead><tr className="text-left text-slate-400"><th className="px-2 py-2 font-medium">Cliente</th><th className="px-2 py-2 text-right font-medium">Calção</th><th className="px-2 py-2 text-right font-medium">Saldo calção</th><th className="px-2 py-2 text-right font-medium">Apostado</th><th className="px-2 py-2 text-right font-medium">Em aberto</th><th className="px-2 py-2 text-right font-medium">S. bruto</th><th className="px-2 py-2 text-right font-medium">Comissão</th><th className="px-2 py-2 text-right font-medium">C. afil.</th><th className="px-2 py-2 text-right font-medium">S. líquido</th></tr></thead>
+              <tbody>{fechData.rows.map((r) => (
+                <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800">
+                  <td className="px-2 py-1.5 font-medium">{r.nome}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.cal)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.saldoCal)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.val)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.ab)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.sb)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.cm)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.caf)}</td><td className="px-2 py-1.5 text-right font-semibold tabular-nums">{fmt(r.sl)}</td>
+                </tr>
+              ))}
+              {fechData.rows.length === 0 && <tr><td colSpan={9} className="px-2 py-8 text-center text-slate-400">Sem movimento no período.</td></tr>}
+              </tbody>
+            </table></div>
+          </Modal>
+        )}
+
+        {/* FECHAMENTO AFILIADO */}
+        {modal === 'faf' && (
+          <Modal onClose={() => setModal(null)} max="max-w-5xl" title="Fechamento afiliado">
+            <div className="mb-4 flex flex-wrap items-end gap-3">
+              <div><span className={lbl}>Data início</span><input type="date" className={inp} value={faf.dt1} onChange={(e) => setFaf((f) => ({ ...f, dt1: e.target.value, period: '' }))} /></div>
+              <div><span className={lbl}>Data fim</span><input type="date" className={inp} value={faf.dt2} onChange={(e) => setFaf((f) => ({ ...f, dt2: e.target.value, period: '' }))} /></div>
+              <div><span className={lbl}>Período</span><select className={inp} value={faf.period} onChange={(e) => { const p = periodDates(e.target.value); setFaf({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); loadFaf(p.d1, p.d2); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta semana</option><option value="semana_ant">Semana passada</option></select></div>
+              <button onClick={() => loadFaf(faf.dt1, faf.dt2)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Buscar</button>
+            </div>
+            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {([['Logins', fafData.g.logins, false], ['Entrada', fafData.g.val, true], ['Em aberto', fafData.g.ab, true], ['Saldo bruto', fafData.g.sb, true], ['Comissão', fafData.g.cm, true], ['Saldo líquido', fafData.g.sl, true]] as [string, number, boolean][]).map(([l, v, money]) => (
+                <div key={l} className="rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50"><div className="text-[11px] text-slate-400">{l}</div><div className="text-sm font-semibold tabular-nums">{money ? `R$ ${fmt(v)}` : String(v)}</div></div>
+              ))}
+            </div>
+            <div className="overflow-x-auto"><table className="w-full text-xs">
+              <thead><tr className="text-left text-slate-400"><th className="px-2 py-2 font-medium">Supervisor</th><th className="px-2 py-2 text-center font-medium">Logins</th><th className="px-2 py-2 text-right font-medium">Entrada</th><th className="px-2 py-2 text-right font-medium">Em aberto</th><th className="px-2 py-2 text-right font-medium">S. bruto</th><th className="px-2 py-2 text-right font-medium">Comissão</th><th className="px-2 py-2 text-right font-medium">C. afil.</th><th className="px-2 py-2 text-right font-medium">S. líquido</th></tr></thead>
+              <tbody>{fafData.rows.map((r) => (
+                <tr key={r.sup} className="border-t border-slate-100 dark:border-slate-800">
+                  <td className="px-2 py-1.5 font-medium">{r.sup}</td><td className="px-2 py-1.5 text-center tabular-nums">{r.logins}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.val)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.ab)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.sb)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.cm)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.caf)}</td><td className="px-2 py-1.5 text-right font-semibold tabular-nums">{fmt(r.sl)}</td>
+                </tr>
+              ))}
+              {fafData.rows.length === 0 && <tr><td colSpan={8} className="px-2 py-8 text-center text-slate-400">Nenhum supervisor com movimento.</td></tr>}
+              </tbody>
+            </table></div>
+          </Modal>
+        )}
+
+        {/* NOVO CLIENTE */}
+        {novoCli.open && (
+          <Modal onClose={() => setNovoCli((s) => ({ ...s, open: false }))} max="max-w-md" title="Novo cliente">
+            <div className="flex flex-col gap-3">
+              <div><span className={lbl}>Nome</span><input className={inp} value={novoCli.nome} onChange={(e) => setNovoCli((s) => ({ ...s, nome: e.target.value.toUpperCase() }))} /></div>
+              <div><span className={lbl}>Senha de acesso</span><input className={inp} value={novoCli.senha} onChange={(e) => setNovoCli((s) => ({ ...s, senha: e.target.value }))} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className={lbl}>Calção</span><input type="number" className={inp} value={novoCli.cal} onChange={(e) => setNovoCli((s) => ({ ...s, cal: e.target.value }))} /></div>
+                <div><span className={lbl}>Desconto</span><input type="number" step="0.01" className={inp} value={novoCli.desc} onChange={(e) => setNovoCli((s) => ({ ...s, desc: e.target.value }))} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className={lbl}>Comissão %</span><input type="number" step="0.01" className={inp} value={novoCli.com} onChange={(e) => setNovoCli((s) => ({ ...s, com: e.target.value }))} /></div>
+                <div><span className={lbl}>Comissão afiliado %</span><input type="number" step="0.01" className={inp} value={novoCli.af} onChange={(e) => setNovoCli((s) => ({ ...s, af: e.target.value }))} /></div>
+              </div>
+              <div><span className={lbl}>Supervisor</span><select className={inp} value={novoCli.sup} onChange={(e) => setNovoCli((s) => ({ ...s, sup: e.target.value }))}><option value="">—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></div>
+              <div className="text-[11px] text-slate-400">O link de acesso é gerado automaticamente.</div>
+              <div className="mt-1 flex justify-end gap-2"><button onClick={() => setNovoCli((s) => ({ ...s, open: false }))} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button><button onClick={salvarNovoCliente} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Cadastrar</button></div>
+            </div>
+          </Modal>
+        )}
+
+        {/* NOVO AFILIADO */}
+        {novoAf.open && (
+          <Modal onClose={() => setNovoAf((s) => ({ ...s, open: false }))} max="max-w-sm" title="Novo afiliado">
+            <div className="flex flex-col gap-3">
+              <div><span className={lbl}>Nome</span><input className={inp} value={novoAf.nome} onChange={(e) => setNovoAf((s) => ({ ...s, nome: e.target.value }))} /></div>
+              <div><span className={lbl}>Comissão %</span><input type="number" step="0.01" className={inp} value={novoAf.com} onChange={(e) => setNovoAf((s) => ({ ...s, com: e.target.value }))} /></div>
+              <div className="mt-1 flex justify-end gap-2"><button onClick={() => setNovoAf((s) => ({ ...s, open: false }))} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button><button onClick={salvarNovoAfiliado} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Cadastrar</button></div>
+            </div>
+          </Modal>
         )}
 
         {toastMsg && <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-lg dark:bg-slate-700">{toastMsg}</div>}

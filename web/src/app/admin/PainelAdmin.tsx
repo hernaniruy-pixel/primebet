@@ -322,6 +322,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
           <button className="tb-btn" onClick={() => setModal('af')}>🤝 Afiliados</button>
           <button className="tb-btn" onClick={() => setModal('fech')}>📊 Fechamento</button>
           <button className="tb-btn" onClick={() => setModal('faf')}>📋 Fechamento Afiliado</button>
+          <button className="tb-btn" onClick={() => router.push('/admin/moderno')} title="Abrir painel moderno">✨ Moderno</button>
           <button className="tb-btn" onClick={toggleTheme} title="Alternar tema">{dark ? '☀️' : '🌙'}</button>
           <button className="tb-sair" onClick={sair}>↪ Sair</button>
         </div>
@@ -339,6 +340,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
             <button className="mob-item" onClick={() => { setModal('faf'); setMobMenu(false); }}>📋 Fech. Afiliado</button>
             <button className="mob-item" onClick={() => { setNovo((n) => ({ ...n, open: true })); setMobMenu(false); }}>➕ Novo Registro</button>
             <button className="mob-item" onClick={() => { setModal('wpp'); setMobMenu(false); }}>📥 Receber bilhete</button>
+            <button className="mob-item" onClick={() => router.push('/admin/moderno')}>✨ Painel moderno</button>
             <button className="mob-item" onClick={toggleTheme}>{dark ? '☀️ Tema claro' : '🌙 Tema escuro'}</button>
             <button className="mob-sair" onClick={sair}>🚪 Sair</button>
           </div>
