@@ -62,6 +62,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
   const [afiliados, setAfiliados] = useState<Afiliado[]>(afiliadosIni);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [filtros, setFiltros] = useState({ ...filtrosVazios, dt1: semana.d1, dt2: semana.d2, period: 'semana' });
+  const [debFiltros, setDebFiltros] = useState(filtros);
   const [page, setPage] = useState(1);
   const [toastMsg, setToastMsg] = useState('');
   const [mobMenu, setMobMenu] = useState(false);
@@ -121,10 +122,16 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
 
   function limparFiltros() { setFiltros({ ...filtrosVazios }); setPage(1); }
 
+  // ── debounce: espera ~400ms após parar de digitar antes de consultar
+  useEffect(() => {
+    const t = setTimeout(() => setDebFiltros(filtros), 400);
+    return () => clearTimeout(t);
+  }, [filtros]);
+
   // ── busca paginada no servidor (semana atual por padrão)
   useEffect(() => {
     let alive = true;
-    const f = filtros;
+    const f = debFiltros;
     const params: FiltroApostas = {
       id: f.id || undefined,
       cId: f.nome ? Number(f.nome) : null,
@@ -145,7 +152,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
       .catch(() => { if (alive) toast('Erro ao carregar apostas.'); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtros, page, reloadKey]);
+  }, [debFiltros, page, reloadKey]);
 
   const reload = () => setReloadKey((k) => k + 1);
 
