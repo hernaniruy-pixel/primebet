@@ -22,8 +22,11 @@ create table if not exists public.clientes (
   comissao_pct           numeric(5,2)  not null default 0,   -- % de comissão da banca sobre o ganho
   afiliado_id            bigint references public.afiliados(id) on delete set null,
   afiliado_comissao_pct  numeric(5,2)  not null default 0,   -- % do afiliado sobre a comissão
+  link                   text,                              -- URL única de acesso do jogador (ex: /xxxx/NOME)
   criado_em              timestamptz not null default now()
 );
+
+alter table public.clientes add column if not exists link text;
 
 -- ───────────────── APOSTAS (bilhetes) ─────────────────
 create table if not exists public.apostas (

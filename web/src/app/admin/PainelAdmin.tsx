@@ -39,7 +39,7 @@ function periodDates(v: string): { d1: string; d2: string } {
 }
 
 const filtrosVazios = {
-  id: '', nome: '', st: '', jogo: '', oddMin: '', oddMax: '', valMin: '', valMax: '',
+  id: '', nome: '', st: '', jogo: '', dc: '', oddMin: '', oddMax: '', valMin: '', valMax: '',
   bl: '', adv: '', irr: '', dt1: '', dt2: '', period: '', ord: 'data_desc',
 };
 
@@ -101,6 +101,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
       if (f.nome && r.cId !== Number(f.nome)) return false;
       if (f.st && r.st !== f.st) return false;
       if (f.jogo && !r.jogo.toLowerCase().includes(f.jogo.toLowerCase())) return false;
+      if (f.dc && !r.dc.toLowerCase().includes(f.dc.toLowerCase())) return false;
       if (f.oddMin && r.odd < Number(f.oddMin)) return false;
       if (f.oddMax && r.odd > Number(f.oddMax)) return false;
       if (f.valMin && r.val < Number(f.valMin)) return false;
@@ -335,6 +336,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
               </select>
             </div>
             <div><div className="f-lbl">Jogo contém</div><input className="f-inp" value={filtros.jogo} onChange={(e) => setF('jogo', e.target.value)} placeholder="Jogo contém" /></div>
+            <div><div className="f-lbl">Descarrego contém</div><input className="f-inp" value={filtros.dc} onChange={(e) => setF('dc', e.target.value)} placeholder="Descarrego contém" /></div>
             <div><div className="f-lbl">Odd mín</div><input type="number" step="0.01" className="f-inp" value={filtros.oddMin} onChange={(e) => setF('oddMin', e.target.value)} placeholder="odd mín" /></div>
             <div><div className="f-lbl">Odd máx</div><input type="number" step="0.01" className="f-inp" value={filtros.oddMax} onChange={(e) => setF('oddMax', e.target.value)} placeholder="odd máx" /></div>
             <div><div className="f-lbl">Entradas mín</div><input type="number" className="f-inp" value={filtros.valMin} onChange={(e) => setF('valMin', e.target.value)} placeholder="entradas mín" /></div>
@@ -392,7 +394,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
           <div className="tbl-scroll">
             <table>
               <thead><tr>
-                <th>id</th><th>data</th><th>Nome</th><th>Jogo</th><th>odd</th><th>entradas</th><th>status</th>
+                <th>id</th><th>data</th><th>Nome</th><th>Jogo</th><th>odd</th><th>entradas</th><th>status</th><th>Descarrego</th>
                 <th className="th-r">Saldo Bruto</th><th className="th-r">Comissão</th><th className="th-c">Baixa Liquidez</th><th className="th-r">Saldo Líquido</th>
                 <th className="th-sticky th-c">Ações</th>
               </tr></thead>
@@ -414,6 +416,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
                       <td><input type="number" step="0.01" className={`inp${dW(r, 'odd')}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} placeholder="—" style={{ width: 58, fontSize: 11, ...(incompleto && !(Number(r.odd) > 0) ? { borderColor: '#dc2626' } : {}) }} /></td>
                       <td><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} placeholder="—" style={{ width: 76, fontSize: 11, color: '#B8860B', fontWeight: 700, ...(incompleto && !(Number(r.val) > 0) ? { borderColor: '#dc2626' } : {}) }} /></td>
                       <td><select className="st-sel" style={stStyle(r.st)} value={r.st} onChange={(e) => updRegSt(r.id, e.target.value)}>{STS.map((s) => <option key={s} value={s}>{s}</option>)}</select></td>
+                      <td><select className="inp" value={r.dc} onChange={(e) => patchReg(r.id, { dc: e.target.value })} style={{ fontSize: 11, minWidth: 100 }}>{DCS.map((dd) => <option key={dd} value={dd}>{dd || '—'}</option>)}</select></td>
                       <td className="td-r" style={{ fontWeight: 600, color: clr(r.sb) }}>{fmt(r.sb)}</td>
                       <td className="td-r" style={{ fontWeight: 600, color: clr(r.cm) }}>{fmt(r.cm)}</td>
                       <td className="td-c"><select className="inp" value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} style={{ fontSize: 11 }}><option>Não</option><option>Sim</option></select></td>
@@ -464,6 +467,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
                 <div className="rc-r"><span className="rc-l">Odd</span><input type="number" step="0.01" className={`inp${dW(r, 'odd')}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} style={{ width: 90, textAlign: 'right', fontWeight: 700 }} /></div>
                 <div className="rc-r"><span className="rc-l">Entradas</span><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} style={{ width: 110, textAlign: 'right', fontWeight: 700, color: '#B8860B' }} /></div>
                 <div className="rc-r"><span className="rc-l">Status</span><div style={{ flex: 1, marginLeft: 8 }}><select className="st-sel inp-full" style={stStyle(r.st)} value={r.st} onChange={(e) => updRegSt(r.id, e.target.value)}>{STS.map((s) => <option key={s} value={s}>{s}</option>)}</select></div></div>
+                <div className="rc-r"><span className="rc-l">Descarrego</span><div style={{ flex: 1, marginLeft: 8 }}><select className="inp inp-full" value={r.dc} onChange={(e) => patchReg(r.id, { dc: e.target.value })}>{DCS.map((dd) => <option key={dd} value={dd}>{dd || '—'}</option>)}</select></div></div>
                 <div className="rc-r"><span className="rc-l">S.Bruto</span><span style={{ fontWeight: 600, color: clr(r.sb) }}>R$ {fmt(r.sb)}</span></div>
                 <div className="rc-r"><span className="rc-l">Comissão</span><span style={{ fontWeight: 600, color: clr(r.cm) }}>R$ {fmt(r.cm)}</span></div>
                 <div className="rc-r"><span className="rc-l">S.Líquido</span><span style={{ fontWeight: 700, color: clr(r.sl) }}>R$ {fmt(r.sl)}</span></div>
