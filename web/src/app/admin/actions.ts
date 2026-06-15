@@ -74,7 +74,7 @@ export async function criarAposta(input: NovaAposta): Promise<Reg> {
 
 export interface PatchAposta {
   dt?: string; odd?: number; val?: number; st?: string; dc?: string;
-  bl?: boolean; adv?: boolean; irr?: boolean; obs?: string;
+  bl?: boolean; adv?: boolean; irr?: boolean; obs?: string; cId?: number;
 }
 
 export async function atualizarAposta(id: number, patch: PatchAposta): Promise<Reg> {
@@ -90,6 +90,7 @@ export async function atualizarAposta(id: number, patch: PatchAposta): Promise<R
   if (patch.adv !== undefined) upd.advertido = patch.adv;
   if (patch.irr !== undefined) upd.irregular = patch.irr;
   if (patch.obs !== undefined) upd.advertencia = patch.obs || null;
+  if (patch.cId !== undefined) upd.cliente_id = patch.cId;
   const { data, error } = await db.from('apostas').update(upd).eq('id', id).select('*').single();
   if (error) throw error;
   return mapAposta(data as ApostaRow);
@@ -103,11 +104,30 @@ export async function excluirAposta(id: number): Promise<void> {
 }
 
 // ═══════════════════ CLIENTES ═══════════════════
-export async function criarCliente(nome: string): Promise<Cliente> {
+export interface NovoClienteInput {
+  nome: string; senha?: string; calcao?: number; desconto?: number;
+  comissao?: number; comissaoSup?: number; sup?: string | null;
+}
+const gerarSlug = () => Math.random().toString(36).slice(2, 8);
+
+export async function criarCliente(input: NovoClienteInput): Promise<Cliente> {
   await exigirSessao();
   const db = createAdminClient();
-  const { data, error } = await db.from('clientes')
-    .insert({ nome: nome.toUpperCase() }).select('*').single();
+  const nome = input.nome.toUpperCase().trim();
+
+  let afiliadoId: number | null = null;
+  if (input.sup) {
+    const { data: af } = await db.from('afiliados').select('id').eq('nome', input.sup).maybeSingle();
+    afiliadoId = af?.id ?? null;
+  }
+
+  const { data, error } = await db.from('clientes').insert({
+    nome, senha_hash: input.senha || null,
+    calcao: input.calcao ?? 0, desconto: input.desconto ?? 0,
+    comissao_pct: input.comissao ?? 0, afiliado_id: afiliadoId,
+    afiliado_comissao_pct: input.comissaoSup ?? 0,
+    link: `/${gerarSlug()}/${nome}`,
+  }).select('*').single();
   if (error) throw error;
   const m = await afNomeMap(db);
   return mapCliente(data as ClienteRow, m);
@@ -157,10 +177,10 @@ export async function atualizarCliente(id: number, patch: PatchCliente): Promise
 }
 
 // ═══════════════════ AFILIADOS ═══════════════════
-export async function criarAfiliado(nome: string): Promise<Afiliado> {
+export async function criarAfiliado(nome: string, com = 0): Promise<Afiliado> {
   await exigirSessao();
   const db = createAdminClient();
-  const { data, error } = await db.from('afiliados').insert({ nome }).select('*').single();
+  const { data, error } = await db.from('afiliados').insert({ nome, comissao_pct: com }).select('*').single();
   if (error) throw error;
   return mapAfiliado(data as AfiliadoRow);
 }

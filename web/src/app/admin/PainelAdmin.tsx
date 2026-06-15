@@ -69,6 +69,8 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
     { open: false, cId: '', jogo: '', odd: '', val: '', st: 'EM ABERTO', dc: '' },
   );
   const [obsModal, setObsModal] = useState<{ id: number; text: string } | null>(null);
+  const [novoCli, setNovoCli] = useState({ open: false, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '' });
+  const [novoAf, setNovoAf] = useState({ open: false, nome: '', com: '0' });
 
   async function salvarObs() {
     if (!obsModal) return;
@@ -86,6 +88,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
 
   const cMap = useMemo(() => Object.fromEntries(clientes.map((c) => [c.id, c])) as Record<number, Cliente>, [clientes]);
   const cliOpts = useMemo(() => [{ value: '', label: '— Selecione um cliente —' }, ...clientes.map((c) => ({ value: String(c.id), label: c.nome }))], [clientes]);
+  const cliOptsId = useMemo(() => clientes.map((c) => ({ value: String(c.id), label: c.nome })), [clientes]);
   const stOpts = useMemo(() => [{ value: '', label: '— Selecione um status —' }, ...STS.map((s) => ({ value: s, label: s }))], []);
 
   function toast(msg: string) {
@@ -185,10 +188,20 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
     const url = window.location.origin + link;
     navigator.clipboard?.writeText(url).then(() => toast('Link copiado!'), () => toast(url));
   }
-  async function novoCliente() {
-    const nome = prompt('Nome do novo cliente (em maiúsculas):'); if (!nome) return;
-    try { const c = await criarCliente(nome); setClientes((cs) => [...cs, c]); toast('Cliente criado!'); }
-    catch { toast('Erro ao criar cliente.'); }
+  function novoCliente() { setNovoCli({ open: true, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '' }); }
+  async function salvarNovoCliente() {
+    if (!novoCli.nome.trim()) { alert('Informe o nome do cliente.'); return; }
+    try {
+      const c = await criarCliente({
+        nome: novoCli.nome, senha: novoCli.senha,
+        calcao: Number(novoCli.cal) || 0, desconto: Number(novoCli.desc) || 0,
+        comissao: Number(novoCli.com) || 0, comissaoSup: Number(novoCli.af) || 0,
+        sup: novoCli.sup || null,
+      });
+      setClientes((cs) => [...cs, c].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setNovoCli((s) => ({ ...s, open: false }));
+      toast('Cliente criado!');
+    } catch { toast('Erro ao criar cliente.'); }
   }
 
   // ── afiliados
@@ -198,10 +211,15 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
     try { const res = await atualizarAfiliado(id, { nome: a.nome, com: a.com }); setAfiliados((as) => as.map((x) => (x.id === id ? res : x))); toast('Afiliado salvo!'); }
     catch { toast('Erro ao salvar afiliado.'); }
   }
-  async function novoAfiliado() {
-    const nome = prompt('Nome do novo afiliado:'); if (!nome) return;
-    try { const a = await criarAfiliado(nome); setAfiliados((as) => [...as, a]); toast('Afiliado criado!'); }
-    catch { toast('Erro ao criar afiliado.'); }
+  function novoAfiliado() { setNovoAf({ open: true, nome: '', com: '0' }); }
+  async function salvarNovoAfiliado() {
+    if (!novoAf.nome.trim()) { alert('Informe o nome do afiliado.'); return; }
+    try {
+      const a = await criarAfiliado(novoAf.nome, Number(novoAf.com) || 0);
+      setAfiliados((as) => [...as, a].sort((x, y) => x.nome.localeCompare(y.nome)));
+      setNovoAf((s) => ({ ...s, open: false }));
+      toast('Afiliado criado!');
+    } catch { toast('Erro ao criar afiliado.'); }
   }
 
   // ── receber bilhete (WhatsApp)
@@ -221,7 +239,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
   const dW = (r: Reg, f: 'dt' | 'odd' | 'val') => (drafts[r.id]?.[f] !== undefined ? ' inp-w' : '');
   function updDraft(id: number, f: 'dt' | 'odd' | 'val', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
 
-  async function patchReg(id: number, patch: { dt?: string; odd?: number; val?: number; st?: string; dc?: string; bl?: boolean; adv?: boolean; irr?: boolean; obs?: string }) {
+  async function patchReg(id: number, patch: { dt?: string; odd?: number; val?: number; st?: string; dc?: string; bl?: boolean; adv?: boolean; irr?: boolean; obs?: string; cId?: number }) {
     try {
       const reg = await atualizarAposta(id, patch);
       setRegs((rs) => rs.map((r) => (r.id === id ? reg : r)));
@@ -395,7 +413,6 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
               </tr></thead>
               <tbody>
                 {pageRows.map((r, i) => {
-                  const c = cMap[r.cId] || ({} as Cliente);
                   const d = drafts[r.id] || {};
                   const editing = Object.keys(d).filter((k) => k !== '_saved').length > 0;
                   const incompleto = !(Number(r.odd) > 0) || !(Number(r.val) > 0);
@@ -406,7 +423,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                     <tr key={r.id} className={incompleto ? 'row-alert' : ''} style={{ background: rowBg, transition: 'background .3s' }}>
                       <td style={{ fontWeight: 700, color: '#374151' }}>{r.id}</td>
                       <td><input className={`inp${dW(r, 'dt')}`} value={dV(r, 'dt')} onChange={(e) => updDraft(r.id, 'dt', e.target.value)} style={{ width: 130, fontSize: 11 }} /></td>
-                      <td style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{c.nome || r.cId}{incompleto && <span className="alert-tag">PREENCHER</span>}</td>
+                      <td style={{ minWidth: 150 }}><ComboBox options={cliOptsId} value={String(r.cId)} onChange={(v) => { if (v) patchReg(r.id, { cId: Number(v) }); }} minWidth={140} />{incompleto && <span className="alert-tag">PREENCHER</span>}</td>
                       <td style={{ maxWidth: 200 }}>{r.jogo.split('\n').map((l, ii) => <div key={ii} style={{ fontSize: ii === 0 ? 11 : 10, color: ii === 0 ? '#111' : '#6b7280' }}>{l}</div>)}</td>
                       <td><input type="number" step="0.01" className={`inp${dW(r, 'odd')}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} placeholder="—" style={{ width: 58, fontSize: 11, ...(incompleto && !(Number(r.odd) > 0) ? { borderColor: '#dc2626' } : {}) }} /></td>
                       <td><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} placeholder="—" style={{ width: 76, fontSize: 11, color: '#111827', fontWeight: 700, ...(incompleto && !(Number(r.val) > 0) ? { borderColor: '#dc2626' } : {}) }} /></td>
@@ -676,6 +693,50 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                 <button className="btn btn-gray" style={{ flex: 1 }} onClick={() => setModal(null)}>Cancelar</button>
                 <button className="btn btn-green" style={{ flex: 1 }} onClick={receberBilhete}>Receber no sistema</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL NOVO CLIENTE */}
+      {novoCli.open && (
+        <div className="modal-bg" onClick={() => setNovoCli((s) => ({ ...s, open: false }))}>
+          <div className="modal modal-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-hdr"><span style={{ fontWeight: 700 }}>+ Novo Cliente</span><button className="modal-close" onClick={() => setNovoCli((s) => ({ ...s, open: false }))}>✕</button></div>
+            <div className="modal-body" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div><div className="f-lbl">Nome *</div><input className="f-inp" value={novoCli.nome} onChange={(e) => setNovoCli((s) => ({ ...s, nome: e.target.value.toUpperCase() }))} placeholder="NOME DO CLIENTE" /></div>
+              <div><div className="f-lbl">Senha de acesso</div><input className="f-inp" value={novoCli.senha} onChange={(e) => setNovoCli((s) => ({ ...s, senha: e.target.value }))} /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div><div className="f-lbl">Calção</div><input type="number" className="f-inp" value={novoCli.cal} onChange={(e) => setNovoCli((s) => ({ ...s, cal: e.target.value }))} placeholder="0,00" /></div>
+                <div><div className="f-lbl">Desconto</div><input type="number" step="0.01" className="f-inp" value={novoCli.desc} onChange={(e) => setNovoCli((s) => ({ ...s, desc: e.target.value }))} /></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div><div className="f-lbl">Comissão %</div><input type="number" step="0.01" className="f-inp" value={novoCli.com} onChange={(e) => setNovoCli((s) => ({ ...s, com: e.target.value }))} /></div>
+                <div><div className="f-lbl">Comissão Afiliado %</div><input type="number" step="0.01" className="f-inp" value={novoCli.af} onChange={(e) => setNovoCli((s) => ({ ...s, af: e.target.value }))} /></div>
+              </div>
+              <div><div className="f-lbl">Supervisor</div><select className="f-inp" value={novoCli.sup} onChange={(e) => setNovoCli((s) => ({ ...s, sup: e.target.value }))}><option value="">—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></div>
+              <div style={{ fontSize: 11, color: '#9ca3af' }}>O link de acesso do jogador é gerado automaticamente.</div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
+                <button className="btn btn-gray" onClick={() => setNovoCli((s) => ({ ...s, open: false }))}>Cancelar</button>
+                <button className="btn btn-green" onClick={salvarNovoCliente}>Cadastrar Cliente</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL NOVO AFILIADO */}
+      {novoAf.open && (
+        <div className="modal-bg" onClick={() => setNovoAf((s) => ({ ...s, open: false }))}>
+          <div className="modal modal-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-hdr"><span style={{ fontWeight: 700 }}>+ Novo Afiliado</span><button className="modal-close" onClick={() => setNovoAf((s) => ({ ...s, open: false }))}>✕</button></div>
+            <div className="modal-body" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div><div className="f-lbl">Nome *</div><input className="f-inp" value={novoAf.nome} onChange={(e) => setNovoAf((s) => ({ ...s, nome: e.target.value }))} placeholder="Nome do afiliado" /></div>
+              <div><div className="f-lbl">Comissão %</div><input type="number" step="0.01" className="f-inp" value={novoAf.com} onChange={(e) => setNovoAf((s) => ({ ...s, com: e.target.value }))} /></div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
+                <button className="btn btn-gray" onClick={() => setNovoAf((s) => ({ ...s, open: false }))}>Cancelar</button>
+                <button className="btn btn-green" onClick={salvarNovoAfiliado}>Cadastrar Afiliado</button>
               </div>
             </div>
           </div>
