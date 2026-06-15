@@ -196,7 +196,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
   async function saveCli(id: number) {
     const c = clientes.find((x) => x.id === id); if (!c) return;
     try {
-      const res = await atualizarCliente(id, { s: c.s, on: c.on, cal: c.cal, desc: c.desc, com: c.com, sup: c.sup, af: c.af, link: c.link });
+      const res = await atualizarCliente(id, { nome: c.nome, s: c.s, on: c.on, cal: c.cal, desc: c.desc, com: c.com, sup: c.sup, af: c.af, link: c.link });
       setClientes((cs) => cs.map((x) => (x.id === id ? res.cliente : x)));
       const byId = Object.fromEntries(res.regs.map((r) => [r.id, r]));
       setRegs((rs) => rs.map((r) => byId[r.id] ?? r));
@@ -550,14 +550,14 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
                 <tbody>{clientes.map((c, i) => { const bg = i % 2 === 0 ? '#fff' : '#f8fafc'; return (
                   <tr key={c.id} style={{ background: bg }}>
                     <td style={{ fontWeight: 600, color: '#374151' }}>{c.id}</td>
-                    <td style={{ fontWeight: 700 }}>{c.nome}</td>
+                    <td><input className="inp" value={c.nome} onChange={(e) => updCli(c.id, { nome: e.target.value.toUpperCase() })} style={{ width: 150, fontWeight: 700 }} /></td>
                     <td><input className="inp" value={c.s} placeholder="Senha" onChange={(e) => updCli(c.id, { s: e.target.value })} style={{ width: 110 }} /></td>
                     <td><select className="inp" value={c.on ? 'Sim' : 'Não'} onChange={(e) => updCli(c.id, { on: e.target.value === 'Sim' })}><option>Sim</option><option>Não</option></select></td>
                     <td className="td-r"><input type="number" className="inp" value={c.cal} onChange={(e) => updCli(c.id, { cal: Number(e.target.value) })} style={{ width: 80, textAlign: 'right' }} /></td>
-                    <td className="td-r" style={{ color: '#374151' }}>{fmt(c.desc)}</td>
-                    <td style={{ color: '#374151' }}>{c.com},00%</td>
+                    <td className="td-r"><input type="number" step="0.01" className="inp" value={c.desc} onChange={(e) => updCli(c.id, { desc: Number(e.target.value) })} style={{ width: 72, textAlign: 'right' }} /></td>
+                    <td><input type="number" step="0.01" className="inp" value={c.com} onChange={(e) => updCli(c.id, { com: Number(e.target.value) })} style={{ width: 64 }} /></td>
                     <td><select className="inp" value={c.sup ?? '—'} onChange={(e) => updCli(c.id, { sup: e.target.value === '—' ? null : e.target.value })} style={{ minWidth: 120 }}><option>—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></td>
-                    <td style={{ color: '#374151' }}>{c.af},00%</td>
+                    <td><input type="number" step="0.01" className="inp" value={c.af} onChange={(e) => updCli(c.id, { af: Number(e.target.value) })} style={{ width: 64 }} /></td>
                     <td><div style={{ display: 'flex', gap: 4, alignItems: 'center' }}><input className="inp" value={c.link ?? ''} placeholder="/slug/NOME" onChange={(e) => updCli(c.id, { link: e.target.value })} style={{ width: 150, fontSize: 11 }} /><button className="btn-icon" title="Copiar link completo" onClick={() => copiarLink(c.link)}>📋</button></div></td>
                     <td className="td-sticky td-c" style={{ background: bg }}><button className="btn btn-blue btn-sm" onClick={() => saveCli(c.id)}>Salvar</button></td>
                   </tr>); })}</tbody>
@@ -583,7 +583,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
                   <tr key={a.id} style={{ background: bg }}>
                     <td style={{ fontWeight: 600, color: '#374151' }}>{a.id}</td>
                     <td><input className="inp inp-full" value={a.nome} onChange={(e) => updAf(a.id, { nome: e.target.value })} /></td>
-                    <td style={{ color: '#374151' }}>{a.com},00%</td>
+                    <td><input type="number" step="0.01" className="inp" value={a.com} onChange={(e) => updAf(a.id, { com: Number(e.target.value) })} style={{ width: 80 }} /></td>
                     <td className="td-sticky td-c" style={{ background: bg }}><button className="btn btn-blue btn-sm" onClick={() => saveAf(a.id)}>Salvar</button></td>
                   </tr>); })}</tbody>
               </table></div>

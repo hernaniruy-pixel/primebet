@@ -79,7 +79,7 @@ export async function criarCliente(nome: string): Promise<Cliente> {
 }
 
 export interface PatchCliente {
-  s?: string; on?: boolean; cal?: number; desc?: number; com?: number; sup?: string | null; af?: number; link?: string | null;
+  nome?: string; s?: string; on?: boolean; cal?: number; desc?: number; com?: number; sup?: string | null; af?: number; link?: string | null;
 }
 
 /**
@@ -91,6 +91,7 @@ export async function atualizarCliente(id: number, patch: PatchCliente): Promise
   const db = createAdminClient();
 
   const upd: Record<string, unknown> = {};
+  if (patch.nome !== undefined) upd.nome = patch.nome;
   if (patch.s !== undefined) upd.senha_hash = patch.s || null;
   if (patch.on !== undefined) upd.ativo = patch.on;
   if (patch.cal !== undefined) upd.calcao = patch.cal;
