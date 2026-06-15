@@ -1,0 +1,19 @@
+{
+  "name": "primebet-integracao",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Integração WhatsApp -> transcrição de bilhetes -> painel PrimeBet",
+  "type": "commonjs",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node src/index.js",
+    "transcrever": "node scripts/test-transcricao.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.100.1",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.34.7"
+  }
+}
