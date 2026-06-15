@@ -28,6 +28,7 @@ create table if not exists public.clientes (
 
 alter table public.clientes add column if not exists link text;
 alter table public.apostas  add column if not exists advertencia text;
+alter table public.apostas  alter column odd type numeric(12,2);
 
 -- ───────────────── APOSTAS (bilhetes) ─────────────────
 create table if not exists public.apostas (
@@ -35,7 +36,7 @@ create table if not exists public.apostas (
   cliente_id          bigint not null references public.clientes(id) on delete cascade,
   data                timestamptz not null default now(),
   jogo                text not null,
-  odd                 numeric(8,2) not null default 0,   -- 0 = em aberto
+  odd                 numeric(12,2) not null default 0,  -- 0 = em aberto (suporta odds de múltiplas acumuladas)
   valor               numeric(12,2) not null default 0,  -- 0 = em aberto
   status              text not null default 'EM ABERTO'
                         check (status in ('EM ABERTO','GREEN','MEIO GREEN','MEIO RED','RED','REEMBOLSO')),
