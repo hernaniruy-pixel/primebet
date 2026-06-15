@@ -1,14 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import ComboBox from './ComboBox';
-import type { Afiliado, Cliente, Reg, PanelData } from './types';
+import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FechCliResp, FechAfResp, FiltroApostas } from './types';
 import {
   criarAposta, atualizarAposta, excluirAposta,
   criarCliente, atualizarCliente,
   criarAfiliado, atualizarAfiliado,
+  listarApostas, fechamentoClientes, fechamentoAfiliados,
 } from './actions';
 
 interface Draft { dt?: string; odd?: string; val?: string; _saved?: boolean }
@@ -29,7 +30,6 @@ const PAGE_SIZE = 20;
 const fmt = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const clr = (n: number) => (n > 0 ? '#16a34a' : n < 0 ? '#dc2626' : '#B8860B');
 const fmtDate = (d: Date) => d.toISOString().split('T')[0];
-const inRangeDt = (dt: string, d1: string, d2: string) => { const d = (dt || '').slice(0, 10); if (d1 && d < d1) return false; if (d2 && d > d2) return false; return true; };
 function periodDates(v: string): { d1: string; d2: string } {
   const today = new Date();
   if (v === 'hoje') { const d = fmtDate(today); return { d1: d, d2: d }; }
@@ -44,19 +44,26 @@ const filtrosVazios = {
   bl: '', adv: '', irr: '', dt1: '', dt2: '', period: '', ord: 'data_desc',
 };
 
-export default function PainelAdmin({ email, dados }: { email: string; dados: PanelData }) {
+export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasIni, semana }: {
+  email: string; clientesIni: Cliente[]; afiliadosIni: Afiliado[]; apostasIni: ApostasPage; semana: { d1: string; d2: string };
+}) {
   const router = useRouter();
-  const [regs, setRegs] = useState<Reg[]>(dados.regs);
-  const [clientes, setClientes] = useState<Cliente[]>(dados.clientes);
-  const [afiliados, setAfiliados] = useState<Afiliado[]>(dados.afiliados);
+  const [regs, setRegs] = useState<Reg[]>(apostasIni.rows);
+  const [total, setTotal] = useState<number>(apostasIni.total);
+  const [totals, setTotals] = useState<Totals>(apostasIni.totals);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [clientes, setClientes] = useState<Cliente[]>(clientesIni);
+  const [afiliados, setAfiliados] = useState<Afiliado[]>(afiliadosIni);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
-  const [filtros, setFiltros] = useState({ ...filtrosVazios });
+  const [filtros, setFiltros] = useState({ ...filtrosVazios, dt1: semana.d1, dt2: semana.d2, period: 'semana' });
   const [page, setPage] = useState(1);
   const [toastMsg, setToastMsg] = useState('');
   const [mobMenu, setMobMenu] = useState(false);
   const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp'>(null);
-  const [fech, setFech] = useState({ dt1: '', dt2: '', period: '' });
-  const [faf, setFaf] = useState({ dt1: '', dt2: '', period: '' });
+  const [fech, setFech] = useState({ dt1: semana.d1, dt2: semana.d2, period: 'semana' });
+  const [faf, setFaf] = useState({ dt1: semana.d1, dt2: semana.d2, period: 'semana' });
+  const [fechRes, setFechRes] = useState<FechCliResp | null>(null);
+  const [fafRes, setFafRes] = useState<FechAfResp | null>(null);
   const [wpp, setWpp] = useState({ cId: '', jogo: '', odd: '', val: '', dc: '' });
   const [novo, setNovo] = useState<{ open: boolean; cId: string; jogo: string; odd: string; val: string; st: string; dc: string }>(
     { open: false, cId: '', jogo: '', odd: '', val: '', st: 'EM ABERTO', dc: '' },
@@ -105,91 +112,60 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
 
   function limparFiltros() { setFiltros({ ...filtrosVazios }); setPage(1); }
 
-  // ── filtragem + ordenação
-  const filtrados = useMemo(() => {
+  // ── busca paginada no servidor (semana atual por padrão)
+  useEffect(() => {
+    let alive = true;
     const f = filtros;
-    const inRange = (dt: string) => {
-      const d = (dt || '').slice(0, 10);
-      if (f.dt1 && d < f.dt1) return false;
-      if (f.dt2 && d > f.dt2) return false;
-      return true;
+    const params: FiltroApostas = {
+      id: f.id || undefined,
+      cId: f.nome ? Number(f.nome) : null,
+      st: f.st || undefined,
+      jogo: f.jogo || undefined,
+      dc: f.dc || undefined,
+      oddMin: f.oddMin ? Number(f.oddMin) : null,
+      oddMax: f.oddMax ? Number(f.oddMax) : null,
+      valMin: f.valMin ? Number(f.valMin) : null,
+      valMax: f.valMax ? Number(f.valMax) : null,
+      bl: f.bl === '' ? null : f.bl === 'sim',
+      adv: f.adv === '' ? null : f.adv === 'sim',
+      irr: f.irr === '' ? null : f.irr === 'sim',
+      dt1: f.dt1 || null, dt2: f.dt2 || null, ord: f.ord, page,
     };
-    const res = regs.filter((r) => {
-      if (f.id && !String(r.id).includes(f.id)) return false;
-      if (f.nome && r.cId !== Number(f.nome)) return false;
-      if (f.st && r.st !== f.st) return false;
-      if (f.jogo && !r.jogo.toLowerCase().includes(f.jogo.toLowerCase())) return false;
-      if (f.dc && !r.dc.toLowerCase().includes(f.dc.toLowerCase())) return false;
-      if (f.oddMin && r.odd < Number(f.oddMin)) return false;
-      if (f.oddMax && r.odd > Number(f.oddMax)) return false;
-      if (f.valMin && r.val < Number(f.valMin)) return false;
-      if (f.valMax && r.val > Number(f.valMax)) return false;
-      if (f.bl === 'sim' && !r.bl) return false;
-      if (f.bl === 'nao' && r.bl) return false;
-      if (f.adv === 'sim' && !r.adv) return false;
-      if (f.adv === 'nao' && r.adv) return false;
-      if (f.irr === 'sim' && !r.irr) return false;
-      if (f.irr === 'nao' && r.irr) return false;
-      if (!inRange(r.dt)) return false;
-      return true;
-    });
-    if (f.ord === 'data_asc') res.sort((a, b) => a.dt.localeCompare(b.dt));
-    else if (f.ord === 'data_desc') res.sort((a, b) => b.dt.localeCompare(a.dt));
-    else if (f.ord === 'val_desc') res.sort((a, b) => b.val - a.val);
-    else if (f.ord === 'val_asc') res.sort((a, b) => a.val - b.val);
-    return res;
-  }, [regs, filtros]);
+    listarApostas(params)
+      .then((r) => { if (alive) { setRegs(r.rows); setTotal(r.total); setTotals(r.totals); } })
+      .catch(() => { if (alive) toast('Erro ao carregar apostas.'); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtros, page, reloadKey]);
 
-  // ── métricas
-  const tot = useMemo(() => {
-    const t = { v: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0, n: 0, nab: 0 };
-    filtrados.forEach((r) => { t.v += r.val; if (r.st === 'EM ABERTO') { t.ab += r.val; t.nab++; } t.sb += r.sb; t.cm += r.cm; t.caf += r.caf; t.sl += r.sl; t.n++; });
-    return t;
-  }, [filtrados]);
+  const reload = () => setReloadKey((k) => k + 1);
 
-  // ── fila (dashboard = EM ABERTO por padrão; ao filtrar status, mostra aquele)
-  const queue = useMemo(() => (filtros.st ? filtrados : filtrados.filter((r) => r.st === 'EM ABERTO')), [filtrados, filtros.st]);
-  const totalPages = Math.max(1, Math.ceil(queue.length / PAGE_SIZE));
+  // ── métricas (calculadas no servidor sobre TODO o conjunto filtrado)
+  const tot = useMemo(() => ({
+    v: totals.entradas, ab: totals.em_aberto_total, sb: totals.saldo_bruto,
+    cm: totals.comissao, caf: totals.comissao_afiliado, sl: totals.saldo_liquido,
+    n: total, nab: totals.em_aberto_qtd,
+  }), [totals, total]);
+
+  // ── paginação (server-side)
+  const pageRows = regs;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageSafe = Math.min(Math.max(1, page), totalPages);
   const start = (pageSafe - 1) * PAGE_SIZE;
-  const pageRows = queue.slice(start, start + PAGE_SIZE);
-  const shownTo = Math.min(start + PAGE_SIZE, queue.length);
-  const filaLbl = filtros.st ? `com status "${filtros.st}"` : 'em aberto (aguardando verificação)';
+  const shownTo = start + regs.length;
+  const filaLbl = filtros.st ? `com status "${filtros.st}"` : 'no período';
 
-  // ── fechamento (por cliente)
-  const fechData = useMemo(() => {
-    const rows = clientes.map((c) => {
-      const rs = regs.filter((r) => r.cId === c.id && inRangeDt(r.dt, fech.dt1, fech.dt2));
-      const val = rs.reduce((s, r) => s + r.val, 0);
-      const ab = rs.filter((r) => r.st === 'EM ABERTO').reduce((s, r) => s + r.val, 0);
-      const sb = rs.reduce((s, r) => s + r.sb, 0);
-      const cm = rs.reduce((s, r) => s + r.cm, 0);
-      const caf = rs.reduce((s, r) => s + r.caf, 0);
-      const sl = sb - cm - caf;
-      return { ...c, val, ab, sb, cm, caf, sl, saldoCal: c.cal + sl };
-    }).filter((r) => r.val > 0);
-    const g = { cal: 0, saldoCal: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 };
-    rows.forEach((r) => { g.cal += r.cal; g.saldoCal += r.saldoCal; g.val += r.val; g.ab += r.ab; g.sb += r.sb; g.cm += r.cm; g.caf += r.caf; g.sl += r.sl; });
-    return { rows, g };
-  }, [clientes, regs, fech.dt1, fech.dt2]);
+  // ── fechamento (agregação no servidor)
+  function loadFech(dt1: string, dt2: string) { fechamentoClientes(dt1 || null, dt2 || null).then(setFechRes).catch(() => toast('Erro no fechamento.')); }
+  function loadFaf(dt1: string, dt2: string) { fechamentoAfiliados(dt1 || null, dt2 || null).then(setFafRes).catch(() => toast('Erro no fechamento.')); }
+  useEffect(() => {
+    if (modal === 'fech') loadFech(fech.dt1, fech.dt2);
+    if (modal === 'faf') loadFaf(faf.dt1, faf.dt2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modal]);
 
-  // ── fechamento afiliado (por supervisor)
-  const fafData = useMemo(() => {
-    const sups = [...new Set(clientes.filter((c) => c.sup).map((c) => c.sup as string))];
-    const rows = sups.map((sup) => {
-      const cl = clientes.filter((c) => c.sup === sup); const ids = cl.map((c) => c.id);
-      const rs = regs.filter((r) => ids.includes(r.cId) && inRangeDt(r.dt, faf.dt1, faf.dt2));
-      const val = rs.reduce((s, r) => s + r.val, 0);
-      const ab = rs.filter((r) => r.st === 'EM ABERTO').reduce((s, r) => s + r.val, 0);
-      const sb = rs.reduce((s, r) => s + r.sb, 0);
-      const cm = rs.reduce((s, r) => s + r.cm, 0);
-      const caf = rs.reduce((s, r) => s + r.caf, 0);
-      return { sup, logins: cl.length, val, ab, sb, cm, caf, sl: sb - cm - caf };
-    });
-    const g = { logins: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 };
-    rows.forEach((r) => { g.logins += r.logins; g.val += r.val; g.ab += r.ab; g.sb += r.sb; g.cm += r.cm; g.caf += r.caf; g.sl += r.sl; });
-    return { rows, g };
-  }, [clientes, regs, faf.dt1, faf.dt2]);
+  const fechData = fechRes ?? { rows: [], g: { cal: 0, saldoCal: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 } };
+  const fafData = fafRes ?? { rows: [], g: { logins: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 } };
 
   // ── clientes
   function updCli(id: number, patch: Partial<Cliente>) { setClientes((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c))); }
@@ -200,6 +176,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
       setClientes((cs) => cs.map((x) => (x.id === id ? res.cliente : x)));
       const byId = Object.fromEntries(res.regs.map((r) => [r.id, r]));
       setRegs((rs) => rs.map((r) => byId[r.id] ?? r));
+      reload();
       toast('Cliente salvo!');
     } catch { toast('Erro ao salvar cliente.'); }
   }
@@ -233,10 +210,9 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
     const cId = Number(wpp.cId); const odd = Number(wpp.odd) || 0; const val = Number(wpp.val) || 0;
     try {
       const reg = await criarAposta({ cId, jogo: wpp.jogo, odd, val, st: 'EM ABERTO', dc: wpp.dc });
-      setRegs((rs) => [reg, ...rs]);
       const incompleto = !(odd > 0) || !(val > 0);
       toast(`Bilhete recebido (#${reg.id}). ${incompleto ? 'Preencha odd/valor — linha em vermelho.' : 'Pronto na fila.'}`);
-      setWpp({ cId: '', jogo: '', odd: '', val: '', dc: '' }); setModal(null);
+      setWpp({ cId: '', jogo: '', odd: '', val: '', dc: '' }); setModal(null); reload();
     } catch { toast('Erro ao receber bilhete.'); }
   }
 
@@ -249,6 +225,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
     try {
       const reg = await atualizarAposta(id, patch);
       setRegs((rs) => rs.map((r) => (r.id === id ? reg : r)));
+      reload();
       return reg;
     } catch { toast('Erro ao salvar aposta.'); return null; }
   }
@@ -274,16 +251,16 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
 
   async function delReg(id: number) {
     if (!confirm('Excluir este registro?')) return;
-    try { await excluirAposta(id); setRegs((rs) => rs.filter((r) => r.id !== id)); }
+    try { await excluirAposta(id); setRegs((rs) => rs.filter((r) => r.id !== id)); reload(); }
     catch { toast('Erro ao excluir.'); }
   }
 
   async function salvarNovo() {
     if (!novo.cId || !novo.jogo || !novo.odd || !novo.val) { alert('Preencha todos os campos obrigatórios.'); return; }
     try {
-      const reg = await criarAposta({ cId: Number(novo.cId), jogo: novo.jogo, odd: Number(novo.odd), val: Number(novo.val), st: novo.st, dc: novo.dc });
-      setRegs((rs) => [reg, ...rs]);
+      await criarAposta({ cId: Number(novo.cId), jogo: novo.jogo, odd: Number(novo.odd), val: Number(novo.val), st: novo.st, dc: novo.dc });
       setNovo({ open: false, cId: '', jogo: '', odd: '', val: '', st: 'EM ABERTO', dc: '' });
+      reload();
       toast('Registro adicionado.');
     } catch { toast('Erro ao adicionar registro.'); }
   }
@@ -403,7 +380,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
         </div>
 
         <div id="reg-info" style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
-          {`Fila: ${queue.length} aposta(s) ${filaLbl} | Página ${pageSafe}/${totalPages} — exibindo ${queue.length ? start + 1 : 0}–${shownTo} de ${queue.length}`}
+          {`${total} aposta(s) ${filaLbl} | Página ${pageSafe}/${totalPages} — exibindo ${total ? start + 1 : 0}–${shownTo} de ${total}`}
         </div>
 
         {/* TABELA DESKTOP */}
@@ -452,7 +429,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
             </table>
           </div>
           <div className="tbl-footer">
-            <span className="pg-info">{queue.length} na fila</span>
+            <span className="pg-info">{total} no período</span>
             <div className="pagination">
               <button className="btn btn-gray btn-sm" disabled={pageSafe <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</button>
               <button className="btn btn-gray btn-sm" disabled={pageSafe >= totalPages} onClick={() => setPage((p) => p + 1)}>Próxima</button>
@@ -601,7 +578,8 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
                 <div><div className="f-lbl">Data início</div><input type="date" className="f-inp" style={{ width: 'auto' }} value={fech.dt1} onChange={(e) => setFech((f) => ({ ...f, dt1: e.target.value, period: '' }))} /></div>
                 <div><div className="f-lbl">Data fim</div><input type="date" className="f-inp" style={{ width: 'auto' }} value={fech.dt2} onChange={(e) => setFech((f) => ({ ...f, dt2: e.target.value, period: '' }))} /></div>
-                <div><div className="f-lbl">Período Rápido</div><select className="f-inp" style={{ width: 160 }} value={fech.period} onChange={(e) => { const p = periodDates(e.target.value); setFech({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta Semana</option><option value="semana_ant">Semana Passada</option></select></div>
+                <div><div className="f-lbl">Período Rápido</div><select className="f-inp" style={{ width: 160 }} value={fech.period} onChange={(e) => { const p = periodDates(e.target.value); setFech({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); loadFech(p.d1, p.d2); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta Semana</option><option value="semana_ant">Semana Passada</option></select></div>
+                <div><button className="btn btn-green" onClick={() => loadFech(fech.dt1, fech.dt2)}>Buscar</button></div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
                 <MiniMc lbl="CALÇÃO" val={`R$ ${fmt(fechData.g.cal)}`} color="#111827" />
@@ -645,7 +623,8 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
                 <div><div className="f-lbl">Data inicial</div><input type="date" className="f-inp" style={{ width: 'auto' }} value={faf.dt1} onChange={(e) => setFaf((f) => ({ ...f, dt1: e.target.value, period: '' }))} /></div>
                 <div><div className="f-lbl">Data final</div><input type="date" className="f-inp" style={{ width: 'auto' }} value={faf.dt2} onChange={(e) => setFaf((f) => ({ ...f, dt2: e.target.value, period: '' }))} /></div>
-                <div><div className="f-lbl">Período Rápido</div><select className="f-inp" style={{ width: 160 }} value={faf.period} onChange={(e) => { const p = periodDates(e.target.value); setFaf({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta Semana</option><option value="semana_ant">Semana Passada</option></select></div>
+                <div><div className="f-lbl">Período Rápido</div><select className="f-inp" style={{ width: 160 }} value={faf.period} onChange={(e) => { const p = periodDates(e.target.value); setFaf({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); loadFaf(p.d1, p.d2); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta Semana</option><option value="semana_ant">Semana Passada</option></select></div>
+                <div><button className="btn btn-green" onClick={() => loadFaf(faf.dt1, faf.dt2)}>Buscar</button></div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
                 <MiniMc lbl="LOGINS" val={String(fafData.g.logins)} color="#B8860B" />

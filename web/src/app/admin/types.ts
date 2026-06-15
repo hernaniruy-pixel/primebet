@@ -5,6 +5,32 @@ export interface Reg { id: number; dt: string; cId: number; jogo: string; odd: n
 
 export interface PanelData { afiliados: Afiliado[]; clientes: Cliente[]; regs: Reg[] }
 
+// ── paginação/agregação (server-side)
+export interface Totals {
+  entradas: number; em_aberto_total: number; em_aberto_qtd: number;
+  saldo_bruto: number; comissao: number; comissao_afiliado: number; saldo_liquido: number;
+}
+export interface ApostasPage { rows: Reg[]; total: number; totals: Totals }
+export interface FiltroApostas {
+  id?: string; cId?: number | null; st?: string; jogo?: string; dc?: string;
+  oddMin?: number | null; oddMax?: number | null; valMin?: number | null; valMax?: number | null;
+  bl?: boolean | null; adv?: boolean | null; irr?: boolean | null;
+  dt1?: string | null; dt2?: string | null; ord?: string; page?: number;
+}
+export interface FechCliRow { id: number; nome: string; cal: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number; saldoCal: number }
+export interface FechCliResp { rows: FechCliRow[]; g: { cal: number; saldoCal: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number } }
+export interface FechAfRow { sup: string; logins: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number }
+export interface FechAfResp { rows: FechAfRow[]; g: { logins: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number } }
+
+// semana atual (segunda → domingo) em 'YYYY-MM-DD'
+export function weekRange(): { d1: string; d2: string } {
+  const fmt = (d: Date) => d.toISOString().split('T')[0];
+  const today = new Date();
+  const mon = new Date(today); mon.setDate(today.getDate() - today.getDay() + 1);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  return { d1: fmt(mon), d2: fmt(sun) };
+}
+
 // ═══════════ LINHAS CRUAS DO BANCO ═══════════
 export interface AfiliadoRow { id: number; nome: string; comissao_pct: number | string }
 export interface ClienteRow {

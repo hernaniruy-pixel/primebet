@@ -5,8 +5,43 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import {
   type Afiliado, type Cliente, type Reg,
   type AfiliadoRow, type ClienteRow, type ApostaRow,
+  type ApostasPage, type FiltroApostas, type Totals, type FechCliResp, type FechAfResp,
   mapAfiliado, mapCliente, mapAposta, parseTs,
 } from './types';
+
+// ═══════════════════ LISTAGEM / FECHAMENTO (paginação no servidor) ═══════════════════
+export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { data, error } = await db.rpc('controle_listar', {
+    p_dt1: f.dt1 || null, p_dt2: f.dt2 || null,
+    p_id: f.id || null, p_cliente: f.cId ?? null,
+    p_status: f.st || null, p_jogo: f.jogo || null, p_descarrego: f.dc || null,
+    p_odd_min: f.oddMin ?? null, p_odd_max: f.oddMax ?? null,
+    p_val_min: f.valMin ?? null, p_val_max: f.valMax ?? null,
+    p_bl: f.bl ?? null, p_adv: f.adv ?? null, p_irr: f.irr ?? null,
+    p_sort: f.ord || 'data_desc', p_page: f.page || 1, p_per: 20,
+  });
+  if (error) throw error;
+  const j = data as { rows: ApostaRow[]; total: number; totals: Totals };
+  return { rows: (j.rows ?? []).map(mapAposta), total: j.total ?? 0, totals: j.totals };
+}
+
+export async function fechamentoClientes(dt1?: string | null, dt2?: string | null): Promise<FechCliResp> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { data, error } = await db.rpc('fechamento_clientes', { p_dt1: dt1 || null, p_dt2: dt2 || null });
+  if (error) throw error;
+  return data as FechCliResp;
+}
+
+export async function fechamentoAfiliados(dt1?: string | null, dt2?: string | null): Promise<FechAfResp> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { data, error } = await db.rpc('fechamento_afiliados', { p_dt1: dt1 || null, p_dt2: dt2 || null });
+  if (error) throw error;
+  return data as FechAfResp;
+}
 
 // ─────────── Auth: só equipe logada pode mutar ───────────
 async function exigirSessao() {
