@@ -450,7 +450,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                       <td className="td-r" style={{ fontWeight: 700, color: clr(r.sl) }}>{fmt(r.sl)}</td>
                       <td className="td-sticky td-c" style={{ background: rowBg }}>
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                          <button className="btn btn-sm" onClick={() => setObsModal({ id: r.id, text: r.obs })} title={r.adv ? `Advertência: ${r.obs}` : 'Adicionar advertência'} style={{ background: r.adv ? '#dc2626' : 'var(--line)', color: r.adv ? '#fff' : 'var(--muted2)', minWidth: 32, padding: '5px 6px' }}>⚠</button>
+                          {r.adv && <button className="btn btn-sm" onClick={() => setObsModal({ id: r.id, text: r.obs })} title={`Advertência: ${r.obs}`} style={{ background: '#dc2626', color: '#fff', minWidth: 32, padding: '5px 6px' }}>⚠</button>}
                           <button className="btn btn-sm" onClick={() => saveReg(r.id)} style={{ background: btnBg, color: '#fff', minWidth: 58 }}>{d._saved ? '✓ Salvo' : 'Salvar'}</button>
                           <button className="btn btn-sm btn-red-o" onClick={() => delReg(r.id)} style={{ minWidth: 58 }}>Excluir</button>
                         </div>
@@ -500,7 +500,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                 <div className="rc-r"><span className="rc-l">Comissão</span><span style={{ fontWeight: 600, color: clr(r.cm) }}>R$ {fmt(r.cm)}</span></div>
                 <div className="rc-r"><span className="rc-l">S.Líquido</span><span style={{ fontWeight: 700, color: clr(r.sl) }}>R$ {fmt(r.sl)}</span></div>
                 <div className="rc-btns">
-                  <button className="btn" onClick={() => setObsModal({ id: r.id, text: r.obs })} style={{ background: r.adv ? '#dc2626' : 'var(--line)', color: r.adv ? '#fff' : 'var(--muted)' }}>⚠</button>
+                  {r.adv && <button className="btn" onClick={() => setObsModal({ id: r.id, text: r.obs })} style={{ background: '#dc2626', color: '#fff' }}>⚠</button>}
                   <button className="btn" onClick={() => saveReg(r.id)} style={{ background: btnBg, color: '#fff', flex: 1 }}>{d._saved ? '✓ Salvo' : 'Salvar'}</button>
                   <button className="btn btn-red-o" onClick={() => delReg(r.id)}>Excluir</button>
                 </div>
