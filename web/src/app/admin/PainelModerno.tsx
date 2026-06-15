@@ -293,22 +293,22 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                     const inc = !(Number(r.odd) > 0) || !(Number(r.val) > 0);
                     return (
                       <tr key={r.id} className={`border-b border-slate-100 align-top transition hover:bg-slate-50 dark:border-slate-800/70 dark:hover:bg-slate-800/40 ${inc ? 'bg-rose-50/60 dark:bg-rose-500/5' : ''}`}>
-                        <td className="px-3 py-2 font-medium text-slate-500">{r.id}</td>
-                        <td className="px-3 py-2"><input className={`${inp} w-32 ${edited(r, 'dt') ? 'border-amber-400' : ''}`} value={dV(r, 'dt')} onChange={(e) => updDraft(r.id, 'dt', e.target.value)} /></td>
-                        <td className="px-3 py-2">
-                          <select value={String(r.cId)} onChange={(e) => patchReg(r.id, { cId: Number(e.target.value) })} className={`${inp} w-36 font-medium`}>{cliSorted.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select>
+                        <td className="px-3 py-2.5 font-medium text-slate-500">{r.id}</td>
+                        <td className="px-3 py-2.5"><input className={`${inp} w-40 ${edited(r, 'dt') ? 'border-amber-400' : ''}`} value={dV(r, 'dt')} onChange={(e) => updDraft(r.id, 'dt', e.target.value)} /></td>
+                        <td className="px-3 py-2.5">
+                          <select value={String(r.cId)} onChange={(e) => patchReg(r.id, { cId: Number(e.target.value) })} className={`${inp} w-44 font-medium`}>{cliSorted.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select>
                           {inc && <span className="ml-1 inline-block rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">preencher</span>}
                         </td>
-                        <td className="px-3 py-2"><textarea rows={2} className={`${inp} w-56 resize-y ${edited(r, 'jogo') ? 'border-amber-400' : ''}`} value={dV(r, 'jogo')} onChange={(e) => updDraft(r.id, 'jogo', e.target.value)} /></td>
-                        <td className="px-3 py-2"><input type="number" step="0.01" className={`${inp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} /></td>
-                        <td className="px-3 py-2"><input type="number" className={`${inp} w-20 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} /></td>
-                        <td className="px-3 py-2"><select value={r.st} onChange={(e) => patchReg(r.id, { st: e.target.value })} className={`rounded-full border-0 px-2.5 py-1 text-[11px] font-semibold outline-none ${STPILL[r.st] ?? ''}`}>{STS.map((s) => <option key={s} value={s} className="bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100">{s}</option>)}</select></td>
-                        <td className="px-3 py-2"><select value={r.dc} onChange={(e) => patchReg(r.id, { dc: e.target.value })} className={`${inp} w-28`}>{DCS.map((d) => <option key={d} value={d}>{d || '—'}</option>)}</select></td>
-                        <td className="px-3 py-2 text-right tabular-nums">{fmt(r.sb)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{fmt(r.cm)}</td>
-                        <td className="px-3 py-2 text-center"><select value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} className={`${inp} w-20`}><option>Não</option><option>Sim</option></select></td>
-                        <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmt(r.sl)}</td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2.5"><textarea rows={4} className={`${inp} w-80 min-w-[280px] resize-y leading-snug ${edited(r, 'jogo') ? 'border-amber-400' : ''}`} value={dV(r, 'jogo')} onChange={(e) => updDraft(r.id, 'jogo', e.target.value)} /></td>
+                        <td className="px-3 py-2.5"><input type="number" step="0.01" className={`${inp} w-20 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} /></td>
+                        <td className="px-3 py-2.5"><input type="number" className={`${inp} w-24 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} /></td>
+                        <td className="px-3 py-2.5"><select value={r.st} onChange={(e) => patchReg(r.id, { st: e.target.value })} className={`rounded-full border-0 px-3 py-1.5 text-xs font-semibold outline-none ${STPILL[r.st] ?? ''}`}>{STS.map((s) => <option key={s} value={s} className="bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100">{s}</option>)}</select></td>
+                        <td className="px-3 py-2.5"><select value={r.dc} onChange={(e) => patchReg(r.id, { dc: e.target.value })} className={`${inp} w-32`}>{DCS.map((d) => <option key={d} value={d}>{d || '—'}</option>)}</select></td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{fmt(r.sb)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{fmt(r.cm)}</td>
+                        <td className="px-3 py-2.5 text-center"><select value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} className={`${inp} w-20`}><option>Não</option><option>Sim</option></select></td>
+                        <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{fmt(r.sl)}</td>
+                        <td className="px-3 py-2.5">
                           <div className="flex justify-center gap-1.5">
                             {r.adv && <button onClick={() => setObsModal({ id: r.id, text: r.obs })} title={`Advertência: ${r.obs}`} className="rounded-lg bg-rose-600 px-2 py-1 text-xs text-white transition hover:bg-rose-700">⚠</button>}
                             <button onClick={() => saveReg(r.id)} className={`rounded-lg px-2.5 py-1 text-xs font-medium text-white transition ${drafts[r.id]?._saved ? 'bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'}`}>{drafts[r.id]?._saved ? '✓' : 'Salvar'}</button>

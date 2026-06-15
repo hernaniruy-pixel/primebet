@@ -12,7 +12,7 @@ import {
   listarApostas, fechamentoClientes, fechamentoAfiliados,
 } from './actions';
 
-interface Draft { dt?: string; odd?: string; val?: string; _saved?: boolean }
+interface Draft { dt?: string; odd?: string; val?: string; jogo?: string; _saved?: boolean }
 
 const STS =['EM ABERTO', 'GREEN', 'MEIO GREEN', 'MEIO RED', 'RED', 'REEMBOLSO'];
 const DCS = ['', 'BETANO', 'BET365', 'SPORTINGBET', 'SUPERBET', 'PIXBET'];
@@ -248,9 +248,9 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
   }
 
   // ── edição
-  const dV = (r: Reg, f: 'dt' | 'odd' | 'val') => { const d = drafts[r.id]; return d && d[f] !== undefined ? d[f]! : String(r[f]); };
-  const dW = (r: Reg, f: 'dt' | 'odd' | 'val') => (drafts[r.id]?.[f] !== undefined ? ' inp-w' : '');
-  function updDraft(id: number, f: 'dt' | 'odd' | 'val', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
+  const dV = (r: Reg, f: 'dt' | 'odd' | 'val' | 'jogo') => { const d = drafts[r.id]; return d && d[f] !== undefined ? d[f]! : String(r[f]); };
+  const dW = (r: Reg, f: 'dt' | 'odd' | 'val' | 'jogo') => (drafts[r.id]?.[f] !== undefined ? ' inp-w' : '');
+  function updDraft(id: number, f: 'dt' | 'odd' | 'val' | 'jogo', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
 
   async function patchReg(id: number, patch: { dt?: string; odd?: number; val?: number; st?: string; dc?: string; bl?: boolean; adv?: boolean; irr?: boolean; obs?: string; cId?: number }) {
     try {
@@ -275,6 +275,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
       ...(d.dt !== undefined ? { dt: d.dt } : {}),
       ...(d.odd !== undefined ? { odd: Number(d.odd) } : {}),
       ...(d.val !== undefined ? { val: Number(d.val) } : {}),
+      ...(d.jogo !== undefined ? { jogo: d.jogo } : {}),
     });
     setDrafts((dr) => ({ ...dr, [id]: { _saved: true } }));
     setTimeout(() => setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; }), 1800);
@@ -441,7 +442,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                       <td style={{ fontWeight: 700, color: 'var(--inp-text)' }}>{r.id}</td>
                       <td><input className={`inp${dW(r, 'dt')}`} value={dV(r, 'dt')} onChange={(e) => updDraft(r.id, 'dt', e.target.value)} style={{ width: 130, fontSize: 11 }} /></td>
                       <td style={{ minWidth: 150 }}><ComboBox options={cliOptsId} value={String(r.cId)} onChange={(v) => { if (v) patchReg(r.id, { cId: Number(v) }); }} minWidth={140} />{incompleto && <span className="alert-tag">PREENCHER</span>}</td>
-                      <td style={{ maxWidth: 200 }}>{r.jogo.split('\n').map((l, ii) => <div key={ii} style={{ fontSize: ii === 0 ? 11 : 10, color: ii === 0 ? 'var(--num)' : 'var(--muted)' }}>{l}</div>)}</td>
+                      <td><textarea className={`inp${dW(r, 'jogo')}`} value={dV(r, 'jogo')} onChange={(e) => updDraft(r.id, 'jogo', e.target.value)} rows={3} style={{ width: 260, fontSize: 11, resize: 'vertical', lineHeight: 1.4 }} /></td>
                       <td><input type="number" step="0.01" className={`inp${dW(r, 'odd')}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} placeholder="—" style={{ width: 58, fontSize: 11, ...(incompleto && !(Number(r.odd) > 0) ? { borderColor: '#dc2626' } : {}) }} /></td>
                       <td><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} placeholder="—" style={{ width: 76, fontSize: 11, color: 'var(--num)', fontWeight: 700, ...(incompleto && !(Number(r.val) > 0) ? { borderColor: '#dc2626' } : {}) }} /></td>
                       <td><select className="st-sel" style={stStyle(r.st)} value={r.st} onChange={(e) => updRegSt(r.id, e.target.value)}>{stOptEls()}</select></td>
@@ -493,7 +494,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                   <span className="badge" style={{ background: sc.bg, color: sc.t }}>{r.st}</span>
                 </div>
                 <div className="rc-r"><span className="rc-l">Data/Hora</span><input className={`inp${dW(r, 'dt')}`} value={dV(r, 'dt')} onChange={(e) => updDraft(r.id, 'dt', e.target.value)} style={{ width: 154, textAlign: 'right', fontSize: 12 }} /></div>
-                <div className="rc-r"><span className="rc-l">Jogo</span><span style={{ fontSize: 11, textAlign: 'right', flex: 1, marginLeft: 8 }}>{r.jogo.split('\n').map((l, ii) => <div key={ii} style={{ color: ii === 0 ? 'var(--num)' : 'var(--muted)' }}>{l}</div>)}</span></div>
+                <div className="rc-r" style={{ alignItems: 'flex-start' }}><span className="rc-l">Jogo</span><textarea className={`inp${dW(r, 'jogo')}`} value={dV(r, 'jogo')} onChange={(e) => updDraft(r.id, 'jogo', e.target.value)} rows={3} style={{ flex: 1, marginLeft: 8, fontSize: 11, resize: 'vertical', lineHeight: 1.4 }} /></div>
                 <div className="rc-r"><span className="rc-l">Odd</span><input type="number" step="0.01" className={`inp${dW(r, 'odd')}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} style={{ width: 90, textAlign: 'right', fontWeight: 700 }} /></div>
                 <div className="rc-r"><span className="rc-l">Entradas</span><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} style={{ width: 110, textAlign: 'right', fontWeight: 700, color: 'var(--num)' }} /></div>
                 <div className="rc-r"><span className="rc-l">Status</span><div style={{ flex: 1, marginLeft: 8 }}><select className="st-sel inp-full" style={stStyle(r.st)} value={r.st} onChange={(e) => updRegSt(r.id, e.target.value)}>{stOptEls()}</select></div></div>
