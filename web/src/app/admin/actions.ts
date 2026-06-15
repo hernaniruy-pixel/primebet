@@ -74,7 +74,7 @@ export async function criarAposta(input: NovaAposta): Promise<Reg> {
 
 export interface PatchAposta {
   dt?: string; odd?: number; val?: number; st?: string; dc?: string;
-  bl?: boolean; adv?: boolean; irr?: boolean; obs?: string; cId?: number;
+  bl?: boolean; adv?: boolean; irr?: boolean; obs?: string; cId?: number; jogo?: string;
 }
 
 export async function atualizarAposta(id: number, patch: PatchAposta): Promise<Reg> {
@@ -91,6 +91,7 @@ export async function atualizarAposta(id: number, patch: PatchAposta): Promise<R
   if (patch.irr !== undefined) upd.irregular = patch.irr;
   if (patch.obs !== undefined) upd.advertencia = patch.obs || null;
   if (patch.cId !== undefined) upd.cliente_id = patch.cId;
+  if (patch.jogo !== undefined) upd.jogo = patch.jogo;
   const { data, error } = await db.from('apostas').update(upd).eq('id', id).select('*').single();
   if (error) throw error;
   return mapAposta(data as ApostaRow);

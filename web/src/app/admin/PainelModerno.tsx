@@ -10,7 +10,7 @@ import {
   fechamentoClientes, fechamentoAfiliados,
 } from './actions';
 
-interface Draft { dt?: string; odd?: string; val?: string; _saved?: boolean }
+interface Draft { dt?: string; odd?: string; val?: string; jogo?: string; _saved?: boolean }
 
 const STS = ['EM ABERTO', 'GREEN', 'MEIO GREEN', 'MEIO RED', 'RED', 'REEMBOLSO'];
 const DCS = ['', 'BETANO', 'BET365', 'SPORTINGBET', 'SUPERBET', 'PIXBET'];
@@ -90,7 +90,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [toastMsg, setToastMsg] = useState('');
   const [novo, setNovo] = useState({ open: false, cId: '', jogo: '', odd: '', val: '', st: 'EM ABERTO', dc: '' });
 
-  const cMap = useMemo(() => Object.fromEntries(clientes.map((c) => [c.id, c])) as Record<number, Cliente>, [clientes]);
+  const cliSorted = useMemo(() => [...clientes].sort((a, b) => a.nome.localeCompare(b.nome)), [clientes]);
 
   function toast(m: string) { setToastMsg(m); window.clearTimeout((toast as unknown as { _h?: number })._h); (toast as unknown as { _h?: number })._h = window.setTimeout(() => setToastMsg(''), 2600); }
   function setF<K extends keyof typeof filtros>(k: K, v: (typeof filtros)[K]) { setFiltros((f) => ({ ...f, [k]: v })); setPage(1); }
@@ -122,9 +122,9 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const pageSafe = Math.min(Math.max(1, page), totalPages);
   const start = (pageSafe - 1) * PAGE_SIZE;
 
-  const dV = (r: Reg, f: 'dt' | 'odd' | 'val') => { const d = drafts[r.id]; return d && d[f] !== undefined ? d[f]! : String(r[f]); };
-  const edited = (r: Reg, f: 'dt' | 'odd' | 'val') => drafts[r.id]?.[f] !== undefined;
-  function updDraft(id: number, f: 'dt' | 'odd' | 'val', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
+  const dV = (r: Reg, f: 'dt' | 'odd' | 'val' | 'jogo') => { const d = drafts[r.id]; return d && d[f] !== undefined ? d[f]! : String(r[f]); };
+  const edited = (r: Reg, f: 'dt' | 'odd' | 'val' | 'jogo') => drafts[r.id]?.[f] !== undefined;
+  function updDraft(id: number, f: 'dt' | 'odd' | 'val' | 'jogo', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
 
   async function patchReg(id: number, patch: Parameters<typeof atualizarAposta>[1]) {
     try { const reg = await atualizarAposta(id, patch); setRegs((rs) => rs.map((r) => (r.id === id ? reg : r))); reload(); }
@@ -136,6 +136,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       ...(d.dt !== undefined ? { dt: d.dt } : {}),
       ...(d.odd !== undefined ? { odd: Number(d.odd) } : {}),
       ...(d.val !== undefined ? { val: Number(d.val) } : {}),
+      ...(d.jogo !== undefined ? { jogo: d.jogo } : {}),
     });
     setDrafts((dr) => ({ ...dr, [id]: { _saved: true } }));
     setTimeout(() => setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; }), 1500);
@@ -213,17 +214,19 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
           <div className="mb-4 text-xs text-slate-400">Registros — {email}</div>
 
           {/* MÉTRICAS */}
-          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
             {[
               { l: 'Entrada', v: tot(totals.entradas), s: `${total} linhas` },
               { l: 'Em aberto', v: tot(totals.em_aberto_total), s: `${totals.em_aberto_qtd} linhas` },
               { l: 'Saldo bruto', v: tot(totals.saldo_bruto) },
               { l: 'Comissão', v: tot(totals.comissao) },
+              { l: 'Com. afiliados', v: tot(totals.comissao_afiliado) },
               { l: 'Saldo líquido', v: tot(totals.saldo_liquido) },
+              { l: 'Total fechamento', v: tot(totals.saldo_liquido - totals.comissao_afiliado) },
             ].map((m) => (
               <div key={m.l} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
                 <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{m.l}</div>
-                <div className="mt-1 text-xl font-semibold tabular-nums">{m.v}</div>
+                <div className="mt-1 text-lg font-semibold tabular-nums">{m.v}</div>
                 {m.s && <div className="mt-0.5 text-[11px] text-slate-400">{m.s}</div>}
               </div>
             ))}
@@ -277,23 +280,30 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                     <th className="px-3 py-2.5 font-medium">nome</th><th className="px-3 py-2.5 font-medium">jogo</th>
                     <th className="px-3 py-2.5 text-right font-medium">odd</th><th className="px-3 py-2.5 text-right font-medium">entradas</th>
                     <th className="px-3 py-2.5 font-medium">status</th><th className="px-3 py-2.5 font-medium">descarrego</th>
-                    <th className="px-3 py-2.5 text-right font-medium">saldo líq.</th><th className="px-3 py-2.5 text-center font-medium">ações</th>
+                    <th className="px-3 py-2.5 text-right font-medium">s. bruto</th><th className="px-3 py-2.5 text-right font-medium">comissão</th>
+                    <th className="px-3 py-2.5 text-center font-medium">baixa liq.</th><th className="px-3 py-2.5 text-right font-medium">saldo líq.</th>
+                    <th className="px-3 py-2.5 text-center font-medium">ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {regs.map((r) => {
-                    const c = cMap[r.cId];
                     const inc = !(Number(r.odd) > 0) || !(Number(r.val) > 0);
                     return (
-                      <tr key={r.id} className={`border-b border-slate-100 transition hover:bg-slate-50 dark:border-slate-800/70 dark:hover:bg-slate-800/40 ${inc ? 'bg-rose-50/60 dark:bg-rose-500/5' : ''}`}>
+                      <tr key={r.id} className={`border-b border-slate-100 align-top transition hover:bg-slate-50 dark:border-slate-800/70 dark:hover:bg-slate-800/40 ${inc ? 'bg-rose-50/60 dark:bg-rose-500/5' : ''}`}>
                         <td className="px-3 py-2 font-medium text-slate-500">{r.id}</td>
                         <td className="px-3 py-2"><input className={`${inp} w-32 ${edited(r, 'dt') ? 'border-amber-400' : ''}`} value={dV(r, 'dt')} onChange={(e) => updDraft(r.id, 'dt', e.target.value)} /></td>
-                        <td className="whitespace-nowrap px-3 py-2 font-medium">{c?.nome ?? r.cId}{inc && <span className="ml-1.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">preencher</span>}</td>
-                        <td className="max-w-[220px] px-3 py-2">{r.jogo.split('\n').map((l, i) => <div key={i} className={i === 0 ? 'text-[12px]' : 'text-[11px] text-slate-400'}>{l}</div>)}</td>
+                        <td className="px-3 py-2">
+                          <select value={String(r.cId)} onChange={(e) => patchReg(r.id, { cId: Number(e.target.value) })} className={`${inp} w-36 font-medium`}>{cliSorted.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select>
+                          {inc && <span className="ml-1 inline-block rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">preencher</span>}
+                        </td>
+                        <td className="px-3 py-2"><textarea rows={2} className={`${inp} w-56 resize-y ${edited(r, 'jogo') ? 'border-amber-400' : ''}`} value={dV(r, 'jogo')} onChange={(e) => updDraft(r.id, 'jogo', e.target.value)} /></td>
                         <td className="px-3 py-2"><input type="number" step="0.01" className={`${inp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} /></td>
                         <td className="px-3 py-2"><input type="number" className={`${inp} w-20 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} /></td>
                         <td className="px-3 py-2"><select value={r.st} onChange={(e) => patchReg(r.id, { st: e.target.value })} className={`rounded-full border-0 px-2.5 py-1 text-[11px] font-semibold outline-none ${STPILL[r.st] ?? ''}`}>{STS.map((s) => <option key={s} value={s} className="bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100">{s}</option>)}</select></td>
                         <td className="px-3 py-2"><select value={r.dc} onChange={(e) => patchReg(r.id, { dc: e.target.value })} className={`${inp} w-28`}>{DCS.map((d) => <option key={d} value={d}>{d || '—'}</option>)}</select></td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmt(r.sb)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmt(r.cm)}</td>
+                        <td className="px-3 py-2 text-center"><select value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} className={`${inp} w-20`}><option>Não</option><option>Sim</option></select></td>
                         <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmt(r.sl)}</td>
                         <td className="px-3 py-2">
                           <div className="flex justify-center gap-1.5">
@@ -304,7 +314,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                       </tr>
                     );
                   })}
-                  {regs.length === 0 && <tr><td colSpan={10} className="px-3 py-10 text-center text-slate-400">Nenhuma aposta no período. Use o período rápido ou limpe as datas.</td></tr>}
+                  {regs.length === 0 && <tr><td colSpan={13} className="px-3 py-10 text-center text-slate-400">Nenhuma aposta no período. Use o período rápido ou limpe as datas.</td></tr>}
                 </tbody>
               </table>
             </div>
