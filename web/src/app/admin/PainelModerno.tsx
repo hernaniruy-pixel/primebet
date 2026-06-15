@@ -80,6 +80,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf'>(null);
   const [novoCli, setNovoCli] = useState({ open: false, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '' });
   const [novoAf, setNovoAf] = useState({ open: false, nome: '', com: '0' });
+  const [obsModal, setObsModal] = useState<{ id: number; text: string } | null>(null);
   const [fech, setFech] = useState({ dt1: semana.d1, dt2: semana.d2, period: 'semana' });
   const [faf, setFaf] = useState({ dt1: semana.d1, dt2: semana.d2, period: 'semana' });
   const [fechRes, setFechRes] = useState<FechCliResp | null>(null);
@@ -151,6 +152,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     } catch { toast('Erro ao adicionar.'); }
   }
   async function sair() { const s = createClient(); await s.auth.signOut(); router.replace('/login'); }
+  async function salvarObs() { if (!obsModal) return; const t = obsModal.text.trim(); await patchReg(obsModal.id, { obs: t, adv: t.length > 0 }); setObsModal(null); toast(t ? 'Advertência salva.' : 'Advertência removida.'); }
+  async function resolverObs() { if (!obsModal) return; await patchReg(obsModal.id, { adv: false }); setObsModal(null); toast('Advertência resolvida.'); }
 
   // clientes
   function updCli(id: number, patch: Partial<Cliente>) { setClientes((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c))); }
@@ -307,6 +310,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmt(r.sl)}</td>
                         <td className="px-3 py-2">
                           <div className="flex justify-center gap-1.5">
+                            {r.adv && <button onClick={() => setObsModal({ id: r.id, text: r.obs })} title={`Advertência: ${r.obs}`} className="rounded-lg bg-rose-600 px-2 py-1 text-xs text-white transition hover:bg-rose-700">⚠</button>}
                             <button onClick={() => saveReg(r.id)} className={`rounded-lg px-2.5 py-1 text-xs font-medium text-white transition ${drafts[r.id]?._saved ? 'bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'}`}>{drafts[r.id]?._saved ? '✓' : 'Salvar'}</button>
                             <button onClick={() => delReg(r.id)} className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-50 dark:border-rose-500/30 dark:hover:bg-rose-500/10">Excluir</button>
                           </div>
@@ -481,6 +485,20 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               <div><span className={lbl}>Nome</span><input className={inp} value={novoAf.nome} onChange={(e) => setNovoAf((s) => ({ ...s, nome: e.target.value }))} /></div>
               <div><span className={lbl}>Comissão %</span><input type="number" step="0.01" className={inp} value={novoAf.com} onChange={(e) => setNovoAf((s) => ({ ...s, com: e.target.value }))} /></div>
               <div className="mt-1 flex justify-end gap-2"><button onClick={() => setNovoAf((s) => ({ ...s, open: false }))} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button><button onClick={salvarNovoAfiliado} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Cadastrar</button></div>
+            </div>
+          </Modal>
+        )}
+
+        {/* ADVERTÊNCIA */}
+        {obsModal && (
+          <Modal onClose={() => setObsModal(null)} max="max-w-md" title={`Advertência — aposta #${obsModal.id}`}>
+            <div className="flex flex-col gap-3">
+              <div><span className={lbl}>Observação / motivo</span><textarea rows={4} className={inp} value={obsModal.text} onChange={(e) => setObsModal((m) => (m ? { ...m, text: e.target.value } : m))} /></div>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setObsModal(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button>
+                <button onClick={resolverObs} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Resolvido</button>
+                <button onClick={salvarObs} className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">Salvar</button>
+              </div>
             </div>
           </Modal>
         )}
