@@ -39,7 +39,7 @@ export async function criarAposta(input: NovaAposta): Promise<Reg> {
 
 export interface PatchAposta {
   dt?: string; odd?: number; val?: number; st?: string; dc?: string;
-  bl?: boolean; adv?: boolean; irr?: boolean;
+  bl?: boolean; adv?: boolean; irr?: boolean; obs?: string;
 }
 
 export async function atualizarAposta(id: number, patch: PatchAposta): Promise<Reg> {
@@ -54,6 +54,7 @@ export async function atualizarAposta(id: number, patch: PatchAposta): Promise<R
   if (patch.bl !== undefined) upd.baixa_liquidez = patch.bl;
   if (patch.adv !== undefined) upd.advertido = patch.adv;
   if (patch.irr !== undefined) upd.irregular = patch.irr;
+  if (patch.obs !== undefined) upd.advertencia = patch.obs || null;
   const { data, error } = await db.from('apostas').update(upd).eq('id', id).select('*').single();
   if (error) throw error;
   return mapAposta(data as ApostaRow);
@@ -78,7 +79,7 @@ export async function criarCliente(nome: string): Promise<Cliente> {
 }
 
 export interface PatchCliente {
-  s?: string; on?: boolean; cal?: number; desc?: number; com?: number; sup?: string | null; af?: number;
+  s?: string; on?: boolean; cal?: number; desc?: number; com?: number; sup?: string | null; af?: number; link?: string | null;
 }
 
 /**
@@ -96,6 +97,7 @@ export async function atualizarCliente(id: number, patch: PatchCliente): Promise
   if (patch.desc !== undefined) upd.desconto = patch.desc;
   if (patch.com !== undefined) upd.comissao_pct = patch.com;
   if (patch.af !== undefined) upd.afiliado_comissao_pct = patch.af;
+  if (patch.link !== undefined) upd.link = patch.link || null;
   if (patch.sup !== undefined) {
     if (patch.sup == null) upd.afiliado_id = null;
     else {

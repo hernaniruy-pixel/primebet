@@ -27,6 +27,7 @@ create table if not exists public.clientes (
 );
 
 alter table public.clientes add column if not exists link text;
+alter table public.apostas  add column if not exists advertencia text;
 
 -- ───────────────── APOSTAS (bilhetes) ─────────────────
 create table if not exists public.apostas (
@@ -47,6 +48,7 @@ create table if not exists public.apostas (
   -- flags operacionais:
   baixa_liquidez      boolean not null default false,
   advertido           boolean not null default false,
+  advertencia         text,                              -- texto da advertência/observação
   irregular           boolean not null default false,
   em_aberto_odd       boolean not null default false,
   em_aberto_valor     boolean not null default false,

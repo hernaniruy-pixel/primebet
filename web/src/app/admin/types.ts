@@ -1,7 +1,7 @@
 // ═══════════ TIPOS DO PAINEL (forma compacta usada na UI) ═══════════
 export interface Afiliado { id: number; nome: string; com: number }
 export interface Cliente { id: number; nome: string; s: string; on: boolean; cal: number; desc: number; com: number; sup: string | null; af: number; link: string | null }
-export interface Reg { id: number; dt: string; cId: number; jogo: string; odd: number; val: number; st: string; dc: string; sb: number; cm: number; caf: number; sl: number; bl: boolean; adv: boolean; irr: boolean }
+export interface Reg { id: number; dt: string; cId: number; jogo: string; odd: number; val: number; st: string; dc: string; sb: number; cm: number; caf: number; sl: number; bl: boolean; adv: boolean; irr: boolean; obs: string }
 
 export interface PanelData { afiliados: Afiliado[]; clientes: Cliente[]; regs: Reg[] }
 
@@ -16,7 +16,7 @@ export interface ApostaRow {
   id: number; cliente_id: number; data: string; jogo: string; odd: number | string; valor: number | string;
   status: string; casa: string | null; saldo_bruto: number | string; comissao: number | string;
   comissao_afiliado: number | string; saldo_liquido: number | string;
-  baixa_liquidez: boolean; advertido: boolean; irregular: boolean;
+  baixa_liquidez: boolean; advertido: boolean; irregular: boolean; advertencia: string | null;
 }
 
 const num = (v: number | string | null | undefined) => Number(v ?? 0);
@@ -52,4 +52,5 @@ export const mapAposta = (r: ApostaRow): Reg => ({
   id: r.id, dt: fmtTs(r.data), cId: r.cliente_id, jogo: r.jogo, odd: num(r.odd), val: num(r.valor),
   st: r.status, dc: r.casa ?? '', sb: num(r.saldo_bruto), cm: num(r.comissao), caf: num(r.comissao_afiliado),
   sl: num(r.saldo_liquido), bl: r.baixa_liquidez, adv: r.advertido, irr: r.irregular,
+  obs: r.advertencia ?? '',
 });

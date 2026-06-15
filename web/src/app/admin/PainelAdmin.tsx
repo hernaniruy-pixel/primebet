@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import ComboBox from './ComboBox';
 import type { Afiliado, Cliente, Reg, PanelData } from './types';
 import {
   criarAposta, atualizarAposta, excluirAposta,
@@ -60,8 +61,25 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
   const [novo, setNovo] = useState<{ open: boolean; cId: string; jogo: string; odd: string; val: string; st: string; dc: string }>(
     { open: false, cId: '', jogo: '', odd: '', val: '', st: 'EM ABERTO', dc: '' },
   );
+  const [obsModal, setObsModal] = useState<{ id: number; text: string } | null>(null);
+
+  async function salvarObs() {
+    if (!obsModal) return;
+    const txt = obsModal.text.trim();
+    await patchReg(obsModal.id, { obs: txt, adv: txt.length > 0 });
+    setObsModal(null);
+    toast(txt ? 'Advertência salva.' : 'Advertência removida.');
+  }
+  async function resolverObs() {
+    if (!obsModal) return;
+    await patchReg(obsModal.id, { adv: false });
+    setObsModal(null);
+    toast('Advertência marcada como resolvida.');
+  }
 
   const cMap = useMemo(() => Object.fromEntries(clientes.map((c) => [c.id, c])) as Record<number, Cliente>, [clientes]);
+  const cliOpts = useMemo(() => [{ value: '', label: '— Selecione um cliente —' }, ...clientes.map((c) => ({ value: String(c.id), label: c.nome }))], [clientes]);
+  const stOpts = useMemo(() => [{ value: '', label: '— Selecione um status —' }, ...STS.map((s) => ({ value: s, label: s }))], []);
 
   function toast(msg: string) {
     setToastMsg(msg);
@@ -178,12 +196,17 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
   async function saveCli(id: number) {
     const c = clientes.find((x) => x.id === id); if (!c) return;
     try {
-      const res = await atualizarCliente(id, { s: c.s, on: c.on, cal: c.cal, desc: c.desc, com: c.com, sup: c.sup, af: c.af });
+      const res = await atualizarCliente(id, { s: c.s, on: c.on, cal: c.cal, desc: c.desc, com: c.com, sup: c.sup, af: c.af, link: c.link });
       setClientes((cs) => cs.map((x) => (x.id === id ? res.cliente : x)));
       const byId = Object.fromEntries(res.regs.map((r) => [r.id, r]));
       setRegs((rs) => rs.map((r) => byId[r.id] ?? r));
       toast('Cliente salvo!');
     } catch { toast('Erro ao salvar cliente.'); }
+  }
+  function copiarLink(link: string | null) {
+    if (!link) { toast('Cliente sem link cadastrado.'); return; }
+    const url = window.location.origin + link;
+    navigator.clipboard?.writeText(url).then(() => toast('Link copiado!'), () => toast(url));
   }
   async function novoCliente() {
     const nome = prompt('Nome do novo cliente (em maiúsculas):'); if (!nome) return;
@@ -222,7 +245,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
   const dW = (r: Reg, f: 'dt' | 'odd' | 'val') => (drafts[r.id]?.[f] !== undefined ? ' inp-w' : '');
   function updDraft(id: number, f: 'dt' | 'odd' | 'val', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
 
-  async function patchReg(id: number, patch: { dt?: string; odd?: number; val?: number; st?: string; dc?: string; bl?: boolean; adv?: boolean; irr?: boolean }) {
+  async function patchReg(id: number, patch: { dt?: string; odd?: number; val?: number; st?: string; dc?: string; bl?: boolean; adv?: boolean; irr?: boolean; obs?: string }) {
     try {
       const reg = await atualizarAposta(id, patch);
       setRegs((rs) => rs.map((r) => (r.id === id ? reg : r)));
@@ -330,10 +353,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
           </div>
           <div className="filter-grid2">
             <div><div className="f-lbl">Nome</div>
-              <select className="f-inp" value={filtros.nome} onChange={(e) => setF('nome', e.target.value)}>
-                <option value="">— Selecione um cliente —</option>
-                {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
+              <ComboBox options={cliOpts} value={filtros.nome} onChange={(v) => setF('nome', v)} placeholder="— Selecione um cliente —" />
             </div>
             <div><div className="f-lbl">Jogo contém</div><input className="f-inp" value={filtros.jogo} onChange={(e) => setF('jogo', e.target.value)} placeholder="Jogo contém" /></div>
             <div><div className="f-lbl">Descarrego contém</div><input className="f-inp" value={filtros.dc} onChange={(e) => setF('dc', e.target.value)} placeholder="Descarrego contém" /></div>
@@ -344,10 +364,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
           </div>
           <div className="filter-grid3">
             <div><div className="f-lbl">Status</div>
-              <select className="f-inp" value={filtros.st} onChange={(e) => setF('st', e.target.value)}>
-                <option value="">— Selecione um status —</option>
-                {STS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <ComboBox options={stOpts} value={filtros.st} onChange={(v) => setF('st', v)} placeholder="— Selecione um status —" />
             </div>
             <div><div className="f-lbl">Baixa Liquidez</div>
               <select className="f-inp" value={filtros.bl} onChange={(e) => setF('bl', e.target.value)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select>
@@ -423,6 +440,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
                       <td className="td-r" style={{ fontWeight: 700, color: clr(r.sl) }}>{fmt(r.sl)}</td>
                       <td className="td-sticky td-c" style={{ background: rowBg }}>
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                          <button className="btn btn-sm" onClick={() => setObsModal({ id: r.id, text: r.obs })} title={r.adv ? `Advertência: ${r.obs}` : 'Adicionar advertência'} style={{ background: r.adv ? '#dc2626' : '#f1f5f9', color: r.adv ? '#fff' : '#9ca3af', minWidth: 32, padding: '5px 6px' }}>⚠</button>
                           <button className="btn btn-sm" onClick={() => saveReg(r.id)} style={{ background: btnBg, color: '#fff', minWidth: 58 }}>{d._saved ? '✓ Salvo' : 'Salvar'}</button>
                           <button className="btn btn-sm btn-red-o" onClick={() => delReg(r.id)} style={{ minWidth: 58 }}>Excluir</button>
                         </div>
@@ -472,6 +490,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
                 <div className="rc-r"><span className="rc-l">Comissão</span><span style={{ fontWeight: 600, color: clr(r.cm) }}>R$ {fmt(r.cm)}</span></div>
                 <div className="rc-r"><span className="rc-l">S.Líquido</span><span style={{ fontWeight: 700, color: clr(r.sl) }}>R$ {fmt(r.sl)}</span></div>
                 <div className="rc-btns">
+                  <button className="btn" onClick={() => setObsModal({ id: r.id, text: r.obs })} style={{ background: r.adv ? '#dc2626' : '#f1f5f9', color: r.adv ? '#fff' : '#6b7280' }}>⚠</button>
                   <button className="btn" onClick={() => saveReg(r.id)} style={{ background: btnBg, color: '#fff', flex: 1 }}>{d._saved ? '✓ Salvo' : 'Salvar'}</button>
                   <button className="btn btn-red-o" onClick={() => delReg(r.id)}>Excluir</button>
                 </div>
@@ -496,9 +515,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
             </div>
             <div className="modal-body" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div><div className="f-lbl">Cliente</div>
-                <select className="f-inp" value={novo.cId} onChange={(e) => setNovo((n) => ({ ...n, cId: e.target.value }))}>
-                  <option value="">— Selecione —</option>{clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
+                <ComboBox options={cliOpts} value={novo.cId} onChange={(v) => setNovo((n) => ({ ...n, cId: v }))} placeholder="— Selecione —" />
               </div>
               <div><div className="f-lbl">Jogo</div><textarea className="f-inp" rows={3} value={novo.jogo} onChange={(e) => setNovo((n) => ({ ...n, jogo: e.target.value }))} placeholder={'1) Time A x Time B\n• Mercado / seleção'} /></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -529,7 +546,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
             <div style={{ padding: '8px 16px', fontSize: 12, color: '#6b7280', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>Edite os campos e clique em <b>Salvar</b>. A senha será usada para o cliente acessar o painel.</div>
             <div className="modal-body" style={{ padding: 0 }}>
               <div className="tbl-scroll"><table>
-                <thead><tr><th>ID</th><th>Nome</th><th>Senha</th><th>Ativo</th><th className="th-r">Calção</th><th className="th-r">Desconto</th><th>Comissão</th><th>Supervisor</th><th>Comissão Afiliado</th><th className="th-sticky th-c">Ações</th></tr></thead>
+                <thead><tr><th>ID</th><th>Nome</th><th>Senha</th><th>Ativo</th><th className="th-r">Calção</th><th className="th-r">Desconto</th><th>Comissão</th><th>Supervisor</th><th>Comissão Afiliado</th><th>Link do jogador</th><th className="th-sticky th-c">Ações</th></tr></thead>
                 <tbody>{clientes.map((c, i) => { const bg = i % 2 === 0 ? '#fff' : '#f8fafc'; return (
                   <tr key={c.id} style={{ background: bg }}>
                     <td style={{ fontWeight: 600, color: '#374151' }}>{c.id}</td>
@@ -541,6 +558,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
                     <td style={{ color: '#374151' }}>{c.com},00%</td>
                     <td><select className="inp" value={c.sup ?? '—'} onChange={(e) => updCli(c.id, { sup: e.target.value === '—' ? null : e.target.value })} style={{ minWidth: 120 }}><option>—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></td>
                     <td style={{ color: '#374151' }}>{c.af},00%</td>
+                    <td><div style={{ display: 'flex', gap: 4, alignItems: 'center' }}><input className="inp" value={c.link ?? ''} placeholder="/slug/NOME" onChange={(e) => updCli(c.id, { link: e.target.value })} style={{ width: 150, fontSize: 11 }} /><button className="btn-icon" title="Copiar link completo" onClick={() => copiarLink(c.link)}>📋</button></div></td>
                     <td className="td-sticky td-c" style={{ background: bg }}><button className="btn btn-blue btn-sm" onClick={() => saveCli(c.id)}>Salvar</button></td>
                   </tr>); })}</tbody>
               </table></div>
@@ -668,7 +686,7 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
               <div style={{ fontSize: 11, color: '#6b7280', background: '#f8fafc', border: '1px solid #eef2f7', borderRadius: 8, padding: '9px 11px', marginBottom: 14, lineHeight: 1.5 }}>
                 Simula a chegada de um bilhete. Na operação real, o backend recebe a <b>reação na imagem</b> do grupo, transcreve o bilhete (visão computacional) e o coloca na fila como <b>EM ABERTO</b>; odd/valor em branco ficam com <b>contorno vermelho</b> para você preencher.
               </div>
-              <div style={{ marginBottom: 12 }}><div className="f-lbl">Cliente / grupo *</div><select className="f-inp" value={wpp.cId} onChange={(e) => setWpp((w) => ({ ...w, cId: e.target.value }))}><option value="">— Selecione —</option>{clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></div>
+              <div style={{ marginBottom: 12 }}><div className="f-lbl">Cliente / grupo *</div><ComboBox options={cliOpts} value={wpp.cId} onChange={(v) => setWpp((w) => ({ ...w, cId: v }))} placeholder="— Selecione —" /></div>
               <div style={{ marginBottom: 12 }}><div className="f-lbl">Bilhete transcrito *</div><textarea className="f-inp" rows={4} style={{ resize: 'vertical' }} value={wpp.jogo} onChange={(e) => setWpp((w) => ({ ...w, jogo: e.target.value }))} placeholder={'Ex:\n1) Arsenal x Burnley\n• Menos de 6.5 gols'} /></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
                 <div><div className="f-lbl">Odd (opcional)</div><input type="number" step="0.01" className="f-inp" placeholder="vazio = em aberto" value={wpp.odd} onChange={(e) => setWpp((w) => ({ ...w, odd: e.target.value }))} /></div>
@@ -678,6 +696,27 @@ export default function PainelAdmin({ email, dados }: { email: string; dados: Pa
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                 <button className="btn btn-gray" style={{ flex: 1 }} onClick={() => setModal(null)}>Cancelar</button>
                 <button className="btn btn-green" style={{ flex: 1 }} onClick={receberBilhete}>Receber no sistema</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ADVERTÊNCIA / OBSERVAÇÃO */}
+      {obsModal && (
+        <div className="modal-bg" onClick={() => setObsModal(null)}>
+          <div className="modal modal-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-hdr">
+              <span style={{ fontWeight: 700 }}>⚠ Advertência — Aposta #{obsModal.id}</span>
+              <button className="modal-close" onClick={() => setObsModal(null)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ padding: 16 }}>
+              <div className="f-lbl">Observação / motivo</div>
+              <textarea className="f-inp" rows={4} style={{ resize: 'vertical' }} value={obsModal.text} onChange={(e) => setObsModal((m) => (m ? { ...m, text: e.target.value } : m))} placeholder="Descreva a advertência (ex: odd suspeita, valor acima do limite)…" />
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+                <button className="btn btn-gray" onClick={() => setObsModal(null)}>Cancelar</button>
+                <button className="btn" onClick={resolverObs} style={{ background: '#16a34a', color: '#fff' }}>Resolvido</button>
+                <button className="btn btn-green" onClick={salvarObs}>Salvar</button>
               </div>
             </div>
           </div>
@@ -798,6 +837,18 @@ const CSS = `
 .pb-panel .modal-body{overflow-y:auto;flex:1}
 .pb-panel .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280;line-height:1;padding:2px 6px}
 .pb-panel .pb-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e3a0a;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:300;max-width:90vw;text-align:center}
+.pb-panel .combo{position:relative;width:100%}
+.pb-panel .combo-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px;font-size:12px;background:#fff;color:#374151;cursor:pointer;text-align:left}
+.pb-panel .combo-btn:hover{border-color:#DAA520}
+.pb-panel .combo-ph{color:#9ca3af}
+.pb-panel .combo-arrow{color:#9ca3af;font-size:10px;flex-shrink:0}
+.pb-panel .combo-pop{position:absolute;z-index:120;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 10px 28px rgba(0,0,0,.16);overflow:hidden}
+.pb-panel .combo-search{width:100%;border:none;border-bottom:1px solid #f1f5f9;padding:8px 10px;font-size:12px;outline:none}
+.pb-panel .combo-list{max-height:230px;overflow-y:auto}
+.pb-panel .combo-item{padding:7px 10px;font-size:12px;cursor:pointer;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb-panel .combo-item:hover{background:#fff7e6}
+.pb-panel .combo-item.sel{background:#FDF8E8;font-weight:700;color:#B8860B}
+.pb-panel .combo-empty{padding:9px 10px;font-size:12px;color:#9ca3af}
 @media(max-width:768px){
   .pb-panel .desk-only{display:none !important}
   .pb-panel .mob-only{display:block !important}
