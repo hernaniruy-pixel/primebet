@@ -3,51 +3,16 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import type { Afiliado, Cliente, Reg, PanelData } from './types';
+import {
+  criarAposta, atualizarAposta, excluirAposta,
+  criarCliente, atualizarCliente,
+  criarAfiliado, atualizarAfiliado,
+} from './actions';
 
-// ═══════════ TIPOS ═══════════
-interface Afiliado { id: number; nome: string; com: number }
-interface Cliente { id: number; nome: string; s: string; on: boolean; cal: number; desc: number; com: number; sup: string | null; af: number }
-interface Reg { id: number; dt: string; cId: number; jogo: string; odd: number; val: number; st: string; dc: string; sb: number; cm: number; caf: number; sl: number; bl: boolean; adv: boolean; irr: boolean }
 interface Draft { dt?: string; odd?: string; val?: string; _saved?: boolean }
 
-// ═══════════ DADOS INICIAIS ═══════════
-const AFILIADOS_INIT: Afiliado[] = [
-  { id: 5, nome: 'Heitor Escossia', com: 0 },
-  { id: 7, nome: 'Lucas Tiger', com: 10 },
-  { id: 8, nome: 'Renan Cardoso', com: 10 },
-  { id: 3, nome: 'Samuel Henriquer', com: 15 },
-  { id: 4, nome: 'Samuel Henrique', com: 15 },
-  { id: 6, nome: 'Yuri Honorio', com: 0 },
-];
-
-const CLIS_INIT: Cliente[] = [
-  { id: 12, nome: 'AHLEFELD', s: '102030', on: true, cal: 0, desc: 0.01, com: 6, sup: null, af: 0 },
-  { id: 28, nome: 'ALE_FALTAS', s: '', on: true, cal: 0, desc: 0.01, com: 6, sup: null, af: 15 },
-  { id: 27, nome: 'ALE_NBA', s: '', on: true, cal: 0, desc: 0.01, com: 6, sup: null, af: 15 },
-  { id: 26, nome: 'ALECORNERS', s: '', on: true, cal: 0, desc: 0.01, com: 6, sup: null, af: 15 },
-  { id: 50, nome: 'BRUNOFIRMINO', s: '666666', on: true, cal: 0, desc: 0.01, com: 6, sup: 'Samuel Henrique', af: 15 },
-  { id: 19, nome: 'BRUNOGIRAO', s: '', on: false, cal: 0, desc: 0.01, com: 6, sup: null, af: 0 },
-  { id: 9, nome: 'BRUXO', s: '', on: false, cal: 0, desc: 0.01, com: 6, sup: null, af: 0 },
-  { id: 20, nome: 'CARIOCA', s: '', on: false, cal: 0, desc: 0.01, com: 6, sup: null, af: 0 },
-  { id: 51, nome: 'CAVALCANTE', s: '909090', on: true, cal: 3000, desc: 0.01, com: 6, sup: null, af: 0 },
-  { id: 22, nome: 'CRISTIAN', s: '102030', on: true, cal: 2045, desc: 0.01, com: 6, sup: 'Heitor Escossia', af: 10 },
-  { id: 16, nome: 'DAVID', s: '050505', on: true, cal: 1957, desc: 0.01, com: 6, sup: null, af: 0 },
-  { id: 37, nome: 'DAVIDBDS', s: '', on: true, cal: 0, desc: 0.01, com: 6, sup: null, af: 0 },
-  { id: 39, nome: 'DAVIDLOPES', s: '010101', on: true, cal: 0, desc: 0, com: 6, sup: 'Samuel Henrique', af: 15 },
-  { id: 31, nome: 'DIEGOMORAIS', s: '858585', on: true, cal: 0, desc: 0.01, com: 6, sup: 'Samuel Henrique', af: 15 },
-  { id: 41, nome: 'DRMURIELL', s: '131313', on: true, cal: 1500, desc: 0.01, com: 6, sup: 'Heitor Escossia', af: 10 },
-];
-
-const REGS_INIT: Reg[] = [
-  { id: 7184, dt: '2026-05-18 21:54', cId: 22, jogo: '1) Cruzeiro (F) v Corinthians (F) (Odd 2,04)\n• Corinthians (F) – Resultado Final', odd: 1.89, val: 962, st: 'EM ABERTO', dc: '', sb: 0, cm: 0, caf: 0, sl: 0, bl: false, adv: false, irr: false },
-  { id: 7311, dt: '2026-05-18 21:28', cId: 28, jogo: '1) Arsenal – Burnley (Odd 1,56)\n• Menos de 30.5 – Total de chutes\n• Menos de 6.5 – Total de Gols', odd: 1.56, val: 886, st: 'EM ABERTO', dc: 'BETANO', sb: 0, cm: 0, caf: 0, sl: 0, bl: false, adv: false, irr: false },
-  { id: 7316, dt: '2026-05-18 11:39', cId: 12, jogo: '1) Cruzeiro (F) v Corinthians (F) (Odd 2,04)\n• Corinthians (F) – Resultado Final', odd: 2.09, val: 538, st: 'EM ABERTO', dc: 'BET365', sb: 0, cm: 0, caf: 0, sl: 0, bl: false, adv: false, irr: false },
-  { id: 7100, dt: '2026-05-17 14:20', cId: 50, jogo: '1) Bayern v Dortmund\n• Bayern – Resultado Final', odd: 1.72, val: 1200, st: 'GREEN', dc: 'BETANO', sb: 864, cm: 51.84, caf: 7.78, sl: 804.38, bl: false, adv: false, irr: false },
-  { id: 7090, dt: '2026-05-17 10:05', cId: 22, jogo: '1) PSG v Marseille\n• PSG – Resultado Final', odd: 1.84, val: 500, st: 'RED', dc: '', sb: -500, cm: 0, caf: 0, sl: -500, bl: false, adv: false, irr: false },
-  { id: 7080, dt: '2026-05-16 20:00', cId: 16, jogo: '1) Liverpool v Arsenal\n• Menos de 2.5 gols', odd: 2.1, val: 750, st: 'GREEN', dc: 'BET365', sb: 825, cm: 49.5, caf: 0, sl: 775.5, bl: false, adv: false, irr: false },
-];
-
-const STS = ['EM ABERTO', 'GREEN', 'MEIO GREEN', 'MEIO RED', 'RED', 'REEMBOLSO'];
+const STS =['EM ABERTO', 'GREEN', 'MEIO GREEN', 'MEIO RED', 'RED', 'REEMBOLSO'];
 const DCS = ['', 'BETANO', 'BET365', 'SPORTINGBET', 'SUPERBET', 'PIXBET'];
 const SC: Record<string, { bg: string; t: string }> = {
   'EM ABERTO': { bg: '#2563eb', t: '#fff' },
@@ -62,7 +27,6 @@ const PAGE_SIZE = 20;
 // ═══════════ HELPERS ═══════════
 const fmt = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const clr = (n: number) => (n > 0 ? '#16a34a' : n < 0 ? '#dc2626' : '#B8860B');
-const round2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 const fmtDate = (d: Date) => d.toISOString().split('T')[0];
 const inRangeDt = (dt: string, d1: string, d2: string) => { const d = (dt || '').slice(0, 10); if (d1 && d < d1) return false; if (d2 && d > d2) return false; return true; };
 function periodDates(v: string): { d1: string; d2: string } {
@@ -74,30 +38,16 @@ function periodDates(v: string): { d1: string; d2: string } {
   return { d1: '', d2: '' };
 }
 
-function computeReg(st: string, val: number, odd: number, cli?: Cliente) {
-  val = Number(val) || 0; odd = Number(odd) || 0;
-  let sb = 0;
-  if (st === 'GREEN') sb = val * (odd - 1);
-  else if (st === 'MEIO GREEN') sb = (val * (odd - 1)) / 2;
-  else if (st === 'RED') sb = -val;
-  else if (st === 'MEIO RED') sb = -val / 2;
-  const com = cli ? Number(cli.com) || 0 : 0;
-  const af = cli ? Number(cli.af) || 0 : 0;
-  const cm = sb > 0 ? sb * (com / 100) : 0;
-  const caf = cm * (af / 100);
-  return { sb: round2(sb), cm: round2(cm), caf: round2(caf), sl: round2(sb - cm - caf) };
-}
-
 const filtrosVazios = {
   id: '', nome: '', st: '', jogo: '', oddMin: '', oddMax: '', valMin: '', valMax: '',
   bl: '', adv: '', irr: '', dt1: '', dt2: '', period: '', ord: 'data_desc',
 };
 
-export default function PainelAdmin({ email }: { email: string }) {
+export default function PainelAdmin({ email, dados }: { email: string; dados: PanelData }) {
   const router = useRouter();
-  const [regs, setRegs] = useState<Reg[]>(REGS_INIT);
-  const [clientes, setClientes] = useState<Cliente[]>(CLIS_INIT);
-  const [afiliados, setAfiliados] = useState<Afiliado[]>(AFILIADOS_INIT);
+  const [regs, setRegs] = useState<Reg[]>(dados.regs);
+  const [clientes, setClientes] = useState<Cliente[]>(dados.clientes);
+  const [afiliados, setAfiliados] = useState<Afiliado[]>(dados.afiliados);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [filtros, setFiltros] = useState({ ...filtrosVazios });
   const [page, setPage] = useState(1);
@@ -224,37 +174,46 @@ export default function PainelAdmin({ email }: { email: string }) {
 
   // ── clientes
   function updCli(id: number, patch: Partial<Cliente>) { setClientes((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c))); }
-  function saveCli(id: number) {
-    setRegs((rs) => rs.map((r) => (r.cId === id ? { ...r, ...computeReg(r.st, r.val, r.odd, clientes.find((c) => c.id === id)) } : r)));
-    toast('Cliente salvo!');
+  async function saveCli(id: number) {
+    const c = clientes.find((x) => x.id === id); if (!c) return;
+    try {
+      const res = await atualizarCliente(id, { s: c.s, on: c.on, cal: c.cal, desc: c.desc, com: c.com, sup: c.sup, af: c.af });
+      setClientes((cs) => cs.map((x) => (x.id === id ? res.cliente : x)));
+      const byId = Object.fromEntries(res.regs.map((r) => [r.id, r]));
+      setRegs((rs) => rs.map((r) => byId[r.id] ?? r));
+      toast('Cliente salvo!');
+    } catch { toast('Erro ao salvar cliente.'); }
   }
-  function novoCliente() {
+  async function novoCliente() {
     const nome = prompt('Nome do novo cliente (em maiúsculas):'); if (!nome) return;
-    const newId = Math.max(0, ...clientes.map((c) => c.id)) + 1;
-    setClientes((cs) => [...cs, { id: newId, nome: nome.toUpperCase(), s: '', on: true, cal: 0, desc: 0.01, com: 6, sup: null, af: 0 }]);
+    try { const c = await criarCliente(nome); setClientes((cs) => [...cs, c]); toast('Cliente criado!'); }
+    catch { toast('Erro ao criar cliente.'); }
   }
 
   // ── afiliados
   function updAf(id: number, patch: Partial<Afiliado>) { setAfiliados((as) => as.map((a) => (a.id === id ? { ...a, ...patch } : a))); }
-  function saveAf() { setRegs((rs) => rs.map((r) => ({ ...r, ...computeReg(r.st, r.val, r.odd, cMap[r.cId]) }))); toast('Afiliado salvo!'); }
-  function novoAfiliado() {
+  async function saveAf(id: number) {
+    const a = afiliados.find((x) => x.id === id); if (!a) return;
+    try { const res = await atualizarAfiliado(id, { nome: a.nome, com: a.com }); setAfiliados((as) => as.map((x) => (x.id === id ? res : x))); toast('Afiliado salvo!'); }
+    catch { toast('Erro ao salvar afiliado.'); }
+  }
+  async function novoAfiliado() {
     const nome = prompt('Nome do novo afiliado:'); if (!nome) return;
-    const newId = Math.max(0, ...afiliados.map((a) => a.id)) + 1;
-    setAfiliados((as) => [...as, { id: newId, nome, com: 0 }]);
+    try { const a = await criarAfiliado(nome); setAfiliados((as) => [...as, a]); toast('Afiliado criado!'); }
+    catch { toast('Erro ao criar afiliado.'); }
   }
 
   // ── receber bilhete (WhatsApp)
-  function receberBilhete() {
+  async function receberBilhete() {
     if (!wpp.cId || !wpp.jogo.trim()) { alert('Selecione o cliente e cole o bilhete transcrito.'); return; }
     const cId = Number(wpp.cId); const odd = Number(wpp.odd) || 0; const val = Number(wpp.val) || 0;
-    const calc = computeReg('EM ABERTO', val, odd, cMap[cId]);
-    const d = new Date(); const p = (n: number) => String(n).padStart(2, '0');
-    const dt = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-    const id = Date.now() + Math.floor(Math.random() * 1000);
-    setRegs((rs) => [{ id, dt, cId, jogo: wpp.jogo, odd, val, st: 'EM ABERTO', dc: wpp.dc, ...calc, bl: false, adv: false, irr: false }, ...rs]);
-    const incompleto = !(odd > 0) || !(val > 0);
-    toast(`Bilhete recebido (#${id}). ${incompleto ? 'Preencha odd/valor — linha em vermelho.' : 'Pronto na fila.'}`);
-    setWpp({ cId: '', jogo: '', odd: '', val: '', dc: '' }); setModal(null);
+    try {
+      const reg = await criarAposta({ cId, jogo: wpp.jogo, odd, val, st: 'EM ABERTO', dc: wpp.dc });
+      setRegs((rs) => [reg, ...rs]);
+      const incompleto = !(odd > 0) || !(val > 0);
+      toast(`Bilhete recebido (#${reg.id}). ${incompleto ? 'Preencha odd/valor — linha em vermelho.' : 'Pronto na fila.'}`);
+      setWpp({ cId: '', jogo: '', odd: '', val: '', dc: '' }); setModal(null);
+    } catch { toast('Erro ao receber bilhete.'); }
   }
 
   // ── edição
@@ -262,25 +221,25 @@ export default function PainelAdmin({ email }: { email: string }) {
   const dW = (r: Reg, f: 'dt' | 'odd' | 'val') => (drafts[r.id]?.[f] !== undefined ? ' inp-w' : '');
   function updDraft(id: number, f: 'dt' | 'odd' | 'val', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
 
-  function recalc(id: number, patch: Partial<Reg>) {
-    setRegs((rs) => rs.map((r) => {
-      if (r.id !== id) return r;
-      const merged = { ...r, ...patch };
-      return { ...merged, ...computeReg(merged.st, merged.val, merged.odd, cMap[merged.cId]) };
-    }));
+  async function patchReg(id: number, patch: { dt?: string; odd?: number; val?: number; st?: string; dc?: string; bl?: boolean; adv?: boolean; irr?: boolean }) {
+    try {
+      const reg = await atualizarAposta(id, patch);
+      setRegs((rs) => rs.map((r) => (r.id === id ? reg : r)));
+      return reg;
+    } catch { toast('Erro ao salvar aposta.'); return null; }
   }
 
-  function updRegSt(id: number, v: string) {
+  async function updRegSt(id: number, v: string) {
     const prev = regs.find((r) => r.id === id);
     const wasOpen = prev && prev.st === 'EM ABERTO';
     const nome = (cMap[prev?.cId ?? -1] || {}).nome || '';
-    recalc(id, { st: v });
+    await patchReg(id, { st: v });
     if (wasOpen && v !== 'EM ABERTO') toast(`Aposta #${id} (${nome}) → ${v}. Atualizada no painel do jogador.`);
   }
 
-  function saveReg(id: number) {
+  async function saveReg(id: number) {
     const d = drafts[id] || {};
-    recalc(id, {
+    await patchReg(id, {
       ...(d.dt !== undefined ? { dt: d.dt } : {}),
       ...(d.odd !== undefined ? { odd: Number(d.odd) } : {}),
       ...(d.val !== undefined ? { val: Number(d.val) } : {}),
@@ -289,19 +248,20 @@ export default function PainelAdmin({ email }: { email: string }) {
     setTimeout(() => setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; }), 1800);
   }
 
-  function delReg(id: number) {
-    if (confirm('Excluir este registro?')) setRegs((rs) => rs.filter((r) => r.id !== id));
+  async function delReg(id: number) {
+    if (!confirm('Excluir este registro?')) return;
+    try { await excluirAposta(id); setRegs((rs) => rs.filter((r) => r.id !== id)); }
+    catch { toast('Erro ao excluir.'); }
   }
 
-  function salvarNovo() {
+  async function salvarNovo() {
     if (!novo.cId || !novo.jogo || !novo.odd || !novo.val) { alert('Preencha todos os campos obrigatórios.'); return; }
-    const cId = Number(novo.cId);
-    const calc = computeReg(novo.st, Number(novo.val), Number(novo.odd), cMap[cId]);
-    const d = new Date(); const p = (n: number) => String(n).padStart(2, '0');
-    const dt = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-    setRegs((rs) => [{ id: Date.now(), dt, cId, jogo: novo.jogo, odd: Number(novo.odd), val: Number(novo.val), st: novo.st, dc: novo.dc, ...calc, bl: false, adv: false, irr: false }, ...rs]);
-    setNovo({ open: false, cId: '', jogo: '', odd: '', val: '', st: 'EM ABERTO', dc: '' });
-    toast('Registro adicionado.');
+    try {
+      const reg = await criarAposta({ cId: Number(novo.cId), jogo: novo.jogo, odd: Number(novo.odd), val: Number(novo.val), st: novo.st, dc: novo.dc });
+      setRegs((rs) => [reg, ...rs]);
+      setNovo({ open: false, cId: '', jogo: '', odd: '', val: '', st: 'EM ABERTO', dc: '' });
+      toast('Registro adicionado.');
+    } catch { toast('Erro ao adicionar registro.'); }
   }
 
   async function sair() {
@@ -456,7 +416,7 @@ export default function PainelAdmin({ email }: { email: string }) {
                       <td><select className="st-sel" style={stStyle(r.st)} value={r.st} onChange={(e) => updRegSt(r.id, e.target.value)}>{STS.map((s) => <option key={s} value={s}>{s}</option>)}</select></td>
                       <td className="td-r" style={{ fontWeight: 600, color: clr(r.sb) }}>{fmt(r.sb)}</td>
                       <td className="td-r" style={{ fontWeight: 600, color: clr(r.cm) }}>{fmt(r.cm)}</td>
-                      <td className="td-c"><select className="inp" value={r.bl ? 'Sim' : 'Não'} onChange={(e) => recalc(r.id, { bl: e.target.value === 'Sim' })} style={{ fontSize: 11 }}><option>Não</option><option>Sim</option></select></td>
+                      <td className="td-c"><select className="inp" value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} style={{ fontSize: 11 }}><option>Não</option><option>Sim</option></select></td>
                       <td className="td-r" style={{ fontWeight: 700, color: clr(r.sl) }}>{fmt(r.sl)}</td>
                       <td className="td-sticky td-c" style={{ background: rowBg }}>
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
@@ -602,7 +562,7 @@ export default function PainelAdmin({ email }: { email: string }) {
                     <td style={{ fontWeight: 600, color: '#374151' }}>{a.id}</td>
                     <td><input className="inp inp-full" value={a.nome} onChange={(e) => updAf(a.id, { nome: e.target.value })} /></td>
                     <td style={{ color: '#374151' }}>{a.com},00%</td>
-                    <td className="td-sticky td-c" style={{ background: bg }}><button className="btn btn-blue btn-sm" onClick={saveAf}>Salvar</button></td>
+                    <td className="td-sticky td-c" style={{ background: bg }}><button className="btn btn-blue btn-sm" onClick={() => saveAf(a.id)}>Salvar</button></td>
                   </tr>); })}</tbody>
               </table></div>
             </div>
