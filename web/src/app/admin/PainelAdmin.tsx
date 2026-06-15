@@ -28,7 +28,7 @@ const PAGE_SIZE = 20;
 
 // ═══════════ HELPERS ═══════════
 const fmt = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const clr = (n: number) => { void n; return '#111827'; };
+const clr = (n: number) => { void n; return 'var(--num)'; };
 const fmtDate = (d: Date) => d.toISOString().split('T')[0];
 function periodDates(v: string): { d1: string; d2: string } {
   const today = new Date();
@@ -48,6 +48,12 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
   email: string; clientesIni: Cliente[]; afiliadosIni: Afiliado[]; apostasIni: ApostasPage; semana: { d1: string; d2: string };
 }) {
   const router = useRouter();
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDark(typeof window !== 'undefined' && localStorage.getItem('pb-theme') === 'dark');
+  }, []);
+  const toggleTheme = () => setDark((d) => { const n = !d; try { localStorage.setItem('pb-theme', n ? 'dark' : 'light'); } catch { /* ignore */ } return n; });
   const [regs, setRegs] = useState<Reg[]>(apostasIni.rows);
   const [total, setTotal] = useState<number>(apostasIni.total);
   const [totals, setTotals] = useState<Totals>(apostasIni.totals);
@@ -289,12 +295,12 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
     router.replace('/login');
   }
 
-  const stStyle = (s: string) => { const c = SC[s] || { bg: '#e5e7eb', t: '#374151' }; return { background: c.bg, color: c.t }; };
+  const stStyle = (s: string) => { const c = SC[s] || { bg: 'var(--line)', t: 'var(--inp-text)' }; return { background: c.bg, color: c.t }; };
   const stOptEls = () => STS.map((s) => { const c = SC[s] || { bg: '#fff', t: '#111' }; return <option key={s} value={s} style={{ background: c.bg, color: c.t }}>{s}</option>; });
   const pdfBreve = () => toast('Geração de PDF entra na próxima etapa.');
 
   return (
-    <div className="pb-panel">
+    <div className={`pb-panel${dark ? ' dark' : ''}`}>
       <style>{CSS}</style>
 
       {/* TOPBAR */}
@@ -309,6 +315,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
           <button className="tb-btn" onClick={() => setModal('af')}>🤝 Afiliados</button>
           <button className="tb-btn" onClick={() => setModal('fech')}>📊 Fechamento</button>
           <button className="tb-btn" onClick={() => setModal('faf')}>📋 Fechamento Afiliado</button>
+          <button className="tb-btn" onClick={toggleTheme} title="Alternar tema">{dark ? '☀️' : '🌙'}</button>
           <button className="tb-sair" onClick={sair}>↪ Sair</button>
         </div>
         <button className="tb-menu-btn mob-only" onClick={() => setMobMenu(true)}>☰</button>
@@ -325,6 +332,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
             <button className="mob-item" onClick={() => { setModal('faf'); setMobMenu(false); }}>📋 Fech. Afiliado</button>
             <button className="mob-item" onClick={() => { setNovo((n) => ({ ...n, open: true })); setMobMenu(false); }}>➕ Novo Registro</button>
             <button className="mob-item" onClick={() => { setModal('wpp'); setMobMenu(false); }}>📥 Receber bilhete</button>
+            <button className="mob-item" onClick={toggleTheme}>{dark ? '☀️ Tema claro' : '🌙 Tema escuro'}</button>
             <button className="mob-sair" onClick={sair}>🚪 Sair</button>
           </div>
         </div>
@@ -387,18 +395,18 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
 
         {/* MÉTRICAS */}
         <div className="metrics-row">
-          <Metric ico="💰" icoBg="#16a34a22" lbl="ENTRADA" val={`R$ ${fmt(tot.v)}`} valColor="#111827" sub={`${tot.n} linhas`} />
-          <Metric ico="⏳" icoBg="#B8860B22" lbl="EM ABERTO" val={`R$ ${fmt(tot.ab)}`} valColor="#111827" sub={`${tot.nab} linhas`} />
+          <Metric ico="💰" icoBg="#16a34a22" lbl="ENTRADA" val={`R$ ${fmt(tot.v)}`} valColor="var(--num)" sub={`${tot.n} linhas`} />
+          <Metric ico="⏳" icoBg="#B8860B22" lbl="EM ABERTO" val={`R$ ${fmt(tot.ab)}`} valColor="var(--num)" sub={`${tot.nab} linhas`} />
           <Metric ico="📊" icoBg="#8b5cf622" lbl="SALDO BRUTO" val={`R$ ${fmt(tot.sb)}`} valColor={clr(tot.sb)} />
-          <Metric ico="%" icoBg="#dc262622" lbl="COMISSÃO" val={`R$ ${fmt(tot.cm)}`} valColor="#111827" />
+          <Metric ico="%" icoBg="#dc262622" lbl="COMISSÃO" val={`R$ ${fmt(tot.cm)}`} valColor="var(--num)" />
           <Metric ico="✅" icoBg="#16a34a22" lbl="SALDO LÍQUIDO" val={`R$ ${fmt(tot.sl)}`} valColor={clr(tot.sl)} />
         </div>
         <div className="metrics-row2">
-          <Metric ico="✕" icoBg="#dc262622" lbl="COMISSÃO AFILIADOS" val={`R$ ${fmt(tot.caf)}`} valColor="#111827" />
+          <Metric ico="✕" icoBg="#dc262622" lbl="COMISSÃO AFILIADOS" val={`R$ ${fmt(tot.caf)}`} valColor="var(--num)" />
           <Metric ico="+" icoBg="#16a34a22" lbl="TOTAL FECHAMENTO" val={`R$ ${fmt(tot.sl - tot.caf)}`} valColor={clr(tot.sl - tot.caf)} />
         </div>
 
-        <div id="reg-info" style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
+        <div id="reg-info" style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
           {`${total} aposta(s) ${filaLbl} | Página ${pageSafe}/${totalPages} — exibindo ${total ? start + 1 : 0}–${shownTo} de ${total}`}
         </div>
 
@@ -416,17 +424,17 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                   const d = drafts[r.id] || {};
                   const editing = Object.keys(d).filter((k) => k !== '_saved').length > 0;
                   const incompleto = !(Number(r.odd) > 0) || !(Number(r.val) > 0);
-                  const bg = d._saved ? '#f0fdf4' : editing ? '#fffbeb' : i % 2 === 0 ? '#fff' : '#f8fafc';
-                  const rowBg = incompleto ? '#fff5f5' : bg;
+                  const bg = d._saved ? 'var(--saved-bg)' : editing ? 'var(--edit-bg)' : i % 2 === 0 ? 'var(--card)' : 'var(--row-alt)';
+                  const rowBg = incompleto ? 'var(--alert-bg)' : bg;
                   const btnBg = d._saved ? '#2d6a0a' : editing ? '#d97706' : '#B8860B';
                   return (
                     <tr key={r.id} className={incompleto ? 'row-alert' : ''} style={{ background: rowBg, transition: 'background .3s' }}>
-                      <td style={{ fontWeight: 700, color: '#374151' }}>{r.id}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--inp-text)' }}>{r.id}</td>
                       <td><input className={`inp${dW(r, 'dt')}`} value={dV(r, 'dt')} onChange={(e) => updDraft(r.id, 'dt', e.target.value)} style={{ width: 130, fontSize: 11 }} /></td>
                       <td style={{ minWidth: 150 }}><ComboBox options={cliOptsId} value={String(r.cId)} onChange={(v) => { if (v) patchReg(r.id, { cId: Number(v) }); }} minWidth={140} />{incompleto && <span className="alert-tag">PREENCHER</span>}</td>
-                      <td style={{ maxWidth: 200 }}>{r.jogo.split('\n').map((l, ii) => <div key={ii} style={{ fontSize: ii === 0 ? 11 : 10, color: ii === 0 ? '#111' : '#6b7280' }}>{l}</div>)}</td>
+                      <td style={{ maxWidth: 200 }}>{r.jogo.split('\n').map((l, ii) => <div key={ii} style={{ fontSize: ii === 0 ? 11 : 10, color: ii === 0 ? '#111' : 'var(--muted)' }}>{l}</div>)}</td>
                       <td><input type="number" step="0.01" className={`inp${dW(r, 'odd')}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} placeholder="—" style={{ width: 58, fontSize: 11, ...(incompleto && !(Number(r.odd) > 0) ? { borderColor: '#dc2626' } : {}) }} /></td>
-                      <td><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} placeholder="—" style={{ width: 76, fontSize: 11, color: '#111827', fontWeight: 700, ...(incompleto && !(Number(r.val) > 0) ? { borderColor: '#dc2626' } : {}) }} /></td>
+                      <td><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} placeholder="—" style={{ width: 76, fontSize: 11, color: 'var(--num)', fontWeight: 700, ...(incompleto && !(Number(r.val) > 0) ? { borderColor: '#dc2626' } : {}) }} /></td>
                       <td><select className="st-sel" style={stStyle(r.st)} value={r.st} onChange={(e) => updRegSt(r.id, e.target.value)}>{stOptEls()}</select></td>
                       <td><select className="inp" value={r.dc} onChange={(e) => patchReg(r.id, { dc: e.target.value })} style={{ fontSize: 11, minWidth: 100 }}>{DCS.map((dd) => <option key={dd} value={dd}>{dd || '—'}</option>)}</select></td>
                       <td className="td-r" style={{ fontWeight: 600, color: clr(r.sb) }}>{fmt(r.sb)}</td>
@@ -435,7 +443,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                       <td className="td-r" style={{ fontWeight: 700, color: clr(r.sl) }}>{fmt(r.sl)}</td>
                       <td className="td-sticky td-c" style={{ background: rowBg }}>
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                          <button className="btn btn-sm" onClick={() => setObsModal({ id: r.id, text: r.obs })} title={r.adv ? `Advertência: ${r.obs}` : 'Adicionar advertência'} style={{ background: r.adv ? '#dc2626' : '#f1f5f9', color: r.adv ? '#fff' : '#9ca3af', minWidth: 32, padding: '5px 6px' }}>⚠</button>
+                          <button className="btn btn-sm" onClick={() => setObsModal({ id: r.id, text: r.obs })} title={r.adv ? `Advertência: ${r.obs}` : 'Adicionar advertência'} style={{ background: r.adv ? '#dc2626' : 'var(--line)', color: r.adv ? '#fff' : 'var(--muted2)', minWidth: 32, padding: '5px 6px' }}>⚠</button>
                           <button className="btn btn-sm" onClick={() => saveReg(r.id)} style={{ background: btnBg, color: '#fff', minWidth: 58 }}>{d._saved ? '✓ Salvo' : 'Salvar'}</button>
                           <button className="btn btn-sm btn-red-o" onClick={() => delReg(r.id)} style={{ minWidth: 58 }}>Excluir</button>
                         </div>
@@ -462,30 +470,30 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
             const d = drafts[r.id] || {};
             const editing = Object.keys(d).filter((k) => k !== '_saved').length > 0;
             const incompleto = !(Number(r.odd) > 0) || !(Number(r.val) > 0);
-            const bg = d._saved ? '#f0fdf4' : editing ? '#fffbeb' : '#fff';
+            const bg = d._saved ? 'var(--saved-bg)' : editing ? 'var(--edit-bg)' : 'var(--card)';
             const btnBg = d._saved ? '#2d6a0a' : editing ? '#d97706' : '#B8860B';
-            const sc = SC[r.st] || { bg: '#e5e7eb', t: '#374151' };
+            const sc = SC[r.st] || { bg: 'var(--line)', t: 'var(--inp-text)' };
             return (
-              <div key={r.id} className={`rc ${incompleto ? 'row-alert' : ''}`} style={{ background: incompleto ? '#fff5f5' : bg }}>
+              <div key={r.id} className={`rc ${incompleto ? 'row-alert' : ''}`} style={{ background: incompleto ? 'var(--alert-bg)' : bg }}>
                 <div className="rc-h">
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, color: '#374151', fontSize: 12 }}>#{r.id}</span>
-                    <span style={{ fontWeight: 700, color: '#111', fontSize: 14 }}>{c.nome || r.cId}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--inp-text)', fontSize: 12 }}>#{r.id}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--num)', fontSize: 14 }}>{c.nome || r.cId}</span>
                     {incompleto && <span className="alert-tag">PREENCHER</span>}
                   </div>
                   <span className="badge" style={{ background: sc.bg, color: sc.t }}>{r.st}</span>
                 </div>
                 <div className="rc-r"><span className="rc-l">Data/Hora</span><input className={`inp${dW(r, 'dt')}`} value={dV(r, 'dt')} onChange={(e) => updDraft(r.id, 'dt', e.target.value)} style={{ width: 154, textAlign: 'right', fontSize: 12 }} /></div>
-                <div className="rc-r"><span className="rc-l">Jogo</span><span style={{ fontSize: 11, textAlign: 'right', flex: 1, marginLeft: 8 }}>{r.jogo.split('\n').map((l, ii) => <div key={ii} style={{ color: ii === 0 ? '#111' : '#6b7280' }}>{l}</div>)}</span></div>
+                <div className="rc-r"><span className="rc-l">Jogo</span><span style={{ fontSize: 11, textAlign: 'right', flex: 1, marginLeft: 8 }}>{r.jogo.split('\n').map((l, ii) => <div key={ii} style={{ color: ii === 0 ? '#111' : 'var(--muted)' }}>{l}</div>)}</span></div>
                 <div className="rc-r"><span className="rc-l">Odd</span><input type="number" step="0.01" className={`inp${dW(r, 'odd')}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} style={{ width: 90, textAlign: 'right', fontWeight: 700 }} /></div>
-                <div className="rc-r"><span className="rc-l">Entradas</span><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} style={{ width: 110, textAlign: 'right', fontWeight: 700, color: '#111827' }} /></div>
+                <div className="rc-r"><span className="rc-l">Entradas</span><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} style={{ width: 110, textAlign: 'right', fontWeight: 700, color: 'var(--num)' }} /></div>
                 <div className="rc-r"><span className="rc-l">Status</span><div style={{ flex: 1, marginLeft: 8 }}><select className="st-sel inp-full" style={stStyle(r.st)} value={r.st} onChange={(e) => updRegSt(r.id, e.target.value)}>{stOptEls()}</select></div></div>
                 <div className="rc-r"><span className="rc-l">Descarrego</span><div style={{ flex: 1, marginLeft: 8 }}><select className="inp inp-full" value={r.dc} onChange={(e) => patchReg(r.id, { dc: e.target.value })}>{DCS.map((dd) => <option key={dd} value={dd}>{dd || '—'}</option>)}</select></div></div>
                 <div className="rc-r"><span className="rc-l">S.Bruto</span><span style={{ fontWeight: 600, color: clr(r.sb) }}>R$ {fmt(r.sb)}</span></div>
                 <div className="rc-r"><span className="rc-l">Comissão</span><span style={{ fontWeight: 600, color: clr(r.cm) }}>R$ {fmt(r.cm)}</span></div>
                 <div className="rc-r"><span className="rc-l">S.Líquido</span><span style={{ fontWeight: 700, color: clr(r.sl) }}>R$ {fmt(r.sl)}</span></div>
                 <div className="rc-btns">
-                  <button className="btn" onClick={() => setObsModal({ id: r.id, text: r.obs })} style={{ background: r.adv ? '#dc2626' : '#f1f5f9', color: r.adv ? '#fff' : '#6b7280' }}>⚠</button>
+                  <button className="btn" onClick={() => setObsModal({ id: r.id, text: r.obs })} style={{ background: r.adv ? '#dc2626' : 'var(--line)', color: r.adv ? '#fff' : 'var(--muted)' }}>⚠</button>
                   <button className="btn" onClick={() => saveReg(r.id)} style={{ background: btnBg, color: '#fff', flex: 1 }}>{d._saved ? '✓ Salvo' : 'Salvar'}</button>
                   <button className="btn btn-red-o" onClick={() => delReg(r.id)}>Excluir</button>
                 </div>
@@ -538,13 +546,13 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
               <div className="modal-hdr-left"><span style={{ fontWeight: 700, fontSize: 15 }}>Clientes</span><button className="btn btn-green btn-sm" onClick={novoCliente}>+ Novo Cliente</button></div>
               <button className="modal-close" onClick={() => setModal(null)}>✕</button>
             </div>
-            <div style={{ padding: '8px 16px', fontSize: 12, color: '#6b7280', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>Edite os campos e clique em <b>Salvar</b>. A senha será usada para o cliente acessar o painel.</div>
+            <div style={{ padding: '8px 16px', fontSize: 12, color: 'var(--muted)', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>Edite os campos e clique em <b>Salvar</b>. A senha será usada para o cliente acessar o painel.</div>
             <div className="modal-body" style={{ padding: 0 }}>
               <div className="tbl-scroll"><table>
                 <thead><tr><th>ID</th><th>Nome</th><th>Senha</th><th>Ativo</th><th className="th-r">Calção</th><th className="th-r">Desconto</th><th>Comissão</th><th>Supervisor</th><th>Comissão Afiliado</th><th>Link do jogador</th><th className="th-sticky th-c">Ações</th></tr></thead>
-                <tbody>{clientes.map((c, i) => { const bg = i % 2 === 0 ? '#fff' : '#f8fafc'; return (
+                <tbody>{clientes.map((c, i) => { const bg = i % 2 === 0 ? 'var(--card)' : 'var(--row-alt)'; return (
                   <tr key={c.id} style={{ background: bg }}>
-                    <td style={{ fontWeight: 600, color: '#374151' }}>{c.id}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--inp-text)' }}>{c.id}</td>
                     <td><input className="inp" value={c.nome} onChange={(e) => updCli(c.id, { nome: e.target.value.toUpperCase() })} style={{ width: 150, fontWeight: 700 }} /></td>
                     <td><input className="inp" value={c.s} placeholder="Senha" onChange={(e) => updCli(c.id, { s: e.target.value })} style={{ width: 110 }} /></td>
                     <td><select className="inp" value={c.on ? 'Sim' : 'Não'} onChange={(e) => updCli(c.id, { on: e.target.value === 'Sim' })}><option>Sim</option><option>Não</option></select></td>
@@ -570,13 +578,13 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
               <div className="modal-hdr-left"><span style={{ fontWeight: 700, fontSize: 15 }}>Afiliados</span><button className="btn btn-green btn-sm" onClick={novoAfiliado}>+ Novo Afiliado</button></div>
               <button className="modal-close" onClick={() => setModal(null)}>✕</button>
             </div>
-            <div style={{ padding: '8px 16px', fontSize: 12, color: '#6b7280', borderBottom: '1px solid #f1f5f9' }}>Edite os campos e clique em <b>Salvar</b>. A comissão será usada no cadastro dos clientes vinculados ao afiliado.</div>
+            <div style={{ padding: '8px 16px', fontSize: 12, color: 'var(--muted)', borderBottom: '1px solid var(--line)' }}>Edite os campos e clique em <b>Salvar</b>. A comissão será usada no cadastro dos clientes vinculados ao afiliado.</div>
             <div className="modal-body" style={{ padding: 0 }}>
               <div className="tbl-scroll"><table>
                 <thead><tr><th>ID</th><th>Nome</th><th>Comissão</th><th className="th-sticky th-c">Ações</th></tr></thead>
-                <tbody>{afiliados.map((a, i) => { const bg = i % 2 === 0 ? '#fff' : '#f8fafc'; return (
+                <tbody>{afiliados.map((a, i) => { const bg = i % 2 === 0 ? 'var(--card)' : 'var(--row-alt)'; return (
                   <tr key={a.id} style={{ background: bg }}>
-                    <td style={{ fontWeight: 600, color: '#374151' }}>{a.id}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--inp-text)' }}>{a.id}</td>
                     <td><input className="inp inp-full" value={a.nome} onChange={(e) => updAf(a.id, { nome: e.target.value })} /></td>
                     <td><input type="number" step="0.01" className="inp" value={a.com} onChange={(e) => updAf(a.id, { com: Number(e.target.value) })} style={{ width: 80 }} /></td>
                     <td className="td-sticky td-c" style={{ background: bg }}><button className="btn btn-blue btn-sm" onClick={() => saveAf(a.id)}>Salvar</button></td>
@@ -593,14 +601,14 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
           <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
             <div className="modal-hdr"><span style={{ fontWeight: 700, fontSize: 15 }}>Fechamento</span><button className="modal-close" onClick={() => setModal(null)}>✕</button></div>
             <div className="modal-body">
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
                 <div><div className="f-lbl">Data início</div><input type="date" className="f-inp" style={{ width: 'auto' }} value={fech.dt1} onChange={(e) => setFech((f) => ({ ...f, dt1: e.target.value, period: '' }))} /></div>
                 <div><div className="f-lbl">Data fim</div><input type="date" className="f-inp" style={{ width: 'auto' }} value={fech.dt2} onChange={(e) => setFech((f) => ({ ...f, dt2: e.target.value, period: '' }))} /></div>
                 <div><div className="f-lbl">Período Rápido</div><select className="f-inp" style={{ width: 160 }} value={fech.period} onChange={(e) => { const p = periodDates(e.target.value); setFech({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); loadFech(p.d1, p.d2); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta Semana</option><option value="semana_ant">Semana Passada</option></select></div>
                 <div><button className="btn btn-green" onClick={() => loadFech(fech.dt1, fech.dt2)}>Buscar</button></div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
-                <MiniMc lbl="CALÇÃO" val={`R$ ${fmt(fechData.g.cal)}`} color="#111827" />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+                <MiniMc lbl="CALÇÃO" val={`R$ ${fmt(fechData.g.cal)}`} color="var(--num)" />
                 <MiniMc lbl="SALDO CALÇÃO" val={`R$ ${fmt(fechData.g.saldoCal)}`} color={clr(fechData.g.saldoCal)} />
                 <MiniMc lbl="TOTAL APOSTADO" val={`R$ ${fmt(fechData.g.val)}`} color="#16a34a" />
                 <MiniMc lbl="EM ABERTO" val={`R$ ${fmt(fechData.g.ab)}`} color="#B8860B" />
@@ -611,20 +619,20 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
               </div>
               <div className="tbl-scroll"><table>
                 <thead><tr><th>Cliente</th><th className="th-r">Calção</th><th className="th-r">Saldo Calção</th><th className="th-r">Total Apostado</th><th className="th-r">Em Aberto</th><th className="th-r">Saldo Bruto</th><th className="th-r">Comissão</th><th className="th-r">Comissão Afiliado</th><th className="th-r">Saldo Líquido</th><th className="th-sticky th-c">Ações</th></tr></thead>
-                <tbody>{fechData.rows.map((r, i) => { const bg = i % 2 === 0 ? '#fff' : '#f8fafc'; return (
+                <tbody>{fechData.rows.map((r, i) => { const bg = i % 2 === 0 ? 'var(--card)' : 'var(--row-alt)'; return (
                   <tr key={r.id} style={{ background: bg }}>
                     <td style={{ fontWeight: 700 }}>{r.nome}</td>
                     <td className="td-r">{fmt(r.cal)}</td>
                     <td className="td-r" style={{ color: clr(r.saldoCal), fontWeight: 600 }}>{fmt(r.saldoCal)}</td>
-                    <td className="td-r" style={{ color: '#111827', fontWeight: 600 }}>{fmt(r.val)}</td>
-                    <td className="td-r" style={{ color: '#111827' }}>{fmt(r.ab)}</td>
+                    <td className="td-r" style={{ color: 'var(--num)', fontWeight: 600 }}>{fmt(r.val)}</td>
+                    <td className="td-r" style={{ color: 'var(--num)' }}>{fmt(r.ab)}</td>
                     <td className="td-r" style={{ color: clr(r.sb), fontWeight: 600 }}>{fmt(r.sb)}</td>
-                    <td className="td-r" style={{ color: '#111827', fontWeight: 600 }}>{fmt(r.cm)}</td>
-                    <td className="td-r" style={{ color: '#111827' }}>{fmt(r.caf)}</td>
+                    <td className="td-r" style={{ color: 'var(--num)', fontWeight: 600 }}>{fmt(r.cm)}</td>
+                    <td className="td-r" style={{ color: 'var(--num)' }}>{fmt(r.caf)}</td>
                     <td className="td-r" style={{ color: clr(r.sl), fontWeight: 700 }}>{fmt(r.sl)}</td>
                     <td className="td-sticky td-c" style={{ background: bg }}><button className="btn-icon" title="Baixar PDF" onClick={pdfBreve}>⬇</button></td>
                   </tr>); })}
-                  {fechData.rows.length === 0 && <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9ca3af', padding: 18 }}>Sem movimento no período.</td></tr>}
+                  {fechData.rows.length === 0 && <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--muted2)', padding: 18 }}>Sem movimento no período.</td></tr>}
                 </tbody>
               </table></div>
             </div>
@@ -638,13 +646,13 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
           <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
             <div className="modal-hdr"><span style={{ fontWeight: 700, fontSize: 15 }}>Fechamento Afiliado</span><button className="modal-close" onClick={() => setModal(null)}>✕</button></div>
             <div className="modal-body">
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
                 <div><div className="f-lbl">Data inicial</div><input type="date" className="f-inp" style={{ width: 'auto' }} value={faf.dt1} onChange={(e) => setFaf((f) => ({ ...f, dt1: e.target.value, period: '' }))} /></div>
                 <div><div className="f-lbl">Data final</div><input type="date" className="f-inp" style={{ width: 'auto' }} value={faf.dt2} onChange={(e) => setFaf((f) => ({ ...f, dt2: e.target.value, period: '' }))} /></div>
                 <div><div className="f-lbl">Período Rápido</div><select className="f-inp" style={{ width: 160 }} value={faf.period} onChange={(e) => { const p = periodDates(e.target.value); setFaf({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); loadFaf(p.d1, p.d2); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta Semana</option><option value="semana_ant">Semana Passada</option></select></div>
                 <div><button className="btn btn-green" onClick={() => loadFaf(faf.dt1, faf.dt2)}>Buscar</button></div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
                 <MiniMc lbl="LOGINS" val={String(fafData.g.logins)} color="#B8860B" />
                 <MiniMc lbl="ENTRADA" val={`R$ ${fmt(fafData.g.val)}`} color="#16a34a" />
                 <MiniMc lbl="SALDO BRUTO" val={`R$ ${fmt(fafData.g.sb)}`} color={clr(fafData.g.sb)} />
@@ -654,19 +662,19 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
               </div>
               <div className="tbl-scroll"><table>
                 <thead><tr><th>Supervisor</th><th className="th-c">Logins</th><th className="th-r">Entrada</th><th className="th-r">Em Aberto</th><th className="th-r">Saldo Bruto</th><th className="th-r">Comissão</th><th className="th-r">Comissão Afiliado</th><th className="th-r">Saldo Líquido</th><th className="th-sticky th-c">Ações</th></tr></thead>
-                <tbody>{fafData.rows.map((r, i) => { const bg = i % 2 === 0 ? '#fff' : '#f8fafc'; return (
+                <tbody>{fafData.rows.map((r, i) => { const bg = i % 2 === 0 ? 'var(--card)' : 'var(--row-alt)'; return (
                   <tr key={r.sup} style={{ background: bg }}>
                     <td style={{ fontWeight: 700 }}>{r.sup}</td>
-                    <td className="td-c" style={{ color: '#111827', fontWeight: 600 }}>{r.logins}</td>
-                    <td className="td-r" style={{ color: '#111827', fontWeight: 600 }}>{fmt(r.val)}</td>
-                    <td className="td-r" style={{ color: '#111827' }}>{fmt(r.ab)}</td>
+                    <td className="td-c" style={{ color: 'var(--num)', fontWeight: 600 }}>{r.logins}</td>
+                    <td className="td-r" style={{ color: 'var(--num)', fontWeight: 600 }}>{fmt(r.val)}</td>
+                    <td className="td-r" style={{ color: 'var(--num)' }}>{fmt(r.ab)}</td>
                     <td className="td-r" style={{ color: clr(r.sb), fontWeight: 600 }}>{fmt(r.sb)}</td>
-                    <td className="td-r" style={{ color: '#111827', fontWeight: 600 }}>{fmt(r.cm)}</td>
-                    <td className="td-r" style={{ color: '#111827' }}>{fmt(r.caf)}</td>
+                    <td className="td-r" style={{ color: 'var(--num)', fontWeight: 600 }}>{fmt(r.cm)}</td>
+                    <td className="td-r" style={{ color: 'var(--num)' }}>{fmt(r.caf)}</td>
                     <td className="td-r" style={{ color: clr(r.sl), fontWeight: 700 }}>{fmt(r.sl)}</td>
                     <td className="td-sticky td-c" style={{ background: bg }}><button className="btn-icon" title="Baixar PDF" onClick={pdfBreve}>⬇</button></td>
                   </tr>); })}
-                  {fafData.rows.length === 0 && <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9ca3af', padding: 18 }}>Nenhum supervisor com movimento.</td></tr>}
+                  {fafData.rows.length === 0 && <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--muted2)', padding: 18 }}>Nenhum supervisor com movimento.</td></tr>}
                 </tbody>
               </table></div>
             </div>
@@ -680,7 +688,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
           <div className="modal modal-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-hdr"><span style={{ fontWeight: 700, fontSize: 15 }}>📥 Receber bilhete (WhatsApp)</span><button className="modal-close" onClick={() => setModal(null)}>✕</button></div>
             <div className="modal-body" style={{ padding: 16 }}>
-              <div style={{ fontSize: 11, color: '#6b7280', background: '#f8fafc', border: '1px solid #eef2f7', borderRadius: 8, padding: '9px 11px', marginBottom: 14, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--row-alt)', border: '1px solid var(--line)', borderRadius: 8, padding: '9px 11px', marginBottom: 14, lineHeight: 1.5 }}>
                 Simula a chegada de um bilhete. Na operação real, o backend recebe a <b>reação na imagem</b> do grupo, transcreve o bilhete (visão computacional) e o coloca na fila como <b>EM ABERTO</b>; odd/valor em branco ficam com <b>contorno vermelho</b> para você preencher.
               </div>
               <div style={{ marginBottom: 12 }}><div className="f-lbl">Cliente / grupo *</div><ComboBox options={cliOpts} value={wpp.cId} onChange={(v) => setWpp((w) => ({ ...w, cId: v }))} placeholder="— Selecione —" /></div>
@@ -716,7 +724,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                 <div><div className="f-lbl">Comissão Afiliado %</div><input type="number" step="0.01" className="f-inp" value={novoCli.af} onChange={(e) => setNovoCli((s) => ({ ...s, af: e.target.value }))} /></div>
               </div>
               <div><div className="f-lbl">Supervisor</div><select className="f-inp" value={novoCli.sup} onChange={(e) => setNovoCli((s) => ({ ...s, sup: e.target.value }))}><option value="">—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></div>
-              <div style={{ fontSize: 11, color: '#9ca3af' }}>O link de acesso do jogador é gerado automaticamente.</div>
+              <div style={{ fontSize: 11, color: 'var(--muted2)' }}>O link de acesso do jogador é gerado automaticamente.</div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
                 <button className="btn btn-gray" onClick={() => setNovoCli((s) => ({ ...s, open: false }))}>Cancelar</button>
                 <button className="btn btn-green" onClick={salvarNovoCliente}>Cadastrar Cliente</button>
@@ -791,54 +799,55 @@ function Metric({ ico, icoBg, lbl, val, valColor, sub }: { ico: string; icoBg: s
 
 // ═══════════ CSS (portado do index original, escopado em .pb-panel) ═══════════
 const CSS = `
-.pb-panel{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;font-size:14px;min-height:100vh;display:flex;flex-direction:column;color:#0f172a}
+.pb-panel{--bg:#f1f5f9;--card:#ffffff;--row-alt:#f8fafc;--text:#0f172a;--num:#111827;--muted:#6b7280;--muted2:#9ca3af;--line:#e5e7eb;--inp-text:#374151;--hover:#fff7e6;--sel-bg:#FDF8E8;--saved-bg:#f0fdf4;--edit-bg:#fffbeb;--alert-bg:#fff5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);font-size:14px;min-height:100vh;display:flex;flex-direction:column;color:var(--text)}
+.pb-panel.dark{--bg:#0b1220;--card:#141d2e;--row-alt:#0f1726;--text:#e8edf3;--num:#e8edf3;--muted:#9aa6b6;--muted2:#7e8a9b;--line:#2a3a50;--inp-text:#d6dde7;--hover:#1d2940;--sel-bg:#2a2512;--saved-bg:#0f2418;--edit-bg:#2a2410;--alert-bg:#2c1616}
 .pb-panel input,.pb-panel select,.pb-panel textarea,.pb-panel button{font-family:inherit;font-size:14px}
 .pb-panel .tb{background:#0d1508;border-bottom:2px solid #B8860B;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:50;flex-shrink:0}
 .pb-panel .tb-logo{color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px;min-width:140px}
 .pb-panel .tb-logo small{color:#7a8c5a;font-weight:400;font-size:11px}
 .pb-panel .tb-nav{display:flex;gap:4px;align-items:center}
-.pb-panel .tb-btn{background:#fff;border:1px solid #ddd;color:#1a2210;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.pb-panel .tb-btn{background:var(--card);border:1px solid #ddd;color:#1a2210;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:4px}
 .pb-panel .tb-btn:hover{background:#f5f5f5;border-color:#B8860B}
-.pb-panel .tb-sair{background:#fff;border:1px solid #ddd;color:#dc2626;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:600}
+.pb-panel .tb-sair{background:var(--card);border:1px solid #ddd;color:#dc2626;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:600}
 .pb-panel .tb-sair:hover{background:#fee2e2;border-color:#ef4444}
 .pb-panel .tb-menu-btn{background:transparent;border:1px solid #2d4010;color:#e2e8f0;padding:7px 11px;border-radius:6px;cursor:pointer;font-size:17px;line-height:1}
 .pb-panel .painel-body{padding:16px 20px;flex:1}
-.pb-panel .page-title{font-size:17px;font-weight:700;color:#0f172a;margin-bottom:2px}
+.pb-panel .page-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:2px}
 .pb-panel .page-sub{font-size:12px;color:#7a8c5a;margin-bottom:14px}
-.pb-panel .filter-box{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:14px}
-.pb-panel .filter-label{font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.pb-panel .filter-box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.pb-panel .filter-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
 .pb-panel .filter-grid{display:grid;grid-template-columns:120px 1fr 1fr 1fr;gap:8px;margin-bottom:8px}
 .pb-panel .filter-grid2{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:8px}
 .pb-panel .filter-grid3{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
-.pb-panel .f-lbl{font-size:10px;color:#9ca3af;font-weight:600;margin-bottom:3px}
-.pb-panel .f-inp{width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px;font-size:12px;outline:none;color:#374151;background:#fff;-webkit-appearance:none;appearance:none;box-sizing:border-box}
+.pb-panel .f-lbl{font-size:10px;color:var(--muted2);font-weight:600;margin-bottom:3px}
+.pb-panel .f-inp{width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px;outline:none;color:var(--inp-text);background:var(--card);-webkit-appearance:none;appearance:none;box-sizing:border-box}
 .pb-panel .f-inp:focus{border-color:#DAA520}
-.pb-panel .filter-hint{font-size:11px;color:#9ca3af;font-style:italic;margin-bottom:8px}
+.pb-panel .filter-hint{font-size:11px;color:var(--muted2);font-style:italic;margin-bottom:8px}
 .pb-panel .filter-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 .pb-panel .metrics-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px}
 .pb-panel .metrics-row2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;max-width:500px}
-.pb-panel .mc{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;position:relative;overflow:hidden}
+.pb-panel .mc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;position:relative;overflow:hidden}
 .pb-panel .mc-ico{position:absolute;right:10px;top:10px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px}
-.pb-panel .mc-lbl{font-size:9px;font-weight:700;color:#9ca3af;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+.pb-panel .mc-lbl{font-size:9px;font-weight:700;color:var(--muted2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
 .pb-panel .mc-val{font-size:20px;font-weight:700}
-.pb-panel .mc-sub{font-size:11px;color:#9ca3af;margin-top:2px}
-.pb-panel .tbl-wrap{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}
+.pb-panel .mc-sub{font-size:11px;color:var(--muted2);margin-top:2px}
+.pb-panel .tbl-wrap{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .pb-panel .tbl-scroll{overflow-x:auto}
-.pb-panel table{width:100%;border-collapse:collapse;font-size:12px;border:1px solid #e5e7eb}
+.pb-panel table{width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--line)}
 .pb-panel thead tr{background:#1e3a0a}
 .pb-panel thead th{color:#fff;font-weight:600;padding:10px 8px;text-align:left;white-space:nowrap;font-size:11px;border-right:1px solid rgba(255,255,255,0.15)}
 .pb-panel thead th.th-r{text-align:right}
 .pb-panel thead th.th-c{text-align:center}
-.pb-panel tbody tr{border-bottom:1px solid #e5e7eb}
-.pb-panel tbody td{padding:8px;vertical-align:middle;border-right:1px solid #e5e7eb}
+.pb-panel tbody tr{border-bottom:1px solid var(--line)}
+.pb-panel tbody td{padding:8px;vertical-align:middle;border-right:1px solid var(--line)}
 .pb-panel tbody td.td-r{text-align:right}
 .pb-panel tbody td.td-c{text-align:center}
 .pb-panel .th-sticky{position:sticky;right:0;background:#1e3a0a;box-shadow:-3px 0 6px rgba(0,0,0,.15)}
 .pb-panel .td-sticky{position:sticky;right:0;box-shadow:-3px 0 6px rgba(0,0,0,.06);z-index:1}
-.pb-panel .tbl-footer{padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #f1f5f9}
-.pb-panel .inp{border:1px solid #e5e7eb;border-radius:5px;padding:5px 7px;font-size:12px;background:#fff;outline:none}
+.pb-panel .tbl-footer{padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line)}
+.pb-panel .inp{border:1px solid var(--line);border-radius:5px;padding:5px 7px;font-size:12px;background:var(--card);outline:none}
 .pb-panel .inp:focus{border-color:#DAA520}
-.pb-panel .inp-w{border-color:#f59e0b !important;background:#fffbeb !important}
+.pb-panel .inp-w{border-color:#f59e0b !important;background:var(--edit-bg) !important}
 .pb-panel .inp-full{width:100%}
 .pb-panel .st-sel{border:none;border-radius:5px;padding:4px 7px;font-size:11px;font-weight:700;cursor:pointer;outline:none;min-width:100px}
 .pb-panel .badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;display:inline-block}
@@ -846,12 +855,12 @@ const CSS = `
 .pb-panel .btn:disabled{opacity:.5;cursor:default}
 .pb-panel .btn-green{background:#2d6a0a;color:#fff}
 .pb-panel .btn-blue{background:#B8860B;color:#fff}
-.pb-panel .btn-icon{background:#FDF8E8;color:#B8860B;border:1px solid #F0D060;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:13px}
-.pb-panel .btn-gray{background:#f1f5f9;color:#374151;border:1px solid #e5e7eb}
-.pb-panel .btn-red-o{background:#fff;color:#ef4444;border:1px solid #fca5a5}
+.pb-panel .btn-icon{background:var(--sel-bg);color:#B8860B;border:1px solid #F0D060;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:13px}
+.pb-panel .btn-gray{background:var(--line);color:var(--inp-text);border:1px solid var(--line)}
+.pb-panel .btn-red-o{background:var(--card);color:#ef4444;border:1px solid #fca5a5}
 .pb-panel .btn-sm{padding:5px 10px;font-size:11px}
 .pb-panel .pagination{display:flex;gap:6px;align-items:center}
-.pb-panel .pg-info{font-size:11px;color:#6b7280}
+.pb-panel .pg-info{font-size:11px;color:var(--muted)}
 .pb-panel .desk-only{display:block}
 .pb-panel .mob-only{display:none}
 .pb-panel tr.row-alert td{border-top:2px solid #dc2626;border-bottom:2px solid #dc2626}
@@ -859,37 +868,37 @@ const CSS = `
 .pb-panel tr.row-alert td:last-child{border-right:2px solid #dc2626}
 .pb-panel .rc.row-alert{border:2px solid #dc2626;box-shadow:0 0 0 3px #fee2e2}
 .pb-panel .alert-tag{display:inline-block;font-size:9px;font-weight:700;color:#dc2626;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:1px 7px;margin-left:6px}
-.pb-panel .rc{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:10px}
+.pb-panel .rc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
 .pb-panel .rc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.pb-panel .rc-r{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f8fafc;font-size:12px;gap:6px}
-.pb-panel .rc-l{color:#9ca3af;font-weight:600;font-size:11px;white-space:nowrap;min-width:80px}
+.pb-panel .rc-r{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--row-alt);font-size:12px;gap:6px}
+.pb-panel .rc-l{color:var(--muted2);font-weight:600;font-size:11px;white-space:nowrap;min-width:80px}
 .pb-panel .rc-btns{display:flex;gap:8px;margin-top:10px}
 .pb-panel .mob-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200}
 .pb-panel .mob-panel{position:absolute;right:0;top:0;bottom:0;width:220px;background:#1a2210;padding:20px 14px;display:flex;flex-direction:column;gap:8px}
 .pb-panel .mob-item{background:transparent;border:1px solid #2d4010;color:#e2e8f0;padding:11px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;text-align:left;width:100%}
 .pb-panel .mob-sair{background:#ef4444;border:none;color:#fff;padding:11px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;margin-top:8px;text-align:left;width:100%}
 .pb-panel .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:12px}
-.pb-panel .modal{background:#fff;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;width:100%}
+.pb-panel .modal{background:var(--card);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;width:100%}
 .pb-panel .modal-sm{max-width:480px;max-height:90vh}
 .pb-panel .modal-md{max-width:700px;max-height:90vh}
 .pb-panel .modal-lg{max-width:1100px;max-height:90vh}
-.pb-panel .modal-hdr{padding:14px 18px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.pb-panel .modal-hdr{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .pb-panel .modal-hdr-left{display:flex;align-items:center;gap:10px}
 .pb-panel .modal-body{overflow-y:auto;flex:1}
-.pb-panel .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280;line-height:1;padding:2px 6px}
+.pb-panel .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);line-height:1;padding:2px 6px}
 .pb-panel .pb-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e3a0a;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:300;max-width:90vw;text-align:center}
 .pb-panel .combo{position:relative;width:100%}
-.pb-panel .combo-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;border:1px solid #e5e7eb;border-radius:6px;padding:6px 8px;font-size:12px;background:#fff;color:#374151;cursor:pointer;text-align:left}
+.pb-panel .combo-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px;background:var(--card);color:var(--inp-text);cursor:pointer;text-align:left}
 .pb-panel .combo-btn:hover{border-color:#DAA520}
-.pb-panel .combo-ph{color:#9ca3af}
-.pb-panel .combo-arrow{color:#9ca3af;font-size:10px;flex-shrink:0}
-.pb-panel .combo-pop{position:absolute;z-index:120;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 10px 28px rgba(0,0,0,.16);overflow:hidden}
-.pb-panel .combo-search{width:100%;border:none;border-bottom:1px solid #f1f5f9;padding:8px 10px;font-size:12px;outline:none}
+.pb-panel .combo-ph{color:var(--muted2)}
+.pb-panel .combo-arrow{color:var(--muted2);font-size:10px;flex-shrink:0}
+.pb-panel .combo-pop{position:absolute;z-index:120;top:calc(100% + 4px);left:0;right:0;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 28px rgba(0,0,0,.16);overflow:hidden}
+.pb-panel .combo-search{width:100%;border:none;border-bottom:1px solid var(--line);padding:8px 10px;font-size:12px;outline:none}
 .pb-panel .combo-list{max-height:230px;overflow-y:auto}
-.pb-panel .combo-item{padding:7px 10px;font-size:12px;cursor:pointer;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pb-panel .combo-item:hover{background:#fff7e6}
-.pb-panel .combo-item.sel{background:#FDF8E8;font-weight:700;color:#B8860B}
-.pb-panel .combo-empty{padding:9px 10px;font-size:12px;color:#9ca3af}
+.pb-panel .combo-item{padding:7px 10px;font-size:12px;cursor:pointer;color:var(--inp-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb-panel .combo-item:hover{background:var(--hover)}
+.pb-panel .combo-item.sel{background:var(--sel-bg);font-weight:700;color:#B8860B}
+.pb-panel .combo-empty{padding:9px 10px;font-size:12px;color:var(--muted2)}
 @media(max-width:768px){
   .pb-panel .desk-only{display:none !important}
   .pb-panel .mob-only{display:block !important}
