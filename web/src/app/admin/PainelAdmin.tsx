@@ -64,6 +64,15 @@ const fmt = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFract
 const clr = (n: number) => (n > 0 ? '#16a34a' : n < 0 ? '#dc2626' : '#B8860B');
 const round2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 const fmtDate = (d: Date) => d.toISOString().split('T')[0];
+const inRangeDt = (dt: string, d1: string, d2: string) => { const d = (dt || '').slice(0, 10); if (d1 && d < d1) return false; if (d2 && d > d2) return false; return true; };
+function periodDates(v: string): { d1: string; d2: string } {
+  const today = new Date();
+  if (v === 'hoje') { const d = fmtDate(today); return { d1: d, d2: d }; }
+  if (v === 'ontem') { const d = new Date(today); d.setDate(d.getDate() - 1); const s = fmtDate(d); return { d1: s, d2: s }; }
+  if (v === 'semana') { const mon = new Date(today); mon.setDate(today.getDate() - today.getDay() + 1); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return { d1: fmtDate(mon), d2: fmtDate(sun) }; }
+  if (v === 'semana_ant') { const mon = new Date(today); mon.setDate(today.getDate() - today.getDay() - 6); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return { d1: fmtDate(mon), d2: fmtDate(sun) }; }
+  return { d1: '', d2: '' };
+}
 
 function computeReg(st: string, val: number, odd: number, cli?: Cliente) {
   val = Number(val) || 0; odd = Number(odd) || 0;
@@ -87,12 +96,17 @@ const filtrosVazios = {
 export default function PainelAdmin({ email }: { email: string }) {
   const router = useRouter();
   const [regs, setRegs] = useState<Reg[]>(REGS_INIT);
-  const [clientes] = useState<Cliente[]>(CLIS_INIT);
+  const [clientes, setClientes] = useState<Cliente[]>(CLIS_INIT);
+  const [afiliados, setAfiliados] = useState<Afiliado[]>(AFILIADOS_INIT);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [filtros, setFiltros] = useState({ ...filtrosVazios });
   const [page, setPage] = useState(1);
   const [toastMsg, setToastMsg] = useState('');
   const [mobMenu, setMobMenu] = useState(false);
+  const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp'>(null);
+  const [fech, setFech] = useState({ dt1: '', dt2: '', period: '' });
+  const [faf, setFaf] = useState({ dt1: '', dt2: '', period: '' });
+  const [wpp, setWpp] = useState({ cId: '', jogo: '', odd: '', val: '', dc: '' });
   const [novo, setNovo] = useState<{ open: boolean; cId: string; jogo: string; odd: string; val: string; st: string; dc: string }>(
     { open: false, cId: '', jogo: '', odd: '', val: '', st: 'EM ABERTO', dc: '' },
   );
@@ -173,6 +187,76 @@ export default function PainelAdmin({ email }: { email: string }) {
   const shownTo = Math.min(start + PAGE_SIZE, queue.length);
   const filaLbl = filtros.st ? `com status "${filtros.st}"` : 'em aberto (aguardando verificação)';
 
+  // ── fechamento (por cliente)
+  const fechData = useMemo(() => {
+    const rows = clientes.map((c) => {
+      const rs = regs.filter((r) => r.cId === c.id && inRangeDt(r.dt, fech.dt1, fech.dt2));
+      const val = rs.reduce((s, r) => s + r.val, 0);
+      const ab = rs.filter((r) => r.st === 'EM ABERTO').reduce((s, r) => s + r.val, 0);
+      const sb = rs.reduce((s, r) => s + r.sb, 0);
+      const cm = rs.reduce((s, r) => s + r.cm, 0);
+      const caf = rs.reduce((s, r) => s + r.caf, 0);
+      const sl = sb - cm - caf;
+      return { ...c, val, ab, sb, cm, caf, sl, saldoCal: c.cal + sl };
+    }).filter((r) => r.val > 0);
+    const g = { cal: 0, saldoCal: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 };
+    rows.forEach((r) => { g.cal += r.cal; g.saldoCal += r.saldoCal; g.val += r.val; g.ab += r.ab; g.sb += r.sb; g.cm += r.cm; g.caf += r.caf; g.sl += r.sl; });
+    return { rows, g };
+  }, [clientes, regs, fech.dt1, fech.dt2]);
+
+  // ── fechamento afiliado (por supervisor)
+  const fafData = useMemo(() => {
+    const sups = [...new Set(clientes.filter((c) => c.sup).map((c) => c.sup as string))];
+    const rows = sups.map((sup) => {
+      const cl = clientes.filter((c) => c.sup === sup); const ids = cl.map((c) => c.id);
+      const rs = regs.filter((r) => ids.includes(r.cId) && inRangeDt(r.dt, faf.dt1, faf.dt2));
+      const val = rs.reduce((s, r) => s + r.val, 0);
+      const ab = rs.filter((r) => r.st === 'EM ABERTO').reduce((s, r) => s + r.val, 0);
+      const sb = rs.reduce((s, r) => s + r.sb, 0);
+      const cm = rs.reduce((s, r) => s + r.cm, 0);
+      const caf = rs.reduce((s, r) => s + r.caf, 0);
+      return { sup, logins: cl.length, val, ab, sb, cm, caf, sl: sb - cm - caf };
+    });
+    const g = { logins: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 };
+    rows.forEach((r) => { g.logins += r.logins; g.val += r.val; g.ab += r.ab; g.sb += r.sb; g.cm += r.cm; g.caf += r.caf; g.sl += r.sl; });
+    return { rows, g };
+  }, [clientes, regs, faf.dt1, faf.dt2]);
+
+  // ── clientes
+  function updCli(id: number, patch: Partial<Cliente>) { setClientes((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c))); }
+  function saveCli(id: number) {
+    setRegs((rs) => rs.map((r) => (r.cId === id ? { ...r, ...computeReg(r.st, r.val, r.odd, clientes.find((c) => c.id === id)) } : r)));
+    toast('Cliente salvo!');
+  }
+  function novoCliente() {
+    const nome = prompt('Nome do novo cliente (em maiúsculas):'); if (!nome) return;
+    const newId = Math.max(0, ...clientes.map((c) => c.id)) + 1;
+    setClientes((cs) => [...cs, { id: newId, nome: nome.toUpperCase(), s: '', on: true, cal: 0, desc: 0.01, com: 6, sup: null, af: 0 }]);
+  }
+
+  // ── afiliados
+  function updAf(id: number, patch: Partial<Afiliado>) { setAfiliados((as) => as.map((a) => (a.id === id ? { ...a, ...patch } : a))); }
+  function saveAf() { setRegs((rs) => rs.map((r) => ({ ...r, ...computeReg(r.st, r.val, r.odd, cMap[r.cId]) }))); toast('Afiliado salvo!'); }
+  function novoAfiliado() {
+    const nome = prompt('Nome do novo afiliado:'); if (!nome) return;
+    const newId = Math.max(0, ...afiliados.map((a) => a.id)) + 1;
+    setAfiliados((as) => [...as, { id: newId, nome, com: 0 }]);
+  }
+
+  // ── receber bilhete (WhatsApp)
+  function receberBilhete() {
+    if (!wpp.cId || !wpp.jogo.trim()) { alert('Selecione o cliente e cole o bilhete transcrito.'); return; }
+    const cId = Number(wpp.cId); const odd = Number(wpp.odd) || 0; const val = Number(wpp.val) || 0;
+    const calc = computeReg('EM ABERTO', val, odd, cMap[cId]);
+    const d = new Date(); const p = (n: number) => String(n).padStart(2, '0');
+    const dt = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    const id = Date.now() + Math.floor(Math.random() * 1000);
+    setRegs((rs) => [{ id, dt, cId, jogo: wpp.jogo, odd, val, st: 'EM ABERTO', dc: wpp.dc, ...calc, bl: false, adv: false, irr: false }, ...rs]);
+    const incompleto = !(odd > 0) || !(val > 0);
+    toast(`Bilhete recebido (#${id}). ${incompleto ? 'Preencha odd/valor — linha em vermelho.' : 'Pronto na fila.'}`);
+    setWpp({ cId: '', jogo: '', odd: '', val: '', dc: '' }); setModal(null);
+  }
+
   // ── edição
   const dV = (r: Reg, f: 'dt' | 'odd' | 'val') => { const d = drafts[r.id]; return d && d[f] !== undefined ? d[f]! : String(r[f]); };
   const dW = (r: Reg, f: 'dt' | 'odd' | 'val') => (drafts[r.id]?.[f] !== undefined ? ' inp-w' : '');
@@ -227,7 +311,7 @@ export default function PainelAdmin({ email }: { email: string }) {
   }
 
   const stStyle = (s: string) => { const c = SC[s] || { bg: '#e5e7eb', t: '#374151' }; return { background: c.bg, color: c.t }; };
-  const breve = () => toast('Esta tela entra na próxima etapa. 🚧');
+  const pdfBreve = () => toast('Geração de PDF entra na próxima etapa.');
 
   return (
     <div className="pb-panel">
@@ -241,10 +325,10 @@ export default function PainelAdmin({ email }: { email: string }) {
           <span style={{ color: '#DAA520', fontWeight: 700 }}>PrimeBet</span> <small>Painel de Controle</small>
         </div>
         <div className="tb-nav">
-          <button className="tb-btn" onClick={breve}>👥 Clientes</button>
-          <button className="tb-btn" onClick={breve}>🤝 Afiliados</button>
-          <button className="tb-btn" onClick={breve}>📊 Fechamento</button>
-          <button className="tb-btn" onClick={breve}>📋 Fechamento Afiliado</button>
+          <button className="tb-btn" onClick={() => setModal('cli')}>👥 Clientes</button>
+          <button className="tb-btn" onClick={() => setModal('af')}>🤝 Afiliados</button>
+          <button className="tb-btn" onClick={() => setModal('fech')}>📊 Fechamento</button>
+          <button className="tb-btn" onClick={() => setModal('faf')}>📋 Fechamento Afiliado</button>
           <button className="tb-sair" onClick={sair}>↪ Sair</button>
         </div>
         <button className="tb-menu-btn mob-only" onClick={() => setMobMenu(true)}>☰</button>
@@ -255,11 +339,12 @@ export default function PainelAdmin({ email }: { email: string }) {
         <div className="mob-bg" onClick={() => setMobMenu(false)}>
           <div className="mob-panel" onClick={(e) => e.stopPropagation()}>
             <div style={{ color: '#7a8c5a', fontSize: 10, fontWeight: 700, letterSpacing: '.1em', marginBottom: 4 }}>MENU</div>
-            <button className="mob-item" onClick={() => { breve(); setMobMenu(false); }}>👥 Clientes</button>
-            <button className="mob-item" onClick={() => { breve(); setMobMenu(false); }}>🤝 Afiliados</button>
-            <button className="mob-item" onClick={() => { breve(); setMobMenu(false); }}>📊 Fechamento</button>
-            <button className="mob-item" onClick={() => { breve(); setMobMenu(false); }}>📋 Fech. Afiliado</button>
+            <button className="mob-item" onClick={() => { setModal('cli'); setMobMenu(false); }}>👥 Clientes</button>
+            <button className="mob-item" onClick={() => { setModal('af'); setMobMenu(false); }}>🤝 Afiliados</button>
+            <button className="mob-item" onClick={() => { setModal('fech'); setMobMenu(false); }}>📊 Fechamento</button>
+            <button className="mob-item" onClick={() => { setModal('faf'); setMobMenu(false); }}>📋 Fech. Afiliado</button>
             <button className="mob-item" onClick={() => { setNovo((n) => ({ ...n, open: true })); setMobMenu(false); }}>➕ Novo Registro</button>
+            <button className="mob-item" onClick={() => { setModal('wpp'); setMobMenu(false); }}>📥 Receber bilhete</button>
             <button className="mob-sair" onClick={sair}>🚪 Sair</button>
           </div>
         </div>
@@ -320,7 +405,7 @@ export default function PainelAdmin({ email }: { email: string }) {
           <div className="filter-hint">Dica: sem datas preenchidas, traz todos os registros. Use o Período Rápido para filtrar por semana (seg → dom).</div>
           <div className="filter-actions">
             <button className="btn btn-gray" onClick={limparFiltros}>Limpar</button>
-            <button className="btn" onClick={breve} style={{ background: '#25D366', color: '#fff' }}>📥 Receber bilhete</button>
+            <button className="btn" onClick={() => setModal('wpp')} style={{ background: '#25D366', color: '#fff' }}>📥 Receber bilhete</button>
             <button className="btn btn-green" onClick={() => setNovo((n) => ({ ...n, open: true }))}>+ Novo registro</button>
           </div>
         </div>
@@ -469,7 +554,182 @@ export default function PainelAdmin({ email }: { email: string }) {
         </div>
       )}
 
+      {/* MODAL CLIENTES */}
+      {modal === 'cli' && (
+        <div className="modal-bg" onClick={() => setModal(null)}>
+          <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-hdr">
+              <div className="modal-hdr-left"><span style={{ fontWeight: 700, fontSize: 15 }}>Clientes</span><button className="btn btn-green btn-sm" onClick={novoCliente}>+ Novo Cliente</button></div>
+              <button className="modal-close" onClick={() => setModal(null)}>✕</button>
+            </div>
+            <div style={{ padding: '8px 16px', fontSize: 12, color: '#6b7280', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>Edite os campos e clique em <b>Salvar</b>. A senha será usada para o cliente acessar o painel.</div>
+            <div className="modal-body" style={{ padding: 0 }}>
+              <div className="tbl-scroll"><table>
+                <thead><tr><th>ID</th><th>Nome</th><th>Senha</th><th>Ativo</th><th className="th-r">Calção</th><th className="th-r">Desconto</th><th>Comissão</th><th>Supervisor</th><th>Comissão Afiliado</th><th className="th-sticky th-c">Ações</th></tr></thead>
+                <tbody>{clientes.map((c, i) => { const bg = i % 2 === 0 ? '#fff' : '#f8fafc'; return (
+                  <tr key={c.id} style={{ background: bg }}>
+                    <td style={{ fontWeight: 600, color: '#374151' }}>{c.id}</td>
+                    <td style={{ fontWeight: 700 }}>{c.nome}</td>
+                    <td><input className="inp" value={c.s} placeholder="Senha" onChange={(e) => updCli(c.id, { s: e.target.value })} style={{ width: 110 }} /></td>
+                    <td><select className="inp" value={c.on ? 'Sim' : 'Não'} onChange={(e) => updCli(c.id, { on: e.target.value === 'Sim' })}><option>Sim</option><option>Não</option></select></td>
+                    <td className="td-r"><input type="number" className="inp" value={c.cal} onChange={(e) => updCli(c.id, { cal: Number(e.target.value) })} style={{ width: 80, textAlign: 'right' }} /></td>
+                    <td className="td-r" style={{ color: '#374151' }}>{fmt(c.desc)}</td>
+                    <td style={{ color: '#374151' }}>{c.com},00%</td>
+                    <td><select className="inp" value={c.sup ?? '—'} onChange={(e) => updCli(c.id, { sup: e.target.value === '—' ? null : e.target.value })} style={{ minWidth: 120 }}><option>—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></td>
+                    <td style={{ color: '#374151' }}>{c.af},00%</td>
+                    <td className="td-sticky td-c" style={{ background: bg }}><button className="btn btn-blue btn-sm" onClick={() => saveCli(c.id)}>Salvar</button></td>
+                  </tr>); })}</tbody>
+              </table></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL AFILIADOS */}
+      {modal === 'af' && (
+        <div className="modal-bg" onClick={() => setModal(null)}>
+          <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-hdr">
+              <div className="modal-hdr-left"><span style={{ fontWeight: 700, fontSize: 15 }}>Afiliados</span><button className="btn btn-green btn-sm" onClick={novoAfiliado}>+ Novo Afiliado</button></div>
+              <button className="modal-close" onClick={() => setModal(null)}>✕</button>
+            </div>
+            <div style={{ padding: '8px 16px', fontSize: 12, color: '#6b7280', borderBottom: '1px solid #f1f5f9' }}>Edite os campos e clique em <b>Salvar</b>. A comissão será usada no cadastro dos clientes vinculados ao afiliado.</div>
+            <div className="modal-body" style={{ padding: 0 }}>
+              <div className="tbl-scroll"><table>
+                <thead><tr><th>ID</th><th>Nome</th><th>Comissão</th><th className="th-sticky th-c">Ações</th></tr></thead>
+                <tbody>{afiliados.map((a, i) => { const bg = i % 2 === 0 ? '#fff' : '#f8fafc'; return (
+                  <tr key={a.id} style={{ background: bg }}>
+                    <td style={{ fontWeight: 600, color: '#374151' }}>{a.id}</td>
+                    <td><input className="inp inp-full" value={a.nome} onChange={(e) => updAf(a.id, { nome: e.target.value })} /></td>
+                    <td style={{ color: '#374151' }}>{a.com},00%</td>
+                    <td className="td-sticky td-c" style={{ background: bg }}><button className="btn btn-blue btn-sm" onClick={saveAf}>Salvar</button></td>
+                  </tr>); })}</tbody>
+              </table></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FECHAMENTO */}
+      {modal === 'fech' && (
+        <div className="modal-bg" onClick={() => setModal(null)}>
+          <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-hdr"><span style={{ fontWeight: 700, fontSize: 15 }}>Fechamento</span><button className="modal-close" onClick={() => setModal(null)}>✕</button></div>
+            <div className="modal-body">
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
+                <div><div className="f-lbl">Data início</div><input type="date" className="f-inp" style={{ width: 'auto' }} value={fech.dt1} onChange={(e) => setFech((f) => ({ ...f, dt1: e.target.value, period: '' }))} /></div>
+                <div><div className="f-lbl">Data fim</div><input type="date" className="f-inp" style={{ width: 'auto' }} value={fech.dt2} onChange={(e) => setFech((f) => ({ ...f, dt2: e.target.value, period: '' }))} /></div>
+                <div><div className="f-lbl">Período Rápido</div><select className="f-inp" style={{ width: 160 }} value={fech.period} onChange={(e) => { const p = periodDates(e.target.value); setFech({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta Semana</option><option value="semana_ant">Semana Passada</option></select></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
+                <MiniMc lbl="CALÇÃO" val={`R$ ${fmt(fechData.g.cal)}`} color="#111827" />
+                <MiniMc lbl="SALDO CALÇÃO" val={`R$ ${fmt(fechData.g.saldoCal)}`} color={clr(fechData.g.saldoCal)} />
+                <MiniMc lbl="TOTAL APOSTADO" val={`R$ ${fmt(fechData.g.val)}`} color="#16a34a" />
+                <MiniMc lbl="EM ABERTO" val={`R$ ${fmt(fechData.g.ab)}`} color="#B8860B" />
+                <MiniMc lbl="SALDO BRUTO" val={`R$ ${fmt(fechData.g.sb)}`} color={clr(fechData.g.sb)} />
+                <MiniMc lbl="COMISSÃO" val={`R$ ${fmt(fechData.g.cm)}`} color="#dc2626" />
+                <MiniMc lbl="COMISSÃO AFILIADO" val={`R$ ${fmt(fechData.g.caf)}`} color="#dc2626" />
+                <MiniMc lbl="SALDO LÍQUIDO" val={`R$ ${fmt(fechData.g.sl)}`} color={clr(fechData.g.sl)} />
+              </div>
+              <div className="tbl-scroll"><table>
+                <thead><tr><th>Cliente</th><th className="th-r">Calção</th><th className="th-r">Saldo Calção</th><th className="th-r">Total Apostado</th><th className="th-r">Em Aberto</th><th className="th-r">Saldo Bruto</th><th className="th-r">Comissão</th><th className="th-r">Comissão Afiliado</th><th className="th-r">Saldo Líquido</th><th className="th-sticky th-c">Ações</th></tr></thead>
+                <tbody>{fechData.rows.map((r, i) => { const bg = i % 2 === 0 ? '#fff' : '#f8fafc'; return (
+                  <tr key={r.id} style={{ background: bg }}>
+                    <td style={{ fontWeight: 700 }}>{r.nome}</td>
+                    <td className="td-r">{fmt(r.cal)}</td>
+                    <td className="td-r" style={{ color: clr(r.saldoCal), fontWeight: 600 }}>{fmt(r.saldoCal)}</td>
+                    <td className="td-r" style={{ color: '#16a34a', fontWeight: 600 }}>{fmt(r.val)}</td>
+                    <td className="td-r" style={{ color: '#B8860B' }}>{fmt(r.ab)}</td>
+                    <td className="td-r" style={{ color: clr(r.sb), fontWeight: 600 }}>{fmt(r.sb)}</td>
+                    <td className="td-r" style={{ color: '#dc2626', fontWeight: 600 }}>{fmt(r.cm)}</td>
+                    <td className="td-r" style={{ color: '#dc2626' }}>{fmt(r.caf)}</td>
+                    <td className="td-r" style={{ color: clr(r.sl), fontWeight: 700 }}>{fmt(r.sl)}</td>
+                    <td className="td-sticky td-c" style={{ background: bg }}><button className="btn-icon" title="Baixar PDF" onClick={pdfBreve}>⬇</button></td>
+                  </tr>); })}
+                  {fechData.rows.length === 0 && <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9ca3af', padding: 18 }}>Sem movimento no período.</td></tr>}
+                </tbody>
+              </table></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FECHAMENTO AFILIADO */}
+      {modal === 'faf' && (
+        <div className="modal-bg" onClick={() => setModal(null)}>
+          <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-hdr"><span style={{ fontWeight: 700, fontSize: 15 }}>Fechamento Afiliado</span><button className="modal-close" onClick={() => setModal(null)}>✕</button></div>
+            <div className="modal-body">
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
+                <div><div className="f-lbl">Data inicial</div><input type="date" className="f-inp" style={{ width: 'auto' }} value={faf.dt1} onChange={(e) => setFaf((f) => ({ ...f, dt1: e.target.value, period: '' }))} /></div>
+                <div><div className="f-lbl">Data final</div><input type="date" className="f-inp" style={{ width: 'auto' }} value={faf.dt2} onChange={(e) => setFaf((f) => ({ ...f, dt2: e.target.value, period: '' }))} /></div>
+                <div><div className="f-lbl">Período Rápido</div><select className="f-inp" style={{ width: 160 }} value={faf.period} onChange={(e) => { const p = periodDates(e.target.value); setFaf({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta Semana</option><option value="semana_ant">Semana Passada</option></select></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
+                <MiniMc lbl="LOGINS" val={String(fafData.g.logins)} color="#B8860B" />
+                <MiniMc lbl="ENTRADA" val={`R$ ${fmt(fafData.g.val)}`} color="#16a34a" />
+                <MiniMc lbl="SALDO BRUTO" val={`R$ ${fmt(fafData.g.sb)}`} color={clr(fafData.g.sb)} />
+                <MiniMc lbl="COMISSÃO" val={`R$ ${fmt(fafData.g.cm)}`} color="#dc2626" />
+                <MiniMc lbl="COMISSÃO AFILIADO" val={`R$ ${fmt(fafData.g.caf)}`} color="#dc2626" />
+                <MiniMc lbl="SALDO LÍQUIDO" val={`R$ ${fmt(fafData.g.sl)}`} color={clr(fafData.g.sl)} />
+              </div>
+              <div className="tbl-scroll"><table>
+                <thead><tr><th>Supervisor</th><th className="th-c">Logins</th><th className="th-r">Entrada</th><th className="th-r">Em Aberto</th><th className="th-r">Saldo Bruto</th><th className="th-r">Comissão</th><th className="th-r">Comissão Afiliado</th><th className="th-r">Saldo Líquido</th><th className="th-sticky th-c">Ações</th></tr></thead>
+                <tbody>{fafData.rows.map((r, i) => { const bg = i % 2 === 0 ? '#fff' : '#f8fafc'; return (
+                  <tr key={r.sup} style={{ background: bg }}>
+                    <td style={{ fontWeight: 700 }}>{r.sup}</td>
+                    <td className="td-c" style={{ color: '#B8860B', fontWeight: 600 }}>{r.logins}</td>
+                    <td className="td-r" style={{ color: '#16a34a', fontWeight: 600 }}>{fmt(r.val)}</td>
+                    <td className="td-r" style={{ color: '#B8860B' }}>{fmt(r.ab)}</td>
+                    <td className="td-r" style={{ color: clr(r.sb), fontWeight: 600 }}>{fmt(r.sb)}</td>
+                    <td className="td-r" style={{ color: '#dc2626', fontWeight: 600 }}>{fmt(r.cm)}</td>
+                    <td className="td-r" style={{ color: '#dc2626' }}>{fmt(r.caf)}</td>
+                    <td className="td-r" style={{ color: clr(r.sl), fontWeight: 700 }}>{fmt(r.sl)}</td>
+                    <td className="td-sticky td-c" style={{ background: bg }}><button className="btn-icon" title="Baixar PDF" onClick={pdfBreve}>⬇</button></td>
+                  </tr>); })}
+                  {fafData.rows.length === 0 && <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9ca3af', padding: 18 }}>Nenhum supervisor com movimento.</td></tr>}
+                </tbody>
+              </table></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL RECEBER BILHETE */}
+      {modal === 'wpp' && (
+        <div className="modal-bg" onClick={() => setModal(null)}>
+          <div className="modal modal-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-hdr"><span style={{ fontWeight: 700, fontSize: 15 }}>📥 Receber bilhete (WhatsApp)</span><button className="modal-close" onClick={() => setModal(null)}>✕</button></div>
+            <div className="modal-body" style={{ padding: 16 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', background: '#f8fafc', border: '1px solid #eef2f7', borderRadius: 8, padding: '9px 11px', marginBottom: 14, lineHeight: 1.5 }}>
+                Simula a chegada de um bilhete. Na operação real, o backend recebe a <b>reação na imagem</b> do grupo, transcreve o bilhete (visão computacional) e o coloca na fila como <b>EM ABERTO</b>; odd/valor em branco ficam com <b>contorno vermelho</b> para você preencher.
+              </div>
+              <div style={{ marginBottom: 12 }}><div className="f-lbl">Cliente / grupo *</div><select className="f-inp" value={wpp.cId} onChange={(e) => setWpp((w) => ({ ...w, cId: e.target.value }))}><option value="">— Selecione —</option>{clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></div>
+              <div style={{ marginBottom: 12 }}><div className="f-lbl">Bilhete transcrito *</div><textarea className="f-inp" rows={4} style={{ resize: 'vertical' }} value={wpp.jogo} onChange={(e) => setWpp((w) => ({ ...w, jogo: e.target.value }))} placeholder={'Ex:\n1) Arsenal x Burnley\n• Menos de 6.5 gols'} /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                <div><div className="f-lbl">Odd (opcional)</div><input type="number" step="0.01" className="f-inp" placeholder="vazio = em aberto" value={wpp.odd} onChange={(e) => setWpp((w) => ({ ...w, odd: e.target.value }))} /></div>
+                <div><div className="f-lbl">Valor R$ (opcional)</div><input type="number" className="f-inp" placeholder="vazio = em aberto" value={wpp.val} onChange={(e) => setWpp((w) => ({ ...w, val: e.target.value }))} /></div>
+              </div>
+              <div style={{ marginBottom: 12 }}><div className="f-lbl">Descarrego</div><select className="f-inp" value={wpp.dc} onChange={(e) => setWpp((w) => ({ ...w, dc: e.target.value }))}>{DCS.map((dd) => <option key={dd} value={dd}>{dd || '—'}</option>)}</select></div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                <button className="btn btn-gray" style={{ flex: 1 }} onClick={() => setModal(null)}>Cancelar</button>
+                <button className="btn btn-green" style={{ flex: 1 }} onClick={receberBilhete}>Receber no sistema</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {toastMsg && <div className="pb-toast">{toastMsg}</div>}
+    </div>
+  );
+}
+
+function MiniMc({ lbl, val, color }: { lbl: string; val: string; color?: string }) {
+  return (
+    <div className="mc">
+      <div className="mc-lbl">{lbl}</div>
+      <div className="mc-val" style={{ color }}>{val}</div>
     </div>
   );
 }
@@ -541,6 +801,8 @@ const CSS = `
 .pb-panel .btn{border:none;padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap}
 .pb-panel .btn:disabled{opacity:.5;cursor:default}
 .pb-panel .btn-green{background:#2d6a0a;color:#fff}
+.pb-panel .btn-blue{background:#B8860B;color:#fff}
+.pb-panel .btn-icon{background:#FDF8E8;color:#B8860B;border:1px solid #F0D060;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:13px}
 .pb-panel .btn-gray{background:#f1f5f9;color:#374151;border:1px solid #e5e7eb}
 .pb-panel .btn-red-o{background:#fff;color:#ef4444;border:1px solid #fca5a5}
 .pb-panel .btn-sm{padding:5px 10px;font-size:11px}
@@ -565,6 +827,8 @@ const CSS = `
 .pb-panel .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:12px}
 .pb-panel .modal{background:#fff;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;width:100%}
 .pb-panel .modal-sm{max-width:480px;max-height:90vh}
+.pb-panel .modal-md{max-width:700px;max-height:90vh}
+.pb-panel .modal-lg{max-width:1100px;max-height:90vh}
 .pb-panel .modal-hdr{padding:14px 18px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .pb-panel .modal-hdr-left{display:flex;align-items:center;gap:10px}
 .pb-panel .modal-body{overflow-y:auto;flex:1}
