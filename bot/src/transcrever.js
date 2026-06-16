@@ -11,7 +11,7 @@ Leia a imagem e devolva SOMENTE um JSON válido (sem markdown, sem comentários,
   "jogo": "string",      // descrição da aposta preservando as linhas, ex: "1) Time A x Time B\\n• Mercado / seleção"
   "odd": number | null,  // odd TOTAL do bilhete (se combinada, a odd final). Use ponto decimal. null se não aparecer.
   "valor": number | null,// valor apostado em R$ (somente o número). null se não aparecer.
-  "casa": string | null  // casa de aposta / descarrego, ex: "BET365", "BETANO". null se não identificar.
+  "casa": string | null  // CASA DE APOSTA / descarrego. null se não identificar.
 }
 
 Regras de leitura:
@@ -19,22 +19,26 @@ Regras de leitura:
 - Em valores monetários, remova "R$" e separadores de milhar (ex.: "R$ 1.200,00" -> 1200).
 - Para combinadas (múltiplas seleções), numere cada jogo ("1) ...", "2) ...") e use "• " antes de cada mercado, separando por \\n.
 - Preserve os nomes dos times exatamente como aparecem.
+- "casa" é a CASA DE APOSTA (ex.: BET365, BETANO, SPORTINGBET, SUPERBET, PIXBET). NUNCA use nome de time, jogador, campeonato ou liga como casa. Se você não reconhecer uma casa de aposta conhecida na imagem, use null.
+- Se vier um TEXTO ACOMPANHANTE com um valor de aposta (ex.: "valor 500", "R$ 1.000", "entrada 250"), use ESSE valor no campo "valor" — ele tem PRIORIDADE sobre qualquer valor que apareça na imagem.
 - Não invente dados: se a odd, o valor ou a casa não estiverem visíveis, use null.
 - Responda APENAS com o JSON.`;
 
-/** Chama o modelo de visão e devolve o JSON bruto transcrito. */
-async function transcreverImagem(base64, mediaType = 'image/jpeg') {
+/** Chama o modelo de visão e devolve o JSON bruto transcrito. `legenda` = texto que acompanha a imagem (caso 2). */
+async function transcreverImagem(base64, mediaType = 'image/jpeg', legenda = '') {
   if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY não configurada (.env).');
+  const content = [
+    { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+  ];
+  if (legenda && legenda.trim()) {
+    content.push({ type: 'text', text: `TEXTO ACOMPANHANTE DA MENSAGEM (pode conter o valor a considerar):\n${legenda.trim()}` });
+  }
+  content.push({ type: 'text', text: PROMPT });
+
   const resp = await client.messages.create({
     model: MODELO,
     max_tokens: 1024,
-    messages: [{
-      role: 'user',
-      content: [
-        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-        { type: 'text', text: PROMPT },
-      ],
-    }],
+    messages: [{ role: 'user', content }],
   });
   const txt = resp.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
   const limpo = txt.replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -54,11 +58,11 @@ function aplicaRegra(dados, emoji) {
   return out;
 }
 
-/** Transcreve a imagem e já aplica a regra do emoji. */
-async function transcreverBilhete(base64, emoji, mediaType = 'image/jpeg') {
+/** Transcreve a imagem e já aplica a regra do emoji. `legenda` = texto da mensagem (caso 2). */
+async function transcreverBilhete(base64, emoji, mediaType = 'image/jpeg', legenda = '') {
   const regra = regraPorEmoji(emoji);
   if (!regra) throw new Error('Emoji de gatilho inválido: ' + emoji);
-  const { dados, usage, modelo } = await transcreverImagem(base64, mediaType);
+  const { dados, usage, modelo } = await transcreverImagem(base64, mediaType, legenda);
   const final = aplicaRegra(dados, emoji);
   return { bruto: dados, final, emoji: regra.emoji, regra, usage, modelo };
 }

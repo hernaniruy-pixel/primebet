@@ -24,7 +24,8 @@ const PRECO = {
   const ALIAS = { completo: '⚪', branco: '⚪', odd: '⚫', preto: '⚫', valor: '🔵', azul: '🔵', ambos: '⚠️', aviso: '⚠️' };
   const arg = process.argv[3] || 'completo';
   const emoji = ALIAS[arg.toLowerCase()] || arg;
-  if (!file) { console.error('Uso: npm run testar -- <caminho-da-imagem> <completo|odd|valor|ambos>'); process.exit(1); }
+  const legenda = process.argv[4] || ''; // texto que acompanha a imagem (caso 2)
+  if (!file) { console.error('Uso: npm run testar -- <caminho-da-imagem> <completo|odd|valor|ambos> ["texto/valor opcional"]'); process.exit(1); }
   if (!fs.existsSync(file)) { console.error('Arquivo não encontrado:', file); process.exit(1); }
   const regra = regraPorEmoji(emoji);
   if (!regra) { console.error('Emoji inválido. Use: ⚪ ⚫ 🔵 ⚠️'); process.exit(1); }
@@ -37,7 +38,7 @@ const PRECO = {
   console.log(`Transcrevendo "${file}" com ${regra.emoji} (${regra.label})...\n`);
   try {
     const t0 = Date.now();
-    const { bruto, final, usage, modelo } = await transcreverBilhete(base64, emoji, mime);
+    const { bruto, final, usage, modelo } = await transcreverBilhete(base64, emoji, mime, legenda);
     const ms = Date.now() - t0;
     console.log('— Transcrição bruta (o que a imagem mostra):');
     console.log(JSON.stringify(bruto, null, 2));
