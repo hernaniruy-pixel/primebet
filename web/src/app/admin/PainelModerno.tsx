@@ -27,6 +27,13 @@ const STPILL: Record<string, string> = {
 
 const fmt = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (d: Date) => d.toISOString().split('T')[0];
+
+// Regra de cor dos números (igual ao jmprint): positivo verde, negativo vermelho, ZERO preto.
+const ZEROCLS = 'text-slate-900 dark:text-slate-100';
+const clrCls = (n: number) => { const v = Number(n) || 0; return v > 0 ? 'text-emerald-600 dark:text-emerald-400' : v < 0 ? 'text-rose-600 dark:text-rose-400' : ZEROCLS; };
+const comCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-rose-600 dark:text-rose-400'); // comissões: vermelho (preto se 0)
+const entCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-blue-600 dark:text-blue-400'); // entradas/em aberto: azul (preto se 0)
+const posCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-emerald-600 dark:text-emerald-400'); // entrada: verde (preto se 0)
 function periodDates(v: string): { d1: string; d2: string } {
   const today = new Date();
   if (v === 'hoje') { const d = fmtDate(today); return { d1: d, d2: d }; }
@@ -77,7 +84,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [clientes, setClientes] = useState<Cliente[]>(clientesIni);
   const [afiliados, setAfiliados] = useState<Afiliado[]>(afiliadosIni);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
-  const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf'>(null);
+  const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp'>(null);
+  const [wpp, setWpp] = useState({ cId: '', jogo: '', odd: '', val: '', dc: '' });
   const [novoCli, setNovoCli] = useState({ open: false, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '' });
   const [novoAf, setNovoAf] = useState({ open: false, nome: '', com: '0' });
   const [obsModal, setObsModal] = useState<{ id: number; text: string } | null>(null);
@@ -108,6 +116,9 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       jogo: f.jogo || undefined, dc: f.dc || undefined,
       oddMin: f.oddMin ? Number(f.oddMin) : null, oddMax: f.oddMax ? Number(f.oddMax) : null,
       valMin: f.valMin ? Number(f.valMin) : null, valMax: f.valMax ? Number(f.valMax) : null,
+      bl: f.bl === 'sim' ? true : f.bl === 'nao' ? false : null,
+      adv: f.adv === 'sim' ? true : f.adv === 'nao' ? false : null,
+      irr: f.irr === 'sim' ? true : f.irr === 'nao' ? false : null,
       dt1: f.dt1 || null, dt2: f.dt2 || null, ord: f.ord, page,
     };
     listarApostas(params)
@@ -150,6 +161,15 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       setNovo({ open: false, cId: '', jogo: '', odd: '', val: '', st: 'EM ABERTO', dc: '' });
       reload(); toast('Registro adicionado.');
     } catch { toast('Erro ao adicionar.'); }
+  }
+  async function receberBilhete() {
+    if (!wpp.cId || !wpp.jogo.trim()) { alert('Selecione o cliente e cole o bilhete transcrito.'); return; }
+    try {
+      await criarAposta({ cId: Number(wpp.cId), jogo: wpp.jogo, odd: Number(wpp.odd) || 0, val: Number(wpp.val) || 0, st: 'EM ABERTO', dc: wpp.dc });
+      setWpp({ cId: '', jogo: '', odd: '', val: '', dc: '' }); setModal(null); reload();
+      const inc = !(Number(wpp.odd) > 0) || !(Number(wpp.val) > 0);
+      toast(inc ? 'Bilhete recebido (EM ABERTO) — preencha odd/valor.' : 'Bilhete recebido na fila.');
+    } catch { toast('Erro ao receber bilhete.'); }
   }
   async function sair() { const s = createClient(); await s.auth.signOut(); router.replace('/login'); }
   async function salvarObs() { if (!obsModal) return; const t = obsModal.text.trim(); await patchReg(obsModal.id, { obs: t, adv: t.length > 0 }); setObsModal(null); toast(t ? 'Advertência salva.' : 'Advertência removida.'); }
@@ -219,17 +239,17 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
           {/* MÉTRICAS */}
           <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
             {[
-              { l: 'Entrada', v: tot(totals.entradas), s: `${total} linhas` },
-              { l: 'Em aberto', v: tot(totals.em_aberto_total), s: `${totals.em_aberto_qtd} linhas` },
-              { l: 'Saldo bruto', v: tot(totals.saldo_bruto) },
-              { l: 'Comissão', v: tot(totals.comissao) },
-              { l: 'Com. afiliados', v: tot(totals.comissao_afiliado) },
-              { l: 'Saldo líquido', v: tot(totals.saldo_liquido) },
-              { l: 'Total fechamento', v: tot(totals.saldo_liquido - totals.comissao_afiliado) },
+              { l: 'Entrada', v: tot(totals.entradas), s: `${total} linhas`, c: posCls(totals.entradas) },
+              { l: 'Em aberto', v: tot(totals.em_aberto_total), s: `${totals.em_aberto_qtd} linhas`, c: entCls(totals.em_aberto_total) },
+              { l: 'Saldo bruto', v: tot(totals.saldo_bruto), c: clrCls(totals.saldo_bruto) },
+              { l: 'Comissão', v: tot(totals.comissao), c: comCls(totals.comissao) },
+              { l: 'Com. afiliados', v: tot(totals.comissao_afiliado), c: comCls(totals.comissao_afiliado) },
+              { l: 'Saldo líquido', v: tot(totals.saldo_liquido), c: clrCls(totals.saldo_liquido) },
+              { l: 'Total fechamento', v: tot(totals.saldo_liquido - totals.comissao_afiliado), c: clrCls(totals.saldo_liquido - totals.comissao_afiliado) },
             ].map((m) => (
               <div key={m.l} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
                 <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{m.l}</div>
-                <div className="mt-1 text-lg font-semibold tabular-nums">{m.v}</div>
+                <div className={`mt-1 text-lg font-semibold tabular-nums ${m.c}`}>{m.v}</div>
                 {m.s && <div className="mt-0.5 text-[11px] text-slate-400">{m.s}</div>}
               </div>
             ))}
@@ -264,9 +284,18 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                   <option value="data_desc">data ↓</option><option value="data_asc">data ↑</option><option value="val_desc">entradas ↓</option><option value="val_asc">entradas ↑</option>
                 </select>
               </div>
+              <div><span className={lbl}>ID</span><input className={inp} value={filtros.id} onChange={(e) => setF('id', e.target.value)} placeholder="ex: 10" /></div>
+              <div><span className={lbl}>Odd mín</span><input type="number" step="0.01" className={inp} value={filtros.oddMin} onChange={(e) => setF('oddMin', e.target.value)} /></div>
+              <div><span className={lbl}>Odd máx</span><input type="number" step="0.01" className={inp} value={filtros.oddMax} onChange={(e) => setF('oddMax', e.target.value)} /></div>
+              <div><span className={lbl}>Entradas mín</span><input type="number" className={inp} value={filtros.valMin} onChange={(e) => setF('valMin', e.target.value)} /></div>
+              <div><span className={lbl}>Entradas máx</span><input type="number" className={inp} value={filtros.valMax} onChange={(e) => setF('valMax', e.target.value)} /></div>
+              <div><span className={lbl}>Baixa liquidez</span><select className={inp} value={filtros.bl} onChange={(e) => setF('bl', e.target.value)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
+              <div><span className={lbl}>Advertido</span><select className={inp} value={filtros.adv} onChange={(e) => setF('adv', e.target.value)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
+              <div><span className={lbl}>Irregular</span><select className={inp} value={filtros.irr} onChange={(e) => setF('irr', e.target.value)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
             </div>
             <div className="mt-3 flex flex-wrap justify-end gap-2">
               <button onClick={limpar} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">Limpar</button>
+              <button onClick={() => setModal('wpp')} className="rounded-lg bg-[#25D366] px-3 py-1.5 text-sm font-medium text-white transition hover:brightness-95">📥 Receber bilhete</button>
               <button onClick={() => setNovo((n) => ({ ...n, open: true }))} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700">+ Novo registro</button>
             </div>
           </div>
@@ -304,14 +333,14 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         <td className="px-3 py-2.5"><input type="number" className={`${inp} w-24 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} /></td>
                         <td className="px-3 py-2.5"><select value={r.st} onChange={(e) => patchReg(r.id, { st: e.target.value })} className={`rounded-full border-0 px-3 py-1.5 text-xs font-semibold outline-none ${STPILL[r.st] ?? ''}`}>{STS.map((s) => <option key={s} value={s} className="bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100">{s}</option>)}</select></td>
                         <td className="px-3 py-2.5"><select value={r.dc} onChange={(e) => patchReg(r.id, { dc: e.target.value })} className={`${inp} w-32`}>{DCS.map((d) => <option key={d} value={d}>{d || '—'}</option>)}</select></td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{fmt(r.sb)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{fmt(r.cm)}</td>
+                        <td className={`px-3 py-2.5 text-right tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td>
+                        <td className={`px-3 py-2.5 text-right tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td>
                         <td className="px-3 py-2.5 text-center"><select value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} className={`${inp} w-20`}><option>Não</option><option>Sim</option></select></td>
-                        <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{fmt(r.sl)}</td>
+                        <td className={`px-3 py-2.5 text-right font-semibold tabular-nums ${clrCls(r.sl)}`}>{fmt(r.sl)}</td>
                         <td className="px-3 py-2.5">
                           <div className="flex justify-center gap-1.5">
                             {r.adv && <button onClick={() => setObsModal({ id: r.id, text: r.obs })} title={`Advertência: ${r.obs}`} className="rounded-lg bg-rose-600 px-2 py-1 text-xs text-white transition hover:bg-rose-700">⚠</button>}
-                            <button onClick={() => saveReg(r.id)} className={`rounded-lg px-2.5 py-1 text-xs font-medium text-white transition ${drafts[r.id]?._saved ? 'bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'}`}>{drafts[r.id]?._saved ? '✓' : 'Salvar'}</button>
+                            <button onClick={() => saveReg(r.id)} className={`rounded-lg px-2.5 py-1 text-xs font-medium text-white transition ${drafts[r.id]?._saved ? 'bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'}`}>{drafts[r.id]?._saved ? '✓' : 'Salvar'}</button>
                             <button onClick={() => delReg(r.id)} className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-50 dark:border-rose-500/30 dark:hover:bg-rose-500/10">Excluir</button>
                           </div>
                         </td>
@@ -421,7 +450,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               <tbody>{fechData.rows.map((r) => (
                 <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800">
                   <td className="px-2 py-1.5 font-medium">{r.nome}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.cal)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.saldoCal)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.val)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.ab)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.sb)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.cm)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.caf)}</td><td className="px-2 py-1.5 text-right font-semibold tabular-nums">{fmt(r.sl)}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.cal)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.saldoCal)}`}>{fmt(r.saldoCal)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${entCls(r.val)}`}>{fmt(r.val)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${entCls(r.ab)}`}>{fmt(r.ab)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.caf)}`}>{fmt(r.caf)}</td><td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${clrCls(r.sl)}`}>{fmt(r.sl)}</td>
                 </tr>
               ))}
               {fechData.rows.length === 0 && <tr><td colSpan={9} className="px-2 py-8 text-center text-slate-400">Sem movimento no período.</td></tr>}
@@ -448,7 +477,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               <thead><tr className="text-left text-slate-400"><th className="px-2 py-2 font-medium">Supervisor</th><th className="px-2 py-2 text-center font-medium">Logins</th><th className="px-2 py-2 text-right font-medium">Entrada</th><th className="px-2 py-2 text-right font-medium">Em aberto</th><th className="px-2 py-2 text-right font-medium">S. bruto</th><th className="px-2 py-2 text-right font-medium">Comissão</th><th className="px-2 py-2 text-right font-medium">C. afil.</th><th className="px-2 py-2 text-right font-medium">S. líquido</th></tr></thead>
               <tbody>{fafData.rows.map((r) => (
                 <tr key={r.sup} className="border-t border-slate-100 dark:border-slate-800">
-                  <td className="px-2 py-1.5 font-medium">{r.sup}</td><td className="px-2 py-1.5 text-center tabular-nums">{r.logins}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.val)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.ab)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.sb)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.cm)}</td><td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.caf)}</td><td className="px-2 py-1.5 text-right font-semibold tabular-nums">{fmt(r.sl)}</td>
+                  <td className="px-2 py-1.5 font-medium">{r.sup}</td><td className="px-2 py-1.5 text-center tabular-nums">{r.logins}</td><td className={`px-2 py-1.5 text-right tabular-nums ${entCls(r.val)}`}>{fmt(r.val)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${entCls(r.ab)}`}>{fmt(r.ab)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.caf)}`}>{fmt(r.caf)}</td><td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${clrCls(r.sl)}`}>{fmt(r.sl)}</td>
                 </tr>
               ))}
               {fafData.rows.length === 0 && <tr><td colSpan={8} className="px-2 py-8 text-center text-slate-400">Nenhum supervisor com movimento.</td></tr>}
@@ -498,6 +527,26 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                 <button onClick={() => setObsModal(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button>
                 <button onClick={resolverObs} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Resolvido</button>
                 <button onClick={salvarObs} className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">Salvar</button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* RECEBER BILHETE (WhatsApp) */}
+        {modal === 'wpp' && (
+          <Modal onClose={() => setModal(null)} max="max-w-md" title="📥 Receber bilhete (WhatsApp)">
+            <div className="flex flex-col gap-3">
+              <div className="rounded-lg bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-800/50">Simula a chegada de um bilhete. Na operação real, o backend recebe a reação na imagem do grupo, transcreve e o coloca aqui como <b>EM ABERTO</b>; odd/valor em branco ficam para preencher.</div>
+              <div><span className={lbl}>Cliente / grupo</span><select className={inp} value={wpp.cId} onChange={(e) => setWpp((w) => ({ ...w, cId: e.target.value }))}><option value="">— Selecione —</option>{cliSorted.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></div>
+              <div><span className={lbl}>Bilhete transcrito</span><textarea rows={4} className={inp} value={wpp.jogo} onChange={(e) => setWpp((w) => ({ ...w, jogo: e.target.value }))} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className={lbl}>Odd (opcional)</span><input type="number" step="0.01" className={inp} placeholder="vazio = em aberto" value={wpp.odd} onChange={(e) => setWpp((w) => ({ ...w, odd: e.target.value }))} /></div>
+                <div><span className={lbl}>Valor (opcional)</span><input type="number" className={inp} placeholder="vazio = em aberto" value={wpp.val} onChange={(e) => setWpp((w) => ({ ...w, val: e.target.value }))} /></div>
+              </div>
+              <div><span className={lbl}>Descarrego</span><select className={inp} value={wpp.dc} onChange={(e) => setWpp((w) => ({ ...w, dc: e.target.value }))}>{DCS.map((d) => <option key={d} value={d}>{d || '—'}</option>)}</select></div>
+              <div className="mt-1 flex justify-end gap-2">
+                <button onClick={() => setModal(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button>
+                <button onClick={receberBilhete} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Receber no sistema</button>
               </div>
             </div>
           </Modal>
