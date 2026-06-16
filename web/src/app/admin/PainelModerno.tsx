@@ -232,7 +232,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
 
   return (
     <div className={dark ? 'dark' : ''}>
-      <style>{`@keyframes pbAlertPulse{0%,100%{border-color:#ef4444}50%{border-color:#fecaca}} tr.pb-alert>td{animation:pbAlertPulse 1.1s ease-in-out infinite}`}</style>
+      <style>{`@keyframes pbAlertPulse{0%,100%{border-color:#ef4444}50%{border-color:#fecaca}} tr.pb-alert>td{border-width:2px;animation:pbAlertPulse 1.1s ease-in-out infinite}`}</style>
       <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {/* TOPBAR */}
         <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b-2 border-amber-500 bg-slate-900 px-4">
