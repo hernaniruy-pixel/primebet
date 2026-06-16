@@ -228,6 +228,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
 
   return (
     <div className={dark ? 'dark' : ''}>
+      <style>{`@keyframes pbAlertPulse{0%,100%{border-color:#ef4444}50%{border-color:#fecaca}} tr.pb-alert>td{animation:pbAlertPulse 1.1s ease-in-out infinite}`}</style>
       <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {/* TOPBAR */}
         <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b-2 border-amber-500 bg-slate-900 px-4">
@@ -338,7 +339,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                   {regs.map((r) => {
                     const inc = !(Number(r.odd) > 0) || !(Number(r.val) > 0);
                     return (
-                      <tr key={r.id} className={`border-b border-slate-100 align-middle transition hover:bg-slate-50 dark:border-slate-800/70 dark:hover:bg-slate-800/40 ${inc ? 'bg-rose-50/60 dark:bg-rose-500/5' : ''}`}>
+                      <tr key={r.id} className={`border-b border-slate-100 align-middle transition hover:bg-slate-50 dark:border-slate-800/70 dark:hover:bg-slate-800/40 ${inc ? 'pb-alert bg-rose-50/60 dark:bg-rose-500/5' : ''}`}>
                         <td className="px-2 py-1.5 font-medium text-slate-500">{r.id}</td>
                         <td className="px-2 py-1.5 whitespace-nowrap text-xs text-slate-500">{r.dt}</td>
                         <td className="px-2 py-1.5">
