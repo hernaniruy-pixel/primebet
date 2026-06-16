@@ -305,13 +305,13 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
           {/* TABELA */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-200 dark:[&_td]:border-slate-700 dark:[&_th]:border-slate-700">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-[11px] uppercase tracking-wide text-slate-400 dark:border-slate-800">
                     <th className="px-2 py-2 font-medium">id</th><th className="px-2 py-2 font-medium">data</th>
                     <th className="px-2 py-2 font-medium">nome</th><th className="px-2 py-2 font-medium">jogo</th>
                     <th className="px-2 py-2 text-right font-medium">odd</th><th className="px-2 py-2 text-right font-medium">entradas</th>
-                    <th className="px-2 py-2 font-medium">status</th><th className="px-2 py-2 font-medium">descarrego</th>
+                    <th className="px-2 py-2 font-medium">status</th>
                     <th className="px-2 py-2 text-right font-medium">s. bruto</th><th className="px-2 py-2 text-right font-medium">comissão</th>
                     <th className="px-2 py-2 text-center font-medium">baixa liq.</th><th className="px-2 py-2 text-right font-medium">saldo líq.</th>
                     <th className="px-2 py-2 text-center font-medium">ações</th>
@@ -332,7 +332,6 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} /></td>
                         <td className="px-2 py-1.5"><input type="number" className={`${cinp} w-20 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} /></td>
                         <td className="px-2 py-1.5"><select value={r.st} onChange={(e) => patchReg(r.id, { st: e.target.value })} className={`rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none ${STPILL[r.st] ?? ''}`}>{STS.map((s) => <option key={s} value={s} className="bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100">{s}</option>)}</select></td>
-                        <td className="px-2 py-1.5"><select value={r.dc} onChange={(e) => patchReg(r.id, { dc: e.target.value })} className={`${cinp} w-24`}>{DCS.map((d) => <option key={d} value={d}>{d || '—'}</option>)}</select></td>
                         <td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td>
                         <td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td>
                         <td className="px-2 py-1.5 text-center"><select value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} className={`${cinp} w-16`}><option>Não</option><option>Sim</option></select></td>
@@ -347,7 +346,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                       </tr>
                     );
                   })}
-                  {regs.length === 0 && <tr><td colSpan={13} className="px-3 py-10 text-center text-slate-400">Nenhuma aposta no período. Use o período rápido ou limpe as datas.</td></tr>}
+                  {regs.length === 0 && <tr><td colSpan={12} className="px-3 py-10 text-center text-slate-400">Nenhuma aposta no período. Use o período rápido ou limpe as datas.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -417,7 +416,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
         {/* AFILIADOS */}
         {modal === 'af' && (
           <Modal onClose={() => setModal(null)} max="max-w-xl" title={<div className="flex items-center gap-3"><span>Afiliados</span><button onClick={novoAfiliado} className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700">+ Novo</button></div>}>
-            <table className="w-full text-sm">
+            <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-200 dark:[&_td]:border-slate-700 dark:[&_th]:border-slate-700">
               <thead><tr className="text-left text-slate-400"><th className="px-2 py-2 font-medium">ID</th><th className="px-2 py-2 font-medium">Nome</th><th className="px-2 py-2 font-medium">Comissão %</th><th className="px-2 py-2 font-medium">Ações</th></tr></thead>
               <tbody>{afiliados.map((a) => (
                 <tr key={a.id} className="border-t border-slate-100 dark:border-slate-800">
