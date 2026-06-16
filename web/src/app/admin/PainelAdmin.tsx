@@ -28,7 +28,22 @@ const PAGE_SIZE = 20;
 
 // ═══════════ HELPERS ═══════════
 const fmt = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const clr = (n: number) => { void n; return 'var(--num)'; };
+const C_POS = '#16a34a';
+const C_NEG = '#dc2626';
+const C_ZERO = '#111827';
+const C_BLUE = '#2563eb';
+// Regra de cor dos números (igual ao jmprint): positivo verde, negativo vermelho, zero PRETO.
+const clr = (n: number) => { const v = Number(n) || 0; return v > 0 ? C_POS : v < 0 ? C_NEG : C_ZERO; };
+// Comissões: vermelho quando há valor, preto quando 0.
+const clrCom = (n: number) => (Number(n) === 0 ? C_ZERO : C_NEG);
+// Entradas / em aberto: azul quando há valor, preto quando 0.
+const clrEnt = (n: number) => (Number(n) === 0 ? C_ZERO : C_BLUE);
+// Entrada (sempre positiva): verde, preto quando 0.
+const clrPos = (n: number) => (Number(n) === 0 ? C_ZERO : C_POS);
+// Estilo do botão Salvar (igual ao jmprint): azul suave; verde quando já salvo.
+const saveBtnStyle = (saved: boolean) => (saved
+  ? { background: '#dcfce7', color: '#15803d', border: '1px solid #86efac' }
+  : { background: '#eef2ff', color: '#2563eb', border: '1px solid #c7d2fe' });
 const fmtDate = (d: Date) => d.toISOString().split('T')[0];
 function periodDates(v: string): { d1: string; d2: string } {
   const today = new Date();
@@ -405,14 +420,14 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
 
         {/* MÉTRICAS */}
         <div className="metrics-row">
-          <Metric ico="💰" icoBg="#16a34a22" lbl="ENTRADA" val={`R$ ${fmt(tot.v)}`} valColor="var(--num)" sub={`${tot.n} linhas`} />
-          <Metric ico="⏳" icoBg="#B8860B22" lbl="EM ABERTO" val={`R$ ${fmt(tot.ab)}`} valColor="var(--num)" sub={`${tot.nab} linhas`} />
+          <Metric ico="💰" icoBg="#16a34a22" lbl="ENTRADA" val={`R$ ${fmt(tot.v)}`} valColor={clrPos(tot.v)} sub={`${tot.n} linhas`} />
+          <Metric ico="⏳" icoBg="#B8860B22" lbl="EM ABERTO" val={`R$ ${fmt(tot.ab)}`} valColor={clrEnt(tot.ab)} sub={`${tot.nab} linhas`} />
           <Metric ico="📊" icoBg="#8b5cf622" lbl="SALDO BRUTO" val={`R$ ${fmt(tot.sb)}`} valColor={clr(tot.sb)} />
-          <Metric ico="%" icoBg="#dc262622" lbl="COMISSÃO" val={`R$ ${fmt(tot.cm)}`} valColor="var(--num)" />
+          <Metric ico="%" icoBg="#dc262622" lbl="COMISSÃO" val={`R$ ${fmt(tot.cm)}`} valColor={clrCom(tot.cm)} />
           <Metric ico="✅" icoBg="#16a34a22" lbl="SALDO LÍQUIDO" val={`R$ ${fmt(tot.sl)}`} valColor={clr(tot.sl)} />
         </div>
         <div className="metrics-row2">
-          <Metric ico="✕" icoBg="#dc262622" lbl="COMISSÃO AFILIADOS" val={`R$ ${fmt(tot.caf)}`} valColor="var(--num)" />
+          <Metric ico="✕" icoBg="#dc262622" lbl="COMISSÃO AFILIADOS" val={`R$ ${fmt(tot.caf)}`} valColor={clrCom(tot.caf)} />
           <Metric ico="+" icoBg="#16a34a22" lbl="TOTAL FECHAMENTO" val={`R$ ${fmt(tot.sl - tot.caf)}`} valColor={clr(tot.sl - tot.caf)} />
         </div>
 
@@ -436,7 +451,6 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                   const incompleto = !(Number(r.odd) > 0) || !(Number(r.val) > 0);
                   const bg = d._saved ? 'var(--saved-bg)' : editing ? 'var(--edit-bg)' : i % 2 === 0 ? 'var(--card)' : 'var(--row-alt)';
                   const rowBg = incompleto ? 'var(--alert-bg)' : bg;
-                  const btnBg = d._saved ? '#2d6a0a' : editing ? '#d97706' : '#B8860B';
                   return (
                     <tr key={r.id} className={incompleto ? 'row-alert' : ''} style={{ background: rowBg, transition: 'background .3s' }}>
                       <td style={{ fontWeight: 700, color: 'var(--inp-text)' }}>{r.id}</td>
@@ -444,17 +458,17 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                       <td style={{ minWidth: 150 }}><ComboBox options={cliOptsId} value={String(r.cId)} onChange={(v) => { if (v) patchReg(r.id, { cId: Number(v) }); }} minWidth={140} />{incompleto && <span className="alert-tag">PREENCHER</span>}</td>
                       <td><textarea className={`inp${dW(r, 'jogo')}`} value={dV(r, 'jogo')} onChange={(e) => updDraft(r.id, 'jogo', e.target.value)} rows={3} style={{ width: 260, fontSize: 11, resize: 'vertical', lineHeight: 1.4 }} /></td>
                       <td><input type="number" step="0.01" className={`inp${dW(r, 'odd')}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} placeholder="—" style={{ width: 58, fontSize: 11, ...(incompleto && !(Number(r.odd) > 0) ? { borderColor: '#dc2626' } : {}) }} /></td>
-                      <td><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} placeholder="—" style={{ width: 76, fontSize: 11, color: 'var(--num)', fontWeight: 700, ...(incompleto && !(Number(r.val) > 0) ? { borderColor: '#dc2626' } : {}) }} /></td>
+                      <td><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} placeholder="—" style={{ width: 76, fontSize: 11, color: clrEnt(Number(r.val)), fontWeight: 700, ...(incompleto && !(Number(r.val) > 0) ? { borderColor: '#dc2626' } : {}) }} /></td>
                       <td><select className="st-sel" style={stStyle(r.st)} value={r.st} onChange={(e) => updRegSt(r.id, e.target.value)}>{stOptEls()}</select></td>
                       <td><select className="inp" value={r.dc} onChange={(e) => patchReg(r.id, { dc: e.target.value })} style={{ fontSize: 11, minWidth: 100 }}>{DCS.map((dd) => <option key={dd} value={dd}>{dd || '—'}</option>)}</select></td>
                       <td className="td-r" style={{ fontWeight: 600, color: clr(r.sb) }}>{fmt(r.sb)}</td>
-                      <td className="td-r" style={{ fontWeight: 600, color: clr(r.cm) }}>{fmt(r.cm)}</td>
+                      <td className="td-r" style={{ fontWeight: 600, color: clrCom(r.cm) }}>{fmt(r.cm)}</td>
                       <td className="td-c"><select className="inp" value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} style={{ fontSize: 11 }}><option>Não</option><option>Sim</option></select></td>
                       <td className="td-r" style={{ fontWeight: 700, color: clr(r.sl) }}>{fmt(r.sl)}</td>
                       <td className="td-sticky td-c" style={{ background: rowBg }}>
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                           {r.adv && <button className="btn btn-sm" onClick={() => setObsModal({ id: r.id, text: r.obs })} title={`Advertência: ${r.obs}`} style={{ background: '#dc2626', color: '#fff', minWidth: 32, padding: '5px 6px' }}>⚠</button>}
-                          <button className="btn btn-sm" onClick={() => saveReg(r.id)} style={{ background: btnBg, color: '#fff', minWidth: 58 }}>{d._saved ? '✓ Salvo' : 'Salvar'}</button>
+                          <button className="btn btn-sm" onClick={() => saveReg(r.id)} style={{ ...saveBtnStyle(!!d._saved), minWidth: 58 }}>{d._saved ? '✓ Salvo' : 'Salvar'}</button>
                           <button className="btn btn-sm btn-red-o" onClick={() => delReg(r.id)} style={{ minWidth: 58 }}>Excluir</button>
                         </div>
                       </td>
@@ -481,7 +495,6 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
             const editing = Object.keys(d).filter((k) => k !== '_saved').length > 0;
             const incompleto = !(Number(r.odd) > 0) || !(Number(r.val) > 0);
             const bg = d._saved ? 'var(--saved-bg)' : editing ? 'var(--edit-bg)' : 'var(--card)';
-            const btnBg = d._saved ? '#2d6a0a' : editing ? '#d97706' : '#B8860B';
             const sc = SC[r.st] || { bg: 'var(--line)', t: 'var(--inp-text)' };
             return (
               <div key={r.id} className={`rc ${incompleto ? 'row-alert' : ''}`} style={{ background: incompleto ? 'var(--alert-bg)' : bg }}>
@@ -496,7 +509,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                 <div className="rc-r"><span className="rc-l">Data/Hora</span><input className={`inp${dW(r, 'dt')}`} value={dV(r, 'dt')} onChange={(e) => updDraft(r.id, 'dt', e.target.value)} style={{ width: 154, textAlign: 'right', fontSize: 12 }} /></div>
                 <div className="rc-r" style={{ alignItems: 'flex-start' }}><span className="rc-l">Jogo</span><textarea className={`inp${dW(r, 'jogo')}`} value={dV(r, 'jogo')} onChange={(e) => updDraft(r.id, 'jogo', e.target.value)} rows={3} style={{ flex: 1, marginLeft: 8, fontSize: 11, resize: 'vertical', lineHeight: 1.4 }} /></div>
                 <div className="rc-r"><span className="rc-l">Odd</span><input type="number" step="0.01" className={`inp${dW(r, 'odd')}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} style={{ width: 90, textAlign: 'right', fontWeight: 700 }} /></div>
-                <div className="rc-r"><span className="rc-l">Entradas</span><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} style={{ width: 110, textAlign: 'right', fontWeight: 700, color: 'var(--num)' }} /></div>
+                <div className="rc-r"><span className="rc-l">Entradas</span><input type="number" step="0.01" className={`inp${dW(r, 'val')}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} style={{ width: 110, textAlign: 'right', fontWeight: 700, color: clrEnt(Number(r.val)) }} /></div>
                 <div className="rc-r"><span className="rc-l">Status</span><div style={{ flex: 1, marginLeft: 8 }}><select className="st-sel inp-full" style={stStyle(r.st)} value={r.st} onChange={(e) => updRegSt(r.id, e.target.value)}>{stOptEls()}</select></div></div>
                 <div className="rc-r"><span className="rc-l">Descarrego</span><div style={{ flex: 1, marginLeft: 8 }}><select className="inp inp-full" value={r.dc} onChange={(e) => patchReg(r.id, { dc: e.target.value })}>{DCS.map((dd) => <option key={dd} value={dd}>{dd || '—'}</option>)}</select></div></div>
                 <div className="rc-r"><span className="rc-l">S.Bruto</span><span style={{ fontWeight: 600, color: clr(r.sb) }}>R$ {fmt(r.sb)}</span></div>
@@ -504,7 +517,7 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                 <div className="rc-r"><span className="rc-l">S.Líquido</span><span style={{ fontWeight: 700, color: clr(r.sl) }}>R$ {fmt(r.sl)}</span></div>
                 <div className="rc-btns">
                   {r.adv && <button className="btn" onClick={() => setObsModal({ id: r.id, text: r.obs })} style={{ background: '#dc2626', color: '#fff' }}>⚠</button>}
-                  <button className="btn" onClick={() => saveReg(r.id)} style={{ background: btnBg, color: '#fff', flex: 1 }}>{d._saved ? '✓ Salvo' : 'Salvar'}</button>
+                  <button className="btn" onClick={() => saveReg(r.id)} style={{ ...saveBtnStyle(!!d._saved), flex: 1 }}>{d._saved ? '✓ Salvo' : 'Salvar'}</button>
                   <button className="btn btn-red-o" onClick={() => delReg(r.id)}>Excluir</button>
                 </div>
               </div>
@@ -634,11 +647,11 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                     <td style={{ fontWeight: 700 }}>{r.nome}</td>
                     <td className="td-r">{fmt(r.cal)}</td>
                     <td className="td-r" style={{ color: clr(r.saldoCal), fontWeight: 600 }}>{fmt(r.saldoCal)}</td>
-                    <td className="td-r" style={{ color: 'var(--num)', fontWeight: 600 }}>{fmt(r.val)}</td>
-                    <td className="td-r" style={{ color: 'var(--num)' }}>{fmt(r.ab)}</td>
+                    <td className="td-r" style={{ color: clrEnt(r.val), fontWeight: 600 }}>{fmt(r.val)}</td>
+                    <td className="td-r" style={{ color: clrEnt(r.ab) }}>{fmt(r.ab)}</td>
                     <td className="td-r" style={{ color: clr(r.sb), fontWeight: 600 }}>{fmt(r.sb)}</td>
-                    <td className="td-r" style={{ color: 'var(--num)', fontWeight: 600 }}>{fmt(r.cm)}</td>
-                    <td className="td-r" style={{ color: 'var(--num)' }}>{fmt(r.caf)}</td>
+                    <td className="td-r" style={{ color: clrCom(r.cm), fontWeight: 600 }}>{fmt(r.cm)}</td>
+                    <td className="td-r" style={{ color: clrCom(r.caf) }}>{fmt(r.caf)}</td>
                     <td className="td-r" style={{ color: clr(r.sl), fontWeight: 700 }}>{fmt(r.sl)}</td>
                     <td className="td-sticky td-c" style={{ background: bg }}><button className="btn-icon" title="Baixar PDF" onClick={pdfBreve}>⬇</button></td>
                   </tr>); })}
@@ -676,11 +689,11 @@ export default function PainelAdmin({ email, clientesIni, afiliadosIni, apostasI
                   <tr key={r.sup} style={{ background: bg }}>
                     <td style={{ fontWeight: 700 }}>{r.sup}</td>
                     <td className="td-c" style={{ color: 'var(--num)', fontWeight: 600 }}>{r.logins}</td>
-                    <td className="td-r" style={{ color: 'var(--num)', fontWeight: 600 }}>{fmt(r.val)}</td>
-                    <td className="td-r" style={{ color: 'var(--num)' }}>{fmt(r.ab)}</td>
+                    <td className="td-r" style={{ color: clrEnt(r.val), fontWeight: 600 }}>{fmt(r.val)}</td>
+                    <td className="td-r" style={{ color: clrEnt(r.ab) }}>{fmt(r.ab)}</td>
                     <td className="td-r" style={{ color: clr(r.sb), fontWeight: 600 }}>{fmt(r.sb)}</td>
-                    <td className="td-r" style={{ color: 'var(--num)', fontWeight: 600 }}>{fmt(r.cm)}</td>
-                    <td className="td-r" style={{ color: 'var(--num)' }}>{fmt(r.caf)}</td>
+                    <td className="td-r" style={{ color: clrCom(r.cm), fontWeight: 600 }}>{fmt(r.cm)}</td>
+                    <td className="td-r" style={{ color: clrCom(r.caf) }}>{fmt(r.caf)}</td>
                     <td className="td-r" style={{ color: clr(r.sl), fontWeight: 700 }}>{fmt(r.sl)}</td>
                     <td className="td-sticky td-c" style={{ background: bg }}><button className="btn-icon" title="Baixar PDF" onClick={pdfBreve}>⬇</button></td>
                   </tr>); })}
