@@ -35,6 +35,22 @@ const clrCls = (n: number) => { const v = Number(n) || 0; return v > 0 ? 'text-e
 const comCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-rose-600 dark:text-rose-400'); // comissões: vermelho (preto se 0)
 const entCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-blue-600 dark:text-blue-400'); // entradas/em aberto: azul (preto se 0)
 const posCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-emerald-600 dark:text-emerald-400'); // entrada: verde (preto se 0)
+
+// Renderiza o jogo deixando os TIMES em negrito (a linha que contém "(Odd ...)").
+// Cobre os formatos "Time A - Time B", "Time A @ Time B" e "Time A v Time B".
+function renderJogo(jogo: string) {
+  return (jogo || '').split('\n').map((line, i) => {
+    const isGame = /\(odd/i.test(line) && !line.trimStart().startsWith('•');
+    const m = isGame ? line.match(/^(\s*\d+\)\s*)?(.*?)(\s*\(odd.*)$/i) : null;
+    if (m) {
+      const pref = m[1] ?? '';
+      const teams = (m[2] ?? '').trim();
+      const rest = (m[3] ?? '').trim();
+      return <div key={i}>{pref}<b className="font-bold">{teams}</b>{rest ? ` ${rest}` : ''}</div>;
+    }
+    return <div key={i}>{line}</div>;
+  });
+}
 function periodDates(v: string): { d1: string; d2: string } {
   const today = new Date();
   if (v === 'hoje') { const d = fmtDate(today); return { d1: d, d2: d }; }
@@ -329,7 +345,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                           <select value={String(r.cId)} onChange={(e) => patchReg(r.id, { cId: Number(e.target.value) })} className={`${cinp} w-36 font-medium`}>{cliSorted.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select>
                           {inc && <span className="ml-1 inline-block rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">preencher</span>}
                         </td>
-                        <td className="px-2 py-1.5"><textarea rows={2} className={`${cinp} w-72 min-w-[240px] resize-none leading-snug [field-sizing:content] ${edited(r, 'jogo') ? 'border-amber-400' : ''}`} value={dV(r, 'jogo')} onChange={(e) => updDraft(r.id, 'jogo', e.target.value)} /></td>
+                        <td className="px-2 py-1.5"><div className="max-w-[340px] text-xs leading-snug">{renderJogo(r.jogo)}</div></td>
                         <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} /></td>
                         <td className="px-2 py-1.5"><input type="number" className={`${cinp} w-20 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} /></td>
                         <td className="px-2 py-1.5"><select value={r.st} onChange={(e) => patchReg(r.id, { st: e.target.value })} className={`rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none ${STPILL[r.st] ?? ''}`}>{STS.map((s) => <option key={s} value={s} className="bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100">{s}</option>)}</select></td>
