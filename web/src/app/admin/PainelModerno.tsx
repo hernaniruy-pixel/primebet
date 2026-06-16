@@ -23,7 +23,7 @@ const STPILL: Record<string, string> = {
   'MEIO GREEN': 'bg-green-300 text-green-900',
   'MEIO RED': 'bg-red-300 text-red-900',
   RED: 'bg-red-600 text-white',
-  REEMBOLSO: 'bg-violet-600 text-white',
+  REEMBOLSO: 'bg-yellow-400 text-yellow-900',
 };
 
 const fmt = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
