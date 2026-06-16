@@ -16,13 +16,14 @@ const STS = ['EM ABERTO', 'GREEN', 'MEIO GREEN', 'MEIO RED', 'RED', 'REEMBOLSO']
 const DCS = ['', 'BETANO', 'BET365', 'SPORTINGBET', 'SUPERBET', 'PIXBET'];
 const PAGE_SIZE = 20;
 
+// Cores sólidas do status (igual ao original): fundo saturado + texto branco/escuro.
 const STPILL: Record<string, string> = {
-  'EM ABERTO': 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
-  GREEN: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
-  'MEIO GREEN': 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300',
-  'MEIO RED': 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300',
-  RED: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300',
-  REEMBOLSO: 'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300',
+  'EM ABERTO': 'bg-blue-600 text-white',
+  GREEN: 'bg-green-600 text-white',
+  'MEIO GREEN': 'bg-green-300 text-green-900',
+  'MEIO RED': 'bg-red-300 text-red-900',
+  RED: 'bg-red-600 text-white',
+  REEMBOLSO: 'bg-violet-600 text-white',
 };
 
 const fmt = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
