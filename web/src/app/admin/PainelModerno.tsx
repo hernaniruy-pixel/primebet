@@ -40,12 +40,16 @@ const posCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-emerald-600 dar
 // Cobre os formatos "Time A - Time B", "Time A @ Time B" e "Time A v Time B".
 function renderJogo(jogo: string) {
   return (jogo || '').split('\n').map((line, i) => {
-    const isGame = /\(odd/i.test(line) && !line.trimStart().startsWith('•');
-    const m = isGame ? line.match(/^(\s*\d+\)\s*)?(.*?)(\s*\(odd.*)$/i) : null;
-    if (m) {
-      const pref = m[1] ?? '';
-      const teams = (m[2] ?? '').trim();
-      const rest = (m[3] ?? '').trim();
+    const t = line.trimStart();
+    // Linha de jogo = começa com "N)" OU contém "(Odd ...)"; linhas de mercado ("•") ficam normais.
+    const isGame = /^\d+\)/.test(t) || (/\(odd/i.test(line) && !t.startsWith('•'));
+    if (isGame) {
+      const pm = line.match(/^(\s*\d+\)\s*)?([\s\S]*)$/);
+      const pref = pm?.[1] ?? '';
+      const body = pm?.[2] ?? line;
+      const om = body.match(/^(.*?)(\s*\(odd.*)$/i); // separa o "(Odd ...)" se existir
+      const teams = (om ? om[1] : body).trim();
+      const rest = om ? om[2].trim() : '';
       return <div key={i}>{pref}<b className="font-bold">{teams}</b>{rest ? ` ${rest}` : ''}</div>;
     }
     return <div key={i}>{line}</div>;
