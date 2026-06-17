@@ -105,7 +105,13 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div style={{ color: '#2d4010', fontSize: 11, textAlign: 'center', marginTop: 20 }}>
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <a href="/cliente/login" style={{ color: '#DAA520', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+              É cliente? Acesse seu extrato →
+            </a>
+          </div>
+
+          <div style={{ color: '#2d4010', fontSize: 11, textAlign: 'center', marginTop: 16 }}>
             © 2026 PrimeBet Fechamentos
           </div>
         </div>

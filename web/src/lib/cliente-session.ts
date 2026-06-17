@@ -50,7 +50,7 @@ export async function getClienteSessao(): Promise<ClienteSessao | null> {
 export async function setClienteCookie(cid: number, nome: string): Promise<void> {
   const c = await cookies();
   c.set(COOKIE, gerarToken(cid, nome), {
-    httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: MAX_AGE,
+    httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: MAX_AGE,
   });
 }
 
