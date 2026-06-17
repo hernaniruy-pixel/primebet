@@ -51,7 +51,7 @@ async function marcarReagida(msgId, { apostaId = null, emoji = '', grupoId, grup
 /** Pedidos de "lançar do dashboard" ainda pendentes (o operador clicou Lançar no painel). */
 async function listarPedidosPendentes(limite = 5) {
   const { data, error } = await sb.from('imagens_recebidas')
-    .select('id,msg_id,grupo_id,grupo_nome,cliente_id,pedido_emoji,pedido_legenda,thumb_path')
+    .select('id,msg_id,grupo_id,grupo_nome,cliente_id,pedido_emoji,pedido_odd,pedido_valor,thumb_path')
     .eq('pedido_status', 'pendente').limit(limite);
   if (error) { console.error('   pedidos:', error.message); return []; }
   return data || [];

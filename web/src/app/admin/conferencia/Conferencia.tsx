@@ -4,11 +4,11 @@ import { useState, useTransition } from 'react';
 import { listarConfGrupos, listarConfImagens, ignorarImagem, lancarImagem } from '../actions';
 import type { ConfGrupo, ConfImagem, ConfImagensResp } from './types';
 
-const EMOJIS: { e: string; label: string }[] = [
-  { e: '⚪', label: 'Completo (aposta + valor + odd)' },
-  { e: '⚫', label: 'Odd em aberto' },
-  { e: '🔵', label: 'Valor em aberto' },
-  { e: '⚠️', label: 'Odd e valor em aberto' },
+const EMOJIS: { e: string; label: string; campos: ('odd' | 'valor')[] }[] = [
+  { e: '⚪', label: 'Completo (aposta + valor + odd)', campos: [] },
+  { e: '⚫', label: 'Odd em aberto', campos: ['odd'] },
+  { e: '🔵', label: 'Valor em aberto', campos: ['valor'] },
+  { e: '⚠️', label: 'Odd e valor em aberto', campos: ['odd', 'valor'] },
 ];
 
 export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: ConfGrupo[]; imagensIni: ConfImagensResp }) {
@@ -20,6 +20,7 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
   const [zoom, setZoom] = useState<ConfImagem | null>(null);
   const [lancar, setLancar] = useState<ConfImagem | null>(null);
   const [emojiSel, setEmojiSel] = useState('⚪');
+  const [oddSel, setOddSel] = useState('');
   const [valorSel, setValorSel] = useState('');
   const [msgErro, setMsgErro] = useState('');
   const [carregando, startTransition] = useTransition();
@@ -44,12 +45,15 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
     });
   }
 
-  function abrirLancar(img: ConfImagem) { setLancar(img); setEmojiSel('⚪'); setValorSel(''); setMsgErro(''); }
+  function abrirLancar(img: ConfImagem) { setLancar(img); setEmojiSel('⚪'); setOddSel(''); setValorSel(''); setMsgErro(''); }
 
   function confirmarLancar() {
     if (!lancar) return;
+    const campos = EMOJIS.find((o) => o.e === emojiSel)?.campos ?? [];
+    const odd = campos.includes('odd') ? oddSel.trim() || undefined : undefined;
+    const valor = campos.includes('valor') ? valorSel.trim() || undefined : undefined;
     startTransition(async () => {
-      const r = await lancarImagem(lancar.id, emojiSel, valorSel.trim() || undefined);
+      const r = await lancarImagem(lancar.id, emojiSel, odd, valor);
       if (r.ok) { setLancar(null); recarregar(); }
       else setMsgErro(r.erro || 'Erro.');
     });
@@ -183,15 +187,30 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
                 <label className="mb-1 block text-[11px] font-medium text-slate-500">Tipo de reação</label>
                 <div className="space-y-1">
                   {EMOJIS.map((o) => (
-                    <label key={o.e} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm ${emojiSel === o.e ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'}`}>
-                      <input type="radio" name="emoji" checked={emojiSel === o.e} onChange={() => setEmojiSel(o.e)} className="accent-emerald-600" />
-                      <span className="text-base">{o.e}</span><span className="text-xs text-slate-600">{o.label}</span>
-                    </label>
+                    <div key={o.e} className={`rounded-lg border ${emojiSel === o.e ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200'}`}>
+                      <label className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-sm">
+                        <input type="radio" name="emoji" checked={emojiSel === o.e} onChange={() => setEmojiSel(o.e)} className="accent-emerald-600" />
+                        <span className="text-base">{o.e}</span><span className="text-xs text-slate-600">{o.label}</span>
+                      </label>
+                      {emojiSel === o.e && o.campos.length > 0 && (
+                        <div className="flex gap-2 border-t border-emerald-200 px-2.5 py-2">
+                          {o.campos.includes('odd') && (
+                            <div className="flex-1">
+                              <label className="mb-0.5 block text-[10px] font-medium text-slate-500">Odd</label>
+                              <input value={oddSel} onChange={(e) => setOddSel(e.target.value)} placeholder="ex.: 1.85" className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-emerald-500" />
+                            </div>
+                          )}
+                          {o.campos.includes('valor') && (
+                            <div className="flex-1">
+                              <label className="mb-0.5 block text-[10px] font-medium text-slate-500">Valor</label>
+                              <input value={valorSel} onChange={(e) => setValorSel(e.target.value)} placeholder="ex.: 500, 1k, 2,5k" className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-emerald-500" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
-                <label className="mb-1 mt-3 block text-[11px] font-medium text-slate-500">Valor pela legenda (opcional)</label>
-                <input value={valorSel} onChange={(e) => setValorSel(e.target.value)} placeholder="ex.: 500, 1k, 2,5k" className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-emerald-500" />
-                <p className="mt-1 text-[11px] text-slate-400">Se preencher, esse valor vence o que estiver na imagem.</p>
               </div>
             </div>
             {msgErro && <div className="mt-2 text-xs text-rose-600">{msgErro}</div>}

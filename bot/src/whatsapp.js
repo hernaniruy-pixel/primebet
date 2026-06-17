@@ -152,7 +152,13 @@ async function processarPedido(client, p) {
 
     const emoji = p.pedido_emoji || '⚪';
     console.log(`\n🖱  lançar do dashboard | grupo "${p.grupo_nome}" | ${emoji}`);
-    const { final } = await transcreverBilhete(base64, emoji, mime, p.pedido_legenda || '');
+    // Transcreve a imagem por completo; o VALOR digitado (se houver) entra via legenda (parseValor).
+    const { final } = await transcreverBilhete(base64, '⚪', mime, p.pedido_valor || '');
+    // ODD digitada (campo "odd em aberto") sobrescreve a odd lida.
+    if (p.pedido_odd != null && String(p.pedido_odd).trim() !== '') {
+      const o = parseFloat(String(p.pedido_odd).replace(',', '.'));
+      if (!isNaN(o)) final.odd = o;
+    }
     const aposta = await registrarBilhete(final, { clienteId: p.cliente_id, grupoId: p.grupo_id });
     await marcarReagida(p.msg_id, { apostaId: aposta.id, emoji });
     await marcarPedido(p.id, 'feito');

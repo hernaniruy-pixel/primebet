@@ -92,7 +92,7 @@ export async function ignorarImagem(id: number, ignorar = true): Promise<void> {
 }
 
 /** Enfileira um pedido de "lançar" (reagir) direto do painel. O bot processa e transcreve. */
-export async function lancarImagem(id: number, emoji: string, legenda?: string): Promise<{ ok: boolean; erro?: string }> {
+export async function lancarImagem(id: number, emoji: string, odd?: string, valor?: string): Promise<{ ok: boolean; erro?: string }> {
   await exigirSessao();
   const db = createAdminClient();
   const { data: img } = await db.from('imagens_recebidas').select('cliente_id,reagida').eq('id', id).single();
@@ -100,7 +100,7 @@ export async function lancarImagem(id: number, emoji: string, legenda?: string):
   if (!img.cliente_id) return { ok: false, erro: 'Grupo sem cliente cadastrado — cadastre o cliente com o nome do grupo.' };
   if (img.reagida) return { ok: false, erro: 'Esta imagem já foi transcrita.' };
   const { error } = await db.from('imagens_recebidas')
-    .update({ pedido_status: 'pendente', pedido_emoji: emoji, pedido_legenda: legenda || null, pedido_erro: null })
+    .update({ pedido_status: 'pendente', pedido_emoji: emoji, pedido_odd: odd || null, pedido_valor: valor || null, pedido_erro: null })
     .eq('id', id);
   if (error) return { ok: false, erro: 'Não foi possível enfileirar. Tente de novo.' };
   return { ok: true };
