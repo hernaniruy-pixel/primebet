@@ -11,7 +11,8 @@ const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPe
  *        transcreve -> acha o cliente pelo NOME DO GRUPO -> grava EM ABERTO no Supabase.
  *
  * ATENÇÃO: automação não-oficial do WhatsApp contraria os Termos e pode banir a conta.
- * O bot só LÊ (não envia mensagens), o que reduz o risco. Prefira um número dedicado.
+ * O bot praticamente só LÊ; a única escrita é uma REAÇÃO (emoji) quando se lança pelo
+ * dashboard — risco baixo (não envia mensagens). Prefira um número dedicado.
  */
 function iniciarWhatsApp() {
   const client = new Client({
@@ -139,11 +140,11 @@ async function processarPedido(client, p) {
   try {
     if (!p.cliente_id) { await marcarPedido(p.id, 'erro', 'Grupo sem cliente cadastrado.'); return; }
     // 1) tenta a imagem ORIGINAL (alta qualidade) pela mensagem; 2) fallback: miniatura do Storage.
-    let base64 = null, mime = 'image/jpeg';
+    let base64 = null, mime = 'image/jpeg', msgRef = null;
     try {
-      const msg = await client.getMessageById(p.msg_id);
-      if (msg && msg.hasMedia) {
-        const m = await msg.downloadMedia();
+      msgRef = await client.getMessageById(p.msg_id);
+      if (msgRef && msgRef.hasMedia) {
+        const m = await msgRef.downloadMedia();
         if (m && String(m.mimetype).startsWith('image/')) { base64 = m.data; mime = m.mimetype; }
       }
     } catch { /* msg antiga/indisponível -> usa miniatura */ }
@@ -162,7 +163,12 @@ async function processarPedido(client, p) {
     const aposta = await registrarBilhete(final, { clienteId: p.cliente_id, grupoId: p.grupo_id });
     await marcarReagida(p.msg_id, { apostaId: aposta.id, emoji });
     await marcarPedido(p.id, 'feito');
-    console.log(`   ✅ aposta #${aposta.id} lançada do dashboard (odd ${aposta.odd}, valor ${aposta.valor})`);
+    // Reage na imagem DENTRO do grupo (mesmo emoji) para o pessoal ver que foi tratada.
+    if (msgRef) {
+      try { await msgRef.react(emoji); }
+      catch (e) { console.log('   (não consegui reagir na imagem do grupo:', e.message, ')'); }
+    }
+    console.log(`   ✅ aposta #${aposta.id} lançada do dashboard (odd ${aposta.odd}, valor ${aposta.valor})${msgRef ? ' + reagiu no grupo' : ''}`);
   } catch (e) {
     await marcarPedido(p.id, 'erro', String(e.message || e).slice(0, 200));
     console.error('   ❌ erro no pedido:', e.message);
