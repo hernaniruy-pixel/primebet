@@ -37,11 +37,15 @@ function iniciarWhatsApp() {
 
   client.on('message_reaction', async (reaction) => {
     try {
-      const regra = regraPorEmoji(reaction.reaction); // '' quando a reação é removida
-      if (!regra) return; // não é um dos gatilhos -> ignora
-
+      const emojiRecebido = reaction.reaction || '(reação removida)';
       const chatId = reaction.id && reaction.id.remote;
-      if (!chatId || !chatId.endsWith('@g.us')) return; // só grupos
+      // DIAGNÓSTICO: registra TODA reação que chega (ajuda a depurar gatilhos que "não funcionam").
+      console.log(`👀 reação "${emojiRecebido}" | chat ${chatId} | de ${reaction.senderId || '?'}`);
+
+      const regra = regraPorEmoji(reaction.reaction); // '' quando a reação é removida
+      if (!regra) { console.log(`   ↳ ignorada: "${emojiRecebido}" não é gatilho (use ⚪ ⚫ 🔵 ⚠️)`); return; }
+
+      if (!chatId || !chatId.endsWith('@g.us')) { console.log('   ↳ ignorada: não é grupo'); return; } // só grupos
 
       // Filtro de operadores (se OPERADORES estiver configurado)
       const reactor = String(reaction.senderId || '').replace(/\D/g, '');

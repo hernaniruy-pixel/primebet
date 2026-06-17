@@ -256,7 +256,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">★</div>
             <div className="leading-tight">
               <div className="text-sm font-medium text-amber-400">PrimeBet</div>
-              <div className="text-[11px] text-slate-400">Controle — moderno</div>
+              <div className="text-[11px] text-slate-400">Controle</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -264,7 +264,6 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             <button onClick={() => setModal('af')} className={navBtn}>Afiliados</button>
             <button onClick={() => setModal('fech')} className={navBtn}>Fechamento</button>
             <button onClick={() => setModal('faf')} className={navBtn}>Fech. afiliado</button>
-            <a href="/admin" className={navBtn} title="Ir para o painel clássico">↩ Clássico</a>
             <button onClick={toggleTheme} title="Tema" className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
             <button onClick={sair} className="rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
           </div>
