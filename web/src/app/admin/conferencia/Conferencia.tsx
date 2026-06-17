@@ -47,6 +47,11 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
 
   function abrirLancar(img: ConfImagem) { setLancar(img); setEmojiSel('⚪'); setOddSel(''); setValorSel(''); setMsgErro(''); }
 
+  // Após lançar, o bot processa em ~5s. Recarrega algumas vezes até virar "transcrita".
+  function agendarRefresh() {
+    [4000, 8000, 13000, 20000].forEach((ms) => setTimeout(() => recarregar(), ms));
+  }
+
   function confirmarLancar() {
     if (!lancar) return;
     const campos = EMOJIS.find((o) => o.e === emojiSel)?.campos ?? [];
@@ -54,7 +59,7 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
     const valor = campos.includes('valor') ? valorSel.trim() || undefined : undefined;
     startTransition(async () => {
       const r = await lancarImagem(lancar.id, emojiSel, odd, valor);
-      if (r.ok) { setLancar(null); recarregar(); }
+      if (r.ok) { setLancar(null); recarregar(); agendarRefresh(); }
       else setMsgErro(r.erro || 'Erro.');
     });
   }
