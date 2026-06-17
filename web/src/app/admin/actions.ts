@@ -78,6 +78,7 @@ export async function listarConfImagens(f: ConfFiltro): Promise<ConfImagensResp>
       id: r.id, grupoId: r.grupo_id, grupoNome: r.grupo_nome, clienteId: r.cliente_id,
       remetente: r.remetente ?? '', enviadoEm: fmtTs(r.enviado_em), thumbUrl,
       reagida: r.reagida, lancada: r.lancada, ignorada: r.ignorada, emoji: r.emoji, apostaId: r.aposta_id,
+      pedidoStatus: r.pedido_status ?? null, pedidoErro: r.pedido_erro ?? null,
     };
   }));
   return { rows, total: count ?? 0 };
@@ -88,6 +89,21 @@ export async function ignorarImagem(id: number, ignorar = true): Promise<void> {
   const db = createAdminClient();
   const { error } = await db.from('imagens_recebidas').update({ ignorada: ignorar }).eq('id', id);
   if (error) throw error;
+}
+
+/** Enfileira um pedido de "lançar" (reagir) direto do painel. O bot processa e transcreve. */
+export async function lancarImagem(id: number, emoji: string, legenda?: string): Promise<{ ok: boolean; erro?: string }> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { data: img } = await db.from('imagens_recebidas').select('cliente_id,reagida').eq('id', id).single();
+  if (!img) return { ok: false, erro: 'Imagem não encontrada.' };
+  if (!img.cliente_id) return { ok: false, erro: 'Grupo sem cliente cadastrado — cadastre o cliente com o nome do grupo.' };
+  if (img.reagida) return { ok: false, erro: 'Esta imagem já foi transcrita.' };
+  const { error } = await db.from('imagens_recebidas')
+    .update({ pedido_status: 'pendente', pedido_emoji: emoji, pedido_legenda: legenda || null, pedido_erro: null })
+    .eq('id', id);
+  if (error) return { ok: false, erro: 'Não foi possível enfileirar. Tente de novo.' };
+  return { ok: true };
 }
 
 // ─────────── Auth: só equipe logada pode mutar ───────────

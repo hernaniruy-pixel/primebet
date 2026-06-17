@@ -48,4 +48,29 @@ async function marcarReagida(msgId, { apostaId = null, emoji = '', grupoId, grup
   }
 }
 
-module.exports = { registrarImagemRecebida, marcarReagida };
+/** Pedidos de "lançar do dashboard" ainda pendentes (o operador clicou Lançar no painel). */
+async function listarPedidosPendentes(limite = 5) {
+  const { data, error } = await sb.from('imagens_recebidas')
+    .select('id,msg_id,grupo_id,grupo_nome,cliente_id,pedido_emoji,pedido_legenda,thumb_path')
+    .eq('pedido_status', 'pendente').limit(limite);
+  if (error) { console.error('   pedidos:', error.message); return []; }
+  return data || [];
+}
+
+async function marcarPedido(id, status, erro = null) {
+  await sb.from('imagens_recebidas').update({ pedido_status: status, pedido_erro: erro }).eq('id', id);
+}
+
+/** Baixa a miniatura do Storage como base64 (fallback quando a msg original não está mais acessível). */
+async function baixarThumbBase64(thumbPath) {
+  if (!thumbPath) return null;
+  const { data, error } = await sb.storage.from(BUCKET).download(thumbPath);
+  if (error || !data) return null;
+  const buf = Buffer.from(await data.arrayBuffer());
+  return buf.toString('base64');
+}
+
+module.exports = {
+  registrarImagemRecebida, marcarReagida,
+  listarPedidosPendentes, marcarPedido, baixarThumbBase64,
+};

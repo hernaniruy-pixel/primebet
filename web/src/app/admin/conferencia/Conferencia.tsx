@@ -1,8 +1,15 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { listarConfGrupos, listarConfImagens, ignorarImagem } from '../actions';
+import { listarConfGrupos, listarConfImagens, ignorarImagem, lancarImagem } from '../actions';
 import type { ConfGrupo, ConfImagem, ConfImagensResp } from './types';
+
+const EMOJIS: { e: string; label: string }[] = [
+  { e: '⚪', label: 'Completo (aposta + valor + odd)' },
+  { e: '⚫', label: 'Odd em aberto' },
+  { e: '🔵', label: 'Valor em aberto' },
+  { e: '⚠️', label: 'Odd e valor em aberto' },
+];
 
 export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: ConfGrupo[]; imagensIni: ConfImagensResp }) {
   const [grupos, setGrupos] = useState<ConfGrupo[]>(gruposIni);
@@ -11,6 +18,10 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
   const [grupoSel, setGrupoSel] = useState<string>(''); // '' = todos
   const [pend, setPend] = useState(true);
   const [zoom, setZoom] = useState<ConfImagem | null>(null);
+  const [lancar, setLancar] = useState<ConfImagem | null>(null);
+  const [emojiSel, setEmojiSel] = useState('⚪');
+  const [valorSel, setValorSel] = useState('');
+  const [msgErro, setMsgErro] = useState('');
   const [carregando, startTransition] = useTransition();
 
   function recarregar(grupoId = grupoSel, somentePend = pend) {
@@ -30,6 +41,17 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
     startTransition(async () => {
       await ignorarImagem(img.id, !img.ignorada);
       recarregar();
+    });
+  }
+
+  function abrirLancar(img: ConfImagem) { setLancar(img); setEmojiSel('⚪'); setValorSel(''); setMsgErro(''); }
+
+  function confirmarLancar() {
+    if (!lancar) return;
+    startTransition(async () => {
+      const r = await lancarImagem(lancar.id, emojiSel, valorSel.trim() || undefined);
+      if (r.ok) { setLancar(null); recarregar(); }
+      else setMsgErro(r.erro || 'Erro.');
     });
   }
 
@@ -123,13 +145,20 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
                     <div className="flex items-center justify-between pt-1">
                       {img.reagida
                         ? <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">✅ {img.lancada ? `#${img.apostaId}` : 'transcrita'}</span>
-                        : img.ignorada
-                          ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">ignorada</span>
-                          : <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">pendente</span>}
-                      {!img.reagida && (
-                        <button onClick={() => ignorar(img)} className="rounded-md border border-slate-300 px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50">
-                          {img.ignorada ? 'Reabrir' : 'Ignorar'}
-                        </button>
+                        : img.pedidoStatus === 'pendente'
+                          ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">⏳ lançando…</span>
+                          : img.pedidoStatus === 'erro'
+                            ? <span title={img.pedidoErro || ''} className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">erro ⚠</span>
+                            : img.ignorada
+                              ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">ignorada</span>
+                              : <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">pendente</span>}
+                      {!img.reagida && img.pedidoStatus !== 'pendente' && (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => abrirLancar(img)} className="rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-emerald-700">Lançar</button>
+                          <button onClick={() => ignorar(img)} className="rounded-md border border-slate-300 px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50">
+                            {img.ignorada ? 'Reabrir' : 'Ignorar'}
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -142,6 +171,40 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
           </p>
         </section>
       </div>
+
+      {/* modal lançar */}
+      {lancar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setLancar(null)}>
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-3 text-base font-semibold text-slate-800">Lançar bilhete — {lancar.grupoNome || lancar.grupoId}</h3>
+            <div className="flex gap-3">
+              {lancar.thumbUrl && <img src={lancar.thumbUrl} alt="bilhete" className="max-h-56 rounded-lg border border-slate-200 object-contain" />}
+              <div className="flex-1">
+                <label className="mb-1 block text-[11px] font-medium text-slate-500">Tipo de reação</label>
+                <div className="space-y-1">
+                  {EMOJIS.map((o) => (
+                    <label key={o.e} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm ${emojiSel === o.e ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                      <input type="radio" name="emoji" checked={emojiSel === o.e} onChange={() => setEmojiSel(o.e)} className="accent-emerald-600" />
+                      <span className="text-base">{o.e}</span><span className="text-xs text-slate-600">{o.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <label className="mb-1 mt-3 block text-[11px] font-medium text-slate-500">Valor pela legenda (opcional)</label>
+                <input value={valorSel} onChange={(e) => setValorSel(e.target.value)} placeholder="ex.: 500, 1k, 2,5k" className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-emerald-500" />
+                <p className="mt-1 text-[11px] text-slate-400">Se preencher, esse valor vence o que estiver na imagem.</p>
+              </div>
+            </div>
+            {msgErro && <div className="mt-2 text-xs text-rose-600">{msgErro}</div>}
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setLancar(null)} className="rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100">Cancelar</button>
+              <button onClick={confirmarLancar} disabled={carregando} className="rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+                {carregando ? 'Enviando…' : 'Lançar agora'}
+              </button>
+            </div>
+            <p className="mt-2 text-center text-[11px] text-slate-400">O bot transcreve e a aposta entra como EM ABERTO. Atualize em alguns segundos.</p>
+          </div>
+        </div>
+      )}
 
       {/* zoom */}
       {zoom?.thumbUrl && (

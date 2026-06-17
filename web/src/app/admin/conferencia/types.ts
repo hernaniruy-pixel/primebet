@@ -20,6 +20,8 @@ export interface ConfImagem {
   ignorada: boolean;
   emoji: string | null;
   apostaId: number | null;
+  pedidoStatus: string | null;   // null | 'pendente' | 'feito' | 'erro'
+  pedidoErro: string | null;
 }
 
 export interface ConfImagensResp { rows: ConfImagem[]; total: number }

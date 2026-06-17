@@ -3,7 +3,7 @@ const qrcode = require('qrcode-terminal');
 const { AUTH_PATH, regraPorEmoji, OPERADORES } = require('./config');
 const { transcreverBilhete } = require('./transcrever');
 const { registrarBilhete, acharClientePorGrupo } = require('./ingest');
-const { registrarImagemRecebida, marcarReagida } = require('./conferencia');
+const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64 } = require('./conferencia');
 
 /**
  * Conecta como "aparelho conectado" (WhatsApp Web) de UMA conta que é membro dos grupos.
@@ -33,7 +33,7 @@ function iniciarWhatsApp() {
     } catch (e) { /* sem o pacote qrcode, segue só com o ASCII acima */ }
   });
   client.on('authenticated', () => console.log('🔐 Autenticado.'));
-  client.on('ready', () => console.log('✅ Bot conectado e ouvindo reações nos grupos.'));
+  client.on('ready', () => { console.log('✅ Bot conectado e ouvindo reações nos grupos.'); iniciarPollerPedidos(client); });
   client.on('disconnected', (r) => console.log('⚠️  Desconectado:', r));
 
   // CONFERÊNCIA: registra TODA imagem recebida em grupo (mesmo sem reação),
@@ -116,6 +116,51 @@ function iniciarWhatsApp() {
 
   client.initialize();
   return client;
+}
+
+// ─────────── Lançar do dashboard: processa pedidos enfileirados pelo painel ───────────
+let pollAtivo = false;
+function iniciarPollerPedidos(client) {
+  setInterval(async () => {
+    if (pollAtivo) return;
+    pollAtivo = true;
+    try {
+      const pendentes = await listarPedidosPendentes();
+      for (const p of pendentes) await processarPedido(client, p);
+    } catch (e) {
+      console.error('poller pedidos:', e.message);
+    } finally {
+      pollAtivo = false;
+    }
+  }, 5000);
+}
+
+async function processarPedido(client, p) {
+  try {
+    if (!p.cliente_id) { await marcarPedido(p.id, 'erro', 'Grupo sem cliente cadastrado.'); return; }
+    // 1) tenta a imagem ORIGINAL (alta qualidade) pela mensagem; 2) fallback: miniatura do Storage.
+    let base64 = null, mime = 'image/jpeg';
+    try {
+      const msg = await client.getMessageById(p.msg_id);
+      if (msg && msg.hasMedia) {
+        const m = await msg.downloadMedia();
+        if (m && String(m.mimetype).startsWith('image/')) { base64 = m.data; mime = m.mimetype; }
+      }
+    } catch { /* msg antiga/indisponível -> usa miniatura */ }
+    if (!base64) base64 = await baixarThumbBase64(p.thumb_path);
+    if (!base64) { await marcarPedido(p.id, 'erro', 'Imagem indisponível para transcrever.'); return; }
+
+    const emoji = p.pedido_emoji || '⚪';
+    console.log(`\n🖱  lançar do dashboard | grupo "${p.grupo_nome}" | ${emoji}`);
+    const { final } = await transcreverBilhete(base64, emoji, mime, p.pedido_legenda || '');
+    const aposta = await registrarBilhete(final, { clienteId: p.cliente_id, grupoId: p.grupo_id });
+    await marcarReagida(p.msg_id, { apostaId: aposta.id, emoji });
+    await marcarPedido(p.id, 'feito');
+    console.log(`   ✅ aposta #${aposta.id} lançada do dashboard (odd ${aposta.odd}, valor ${aposta.valor})`);
+  } catch (e) {
+    await marcarPedido(p.id, 'erro', String(e.message || e).slice(0, 200));
+    console.error('   ❌ erro no pedido:', e.message);
+  }
 }
 
 module.exports = { iniciarWhatsApp };
