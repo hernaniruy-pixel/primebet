@@ -4,10 +4,10 @@ const { sb } = require('./ingest');
 const BUCKET = 'conferencia';
 const safe = (s) => String(s || '').replace(/[^\w.-]/g, '_');
 
-/** Gera uma miniatura JPEG (~400px, qualidade 60) a partir do base64 da imagem. */
+/** Gera uma miniatura JPEG (~720px, qualidade 72) — leve, mas legível (dá pra ler odds/valores). */
 async function fazerThumb(base64) {
   const img = await Jimp.read(Buffer.from(base64, 'base64'));
-  img.scaleToFit(400, 400).quality(60);
+  img.scaleToFit(720, 720).quality(72);
   return img.getBufferAsync(Jimp.MIME_JPEG);
 }
 

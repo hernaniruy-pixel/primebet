@@ -109,9 +109,9 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {imagens.map((img) => (
                 <div key={img.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                  <button onClick={() => img.thumbUrl && setZoom(img)} className="block w-full bg-slate-100" style={{ aspectRatio: '3/4' }}>
+                  <button onClick={() => img.thumbUrl && setZoom(img)} className="flex w-full items-center justify-center bg-slate-100" style={{ aspectRatio: '3/4' }} title="Clique para ampliar">
                     {img.thumbUrl
-                      ? <img src={img.thumbUrl} alt="bilhete" className="h-full w-full object-cover" />
+                      ? <img src={img.thumbUrl} alt="bilhete" className="max-h-full max-w-full object-contain" />
                       : <span className="text-xs text-slate-400">sem miniatura</span>}
                   </button>
                   <div className="space-y-1 p-2">
