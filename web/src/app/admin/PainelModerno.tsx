@@ -119,6 +119,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [debFiltros, setDebFiltros] = useState(filtros);
   const [page, setPage] = useState(1);
   const [toastMsg, setToastMsg] = useState('');
+  const [flashId, setFlashId] = useState<number | null>(null); // linha recém-atualizada (flash verde)
   const [novo, setNovo] = useState({ open: false, cId: '', jogo: '', odd: '', val: '', st: 'EM ABERTO', dc: '' });
 
   const cliSorted = useMemo(() => [...clientes].sort((a, b) => a.nome.localeCompare(b.nome)), [clientes]);
@@ -164,8 +165,19 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   function updDraft(id: number, f: 'dt' | 'odd' | 'val' | 'jogo', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
 
   async function patchReg(id: number, patch: Parameters<typeof atualizarAposta>[1]) {
-    try { const reg = await atualizarAposta(id, patch); setRegs((rs) => rs.map((r) => (r.id === id ? reg : r))); reload(); }
-    catch { toast('Erro ao salvar aposta.'); }
+    try {
+      const reg = await atualizarAposta(id, patch);
+      setRegs((rs) => rs.map((r) => (r.id === id ? reg : r)));
+      // Confirmação visual (flash verde). NÃO recarrega: a linha permanece — mesmo já
+      // resolvida — até o operador clicar em "Atualizar". Evita perder de vista um status errado.
+      setFlashId(null);
+      requestAnimationFrame(() => setFlashId(id));
+      setTimeout(() => setFlashId((cur) => (cur === id ? null : cur)), 1600);
+      if (patch.st !== undefined) {
+        const nome = clientes.find((c) => c.id === reg.cId)?.nome ?? `#${id}`;
+        toast(`Status de ${nome} atualizado para ${reg.st}.`);
+      }
+    } catch { toast('Erro ao salvar aposta.'); }
   }
   async function saveReg(id: number) {
     const d = drafts[id] || {};
@@ -236,7 +248,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
 
   return (
     <div className={dark ? 'dark' : ''}>
-      <style>{`@keyframes pbAlertPulse{0%,100%{border-color:#ef4444}50%{border-color:#fecaca}} tr.pb-alert>td{border-width:2px;animation:pbAlertPulse 1.1s ease-in-out infinite}`}</style>
+      <style>{`@keyframes pbAlertPulse{0%,100%{border-color:#ef4444}50%{border-color:#fecaca}} tr.pb-alert>td{border-width:2px;animation:pbAlertPulse 1.1s ease-in-out infinite} @keyframes pbFlash{0%{background-color:rgba(34,197,94,.45)}100%{background-color:transparent}} tr.pb-flash>td{animation:pbFlash 1.6s ease-out}`}</style>
       <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {/* TOPBAR */}
         <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b-2 border-amber-500 bg-slate-900 px-4">
@@ -368,7 +380,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                   {regs.map((r) => {
                     const inc = !(Number(r.odd) > 0) || !(Number(r.val) > 0);
                     return (
-                      <tr key={r.id} className={`border-b border-slate-100 align-middle transition hover:bg-slate-50 dark:border-slate-800/70 dark:hover:bg-slate-800/40 ${inc ? 'pb-alert bg-rose-50/60 dark:bg-rose-500/5' : ''}`}>
+                      <tr key={r.id} className={`border-b border-slate-100 align-middle transition hover:bg-slate-50 dark:border-slate-800/70 dark:hover:bg-slate-800/40 ${inc ? 'pb-alert bg-rose-50/60 dark:bg-rose-500/5' : ''} ${flashId === r.id ? 'pb-flash' : ''}`}>
                         <td className="px-2 py-1.5 font-medium text-slate-500">{r.id}</td>
                         <td className="px-2 py-1.5 whitespace-nowrap text-xs text-slate-500">{r.dt}</td>
                         <td className="px-2 py-1.5">
