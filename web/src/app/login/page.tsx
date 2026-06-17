@@ -35,7 +35,7 @@ export default function LoginPage() {
             />
             <div style={{ textAlign: 'center' }}>
               <div style={{ color: '#DAA520', fontSize: 22, fontWeight: 700, letterSpacing: '.02em' }}>PrimeBet</div>
-              <div style={{ color: '#7a8c5a', fontSize: 12 }}>Painel de Gerenciamento</div>
+              <div style={{ color: '#7a8c5a', fontSize: 12 }}>Acesso ao sistema</div>
             </div>
           </div>
 
@@ -46,7 +46,7 @@ export default function LoginPage() {
               className="lg-inp"
               type="text"
               autoComplete="username"
-              placeholder="seu e-mail de acesso"
+              placeholder="e-mail (equipe) ou usuário (cliente)"
             />
 
             <label className="lg-lbl">SENHA</label>
@@ -105,13 +105,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <a href="/cliente/login" style={{ color: '#DAA520', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
-              É cliente? Acesse seu extrato →
-            </a>
-          </div>
-
-          <div style={{ color: '#2d4010', fontSize: 11, textAlign: 'center', marginTop: 16 }}>
+          <div style={{ color: '#2d4010', fontSize: 11, textAlign: 'center', marginTop: 20 }}>
             © 2026 PrimeBet Fechamentos
           </div>
         </div>

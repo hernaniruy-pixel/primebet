@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function ClientePage() {
   const ses = await getClienteSessao();
-  if (!ses) redirect('/cliente/login');
+  if (!ses) redirect('/login');
   const dados = await carregarExtrato();
   return <Extrato dados={dados} />;
 }

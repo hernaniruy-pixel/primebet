@@ -35,7 +35,7 @@ async function semana(db: ReturnType<typeof createAdminClient>, cid: number, mon
 /** Carrega o extrato do cliente logado: semana atual + semana passada. */
 export async function carregarExtrato(): Promise<ExtratoResp> {
   const ses = await getClienteSessao();
-  if (!ses) redirect('/cliente/login');
+  if (!ses) redirect('/login');
   const db = createAdminClient();
 
   const { data: cli } = await db.from('clientes').select('id,nome,calcao').eq('id', ses.cid).single();
@@ -74,5 +74,5 @@ export async function contestarAposta(id: number, motivo: string): Promise<{ ok:
 
 export async function sairCliente(): Promise<void> {
   await limparClienteCookie();
-  redirect('/cliente/login');
+  redirect('/login');
 }
