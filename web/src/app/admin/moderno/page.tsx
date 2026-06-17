@@ -15,7 +15,7 @@ export default async function AdminModernoPage() {
   const semana = weekRange();
   const [base, apostas] = await Promise.all([
     loadBase(),
-    listarApostas({ dt1: semana.d1, dt2: semana.d2, ord: 'data_desc', page: 1 }),
+    listarApostas({ ord: 'data_desc', page: 1, pend: true }),  // fila pendente (default da UI)
   ]);
 
   return (

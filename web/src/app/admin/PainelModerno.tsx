@@ -67,6 +67,7 @@ function periodDates(v: string): { d1: string; d2: string } {
 const filtrosVazios = {
   id: '', nome: '', st: '', jogo: '', dc: '', oddMin: '', oddMax: '', valMin: '', valMax: '',
   bl: '', adv: '', irr: '', dt1: '', dt2: '', period: '', ord: 'data_desc',
+  aba: 'pend',  // 'pend' = fila pendente (EM ABERTO + contestadas) | 'todas' = histórico completo
 };
 
 const inp = 'w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-sm text-slate-800 dark:text-slate-100 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20';
@@ -141,7 +142,10 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       adv: f.adv === 'sim' ? true : f.adv === 'nao' ? false : null,
       irr: f.irr === 'sim' ? true : f.irr === 'nao' ? false : null,
       dt1: f.dt1 || null, dt2: f.dt2 || null, ord: f.ord, page,
+      pend: f.aba === 'pend' ? true : null,
     };
+    // Na fila pendente, ignora o período (mostra TODA pendente, mesmo antiga).
+    if (f.aba === 'pend') { params.dt1 = null; params.dt2 = null; }
     listarApostas(params)
       .then((r) => { if (alive) { setRegs(r.rows); setTotal(r.total); setTotals(r.totals); } })
       .catch(() => { if (alive) toast('Erro ao carregar apostas.'); });
@@ -277,6 +281,26 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             ))}
           </div>
 
+          {/* ABAS: fila pendente x histórico completo */}
+          <div className="mb-3 flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900 w-fit">
+            {([['pend', 'Pendentes'], ['todas', 'Todas']] as const).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setF('aba', k)}
+                className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
+                  filtros.aba === k
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            <span className="ml-2 pr-2 text-[11px] text-slate-400">
+              {filtros.aba === 'pend' ? 'EM ABERTO + contestadas (todas as datas)' : 'histórico completo'}
+            </span>
+          </div>
+
           {/* FILTROS */}
           <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -350,7 +374,10 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                           <select value={String(r.cId)} onChange={(e) => patchReg(r.id, { cId: Number(e.target.value) })} className={`${cinp} w-36 font-medium`}>{cliSorted.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select>
                           {inc && <span className="ml-1 inline-block rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">preencher</span>}
                         </td>
-                        <td className="px-2 py-1.5"><div className="max-w-[340px] text-xs leading-snug">{renderJogo(r.jogo)}</div></td>
+                        <td className="px-2 py-1.5"><div className="max-w-[340px] text-xs leading-snug">
+                          {r.ct && <span title={r.ctMotivo || 'Contestada pelo cliente'} className="mr-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⚠️ Contestada</span>}
+                          {renderJogo(r.jogo)}
+                        </div></td>
                         <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} /></td>
                         <td className="px-2 py-1.5"><input type="number" className={`${cinp} w-20 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} /></td>
                         <td className="px-2 py-1.5"><select value={r.st} onChange={(e) => patchReg(r.id, { st: e.target.value })} className={`rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none ${STPILL[r.st] ?? ''}`}>{STS.map((s) => <option key={s} value={s} className="bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100">{s}</option>)}</select></td>
@@ -368,7 +395,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                       </tr>
                     );
                   })}
-                  {regs.length === 0 && <tr><td colSpan={12} className="px-3 py-10 text-center text-slate-400">Nenhuma aposta no período. Use o período rápido ou limpe as datas.</td></tr>}
+                  {regs.length === 0 && <tr><td colSpan={12} className="px-3 py-10 text-center text-slate-400">{filtros.aba === 'pend' ? '✅ Nenhuma aposta pendente. Fila limpa!' : 'Nenhuma aposta no período. Use o período rápido ou limpe as datas.'}</td></tr>}
                 </tbody>
               </table>
             </div>

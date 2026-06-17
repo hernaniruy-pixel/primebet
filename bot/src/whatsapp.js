@@ -21,6 +21,15 @@ function iniciarWhatsApp() {
   client.on('qr', (qr) => {
     console.log('\n📱 Escaneie o QR no WhatsApp do número do BOT (Configurações → Aparelhos conectados → Conectar um aparelho):\n');
     qrcode.generate(qr, { small: true });
+    // Salva também como PNG na Área de Trabalho — fácil de abrir e enviar pro sócio.
+    try {
+      const QRImage = require('qrcode');
+      const out = require('path').join(require('os').homedir(), 'Desktop', 'primebet-qr.png');
+      QRImage.toFile(out, qr, { width: 480, margin: 2 }, (err) => {
+        if (err) console.log('   (não consegui salvar o PNG do QR:', err.message, ')');
+        else console.log('   🖼  QR salvo em:', out, '\n      Abra e mande pro sócio escanear. Expira em ~30s; quando renovar, esse arquivo é atualizado.');
+      });
+    } catch (e) { /* sem o pacote qrcode, segue só com o ASCII acima */ }
   });
   client.on('authenticated', () => console.log('🔐 Autenticado.'));
   client.on('ready', () => console.log('✅ Bot conectado e ouvindo reações nos grupos.'));

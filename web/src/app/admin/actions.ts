@@ -21,6 +21,7 @@ export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
     p_val_min: f.valMin ?? null, p_val_max: f.valMax ?? null,
     p_bl: f.bl ?? null, p_adv: f.adv ?? null, p_irr: f.irr ?? null,
     p_sort: f.ord || 'data_desc', p_page: f.page || 1, p_per: 20,
+    p_pendentes: f.pend ?? null,
   });
   if (error) throw error;
   const j = data as { rows: ApostaRow[]; total: number; totals: Totals };
@@ -84,7 +85,11 @@ export async function atualizarAposta(id: number, patch: PatchAposta): Promise<R
   if (patch.dt !== undefined) upd.data = parseTs(patch.dt);
   if (patch.odd !== undefined) upd.odd = patch.odd;
   if (patch.val !== undefined) upd.valor = patch.val;
-  if (patch.st !== undefined) upd.status = patch.st;
+  if (patch.st !== undefined) {
+    upd.status = patch.st;
+    // Ao resolver (sair de EM ABERTO), encerra eventual contestação -> sai da fila do admin.
+    if (patch.st !== 'EM ABERTO') { upd.contestada = false; upd.contestada_em = null; }
+  }
   if (patch.dc !== undefined) upd.casa = patch.dc;
   if (patch.bl !== undefined) upd.baixa_liquidez = patch.bl;
   if (patch.adv !== undefined) upd.advertido = patch.adv;
