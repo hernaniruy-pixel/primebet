@@ -341,6 +341,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             </div>
             <div className="mt-3 flex flex-wrap justify-end gap-2">
               <button onClick={limpar} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">Limpar</button>
+              <button onClick={() => { reload(); toast('Lista atualizada.'); }} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20">🔄 Atualizar</button>
               <button onClick={() => setModal('wpp')} className="rounded-lg bg-[#25D366] px-3 py-1.5 text-sm font-medium text-white transition hover:brightness-95">📥 Receber bilhete</button>
               <button onClick={() => setNovo((n) => ({ ...n, open: true }))} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700">+ Novo registro</button>
             </div>
