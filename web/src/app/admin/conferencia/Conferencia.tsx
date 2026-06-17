@@ -179,39 +179,37 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
       {/* modal lançar */}
       {lancar && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setLancar(null)}>
-          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="mb-3 text-base font-semibold text-slate-800">Lançar bilhete — {lancar.grupoNome || lancar.grupoId}</h3>
-            <div className="flex items-start gap-3">
-              {lancar.thumbUrl && <img src={lancar.thumbUrl} alt="bilhete" className="w-40 shrink-0 self-start rounded-lg border border-slate-200 object-contain" />}
-              <div className="min-w-0 flex-1">
-                <label className="mb-1 block text-[11px] font-medium text-slate-500">Tipo de reação</label>
-                <div className="space-y-1">
-                  {EMOJIS.map((o) => (
-                    <div key={o.e} className={`rounded-lg border ${emojiSel === o.e ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200'}`}>
-                      <label className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-sm">
-                        <input type="radio" name="emoji" checked={emojiSel === o.e} onChange={() => setEmojiSel(o.e)} className="accent-emerald-600" />
-                        <span className="text-base">{o.e}</span><span className="text-xs text-slate-600">{o.label}</span>
-                      </label>
-                      {emojiSel === o.e && o.campos.length > 0 && (
-                        <div className="flex gap-2 border-t border-emerald-200 px-2.5 py-2">
-                          {o.campos.includes('odd') && (
-                            <div className="flex-1">
-                              <label className="mb-0.5 block text-[10px] font-medium text-slate-500">Odd</label>
-                              <input value={oddSel} onChange={(e) => setOddSel(e.target.value)} placeholder="ex.: 1.85" className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-emerald-500" />
-                            </div>
-                          )}
-                          {o.campos.includes('valor') && (
-                            <div className="flex-1">
-                              <label className="mb-0.5 block text-[10px] font-medium text-slate-500">Valor</label>
-                              <input value={valorSel} onChange={(e) => setValorSel(e.target.value)} placeholder="ex.: 500, 1k, 2,5k" className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-emerald-500" />
-                            </div>
-                          )}
+            {lancar.thumbUrl && (
+              <img src={lancar.thumbUrl} alt="bilhete" className="mx-auto mb-4 max-h-60 rounded-lg border border-slate-200 object-contain" />
+            )}
+            <label className="mb-1 block text-[11px] font-medium text-slate-500">Tipo de reação</label>
+            <div className="space-y-1.5">
+              {EMOJIS.map((o) => (
+                <div key={o.e} className={`rounded-lg border ${emojiSel === o.e ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200'}`}>
+                  <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm">
+                    <input type="radio" name="emoji" checked={emojiSel === o.e} onChange={() => setEmojiSel(o.e)} className="accent-emerald-600" />
+                    <span className="text-base">{o.e}</span><span className="text-slate-700">{o.label}</span>
+                  </label>
+                  {emojiSel === o.e && o.campos.length > 0 && (
+                    <div className="flex gap-3 border-t border-emerald-200 px-3 py-2">
+                      {o.campos.includes('odd') && (
+                        <div className="flex-1">
+                          <label className="mb-0.5 block text-[10px] font-medium text-slate-500">Odd</label>
+                          <input value={oddSel} onChange={(e) => setOddSel(e.target.value)} placeholder="ex.: 1.85" className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-emerald-500" />
+                        </div>
+                      )}
+                      {o.campos.includes('valor') && (
+                        <div className="flex-1">
+                          <label className="mb-0.5 block text-[10px] font-medium text-slate-500">Valor</label>
+                          <input value={valorSel} onChange={(e) => setValorSel(e.target.value)} placeholder="ex.: 500, 1k, 2,5k" className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-emerald-500" />
                         </div>
                       )}
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
+              ))}
             </div>
             {msgErro && <div className="mt-2 text-xs text-rose-600">{msgErro}</div>}
             <div className="mt-4 flex justify-end gap-2">
