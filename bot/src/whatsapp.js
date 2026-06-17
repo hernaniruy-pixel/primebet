@@ -3,6 +3,7 @@ const qrcode = require('qrcode-terminal');
 const { AUTH_PATH, regraPorEmoji, OPERADORES } = require('./config');
 const { transcreverBilhete } = require('./transcrever');
 const { registrarBilhete, acharClientePorGrupo } = require('./ingest');
+const { registrarImagemRecebida, marcarReagida } = require('./conferencia');
 
 /**
  * Conecta como "aparelho conectado" (WhatsApp Web) de UMA conta que é membro dos grupos.
@@ -34,6 +35,36 @@ function iniciarWhatsApp() {
   client.on('authenticated', () => console.log('🔐 Autenticado.'));
   client.on('ready', () => console.log('✅ Bot conectado e ouvindo reações nos grupos.'));
   client.on('disconnected', (r) => console.log('⚠️  Desconectado:', r));
+
+  // CONFERÊNCIA: registra TODA imagem recebida em grupo (mesmo sem reação),
+  // para auditar depois o que foi (ou não) transcrito.
+  client.on('message', async (msg) => {
+    try {
+      if (!msg.hasMedia || msg.type !== 'image') return;
+      const chat = await msg.getChat();
+      if (!chat.isGroup) return;
+      const media = await msg.downloadMedia();
+      if (!media || !String(media.mimetype).startsWith('image/')) return;
+
+      const nomeGrupo = chat.name || '';
+      const cli = await acharClientePorGrupo(nomeGrupo);
+      const contato = await msg.getContact().catch(() => null);
+      const remetente = (contato && (contato.pushname || contato.number)) || msg.author || '';
+
+      await registrarImagemRecebida({
+        grupoId: chat.id._serialized,
+        grupoNome: nomeGrupo,
+        clienteId: cli ? cli.id : null,
+        msgId: msg.id._serialized,
+        remetente,
+        enviadoEm: new Date((msg.timestamp || Date.now() / 1000) * 1000).toISOString(),
+        base64: media.data,
+      });
+      console.log(`🗂  imagem registrada p/ conferência | grupo "${nomeGrupo}"${cli ? '' : ' (⚠️ SEM cliente)'}`);
+    } catch (e) {
+      console.error('❌ Erro ao registrar imagem (conferência):', e.message);
+    }
+  });
 
   client.on('message_reaction', async (reaction) => {
     try {
@@ -73,6 +104,11 @@ function iniciarWhatsApp() {
       console.log('   ↳ lido:', JSON.stringify(bruto));
       const aposta = await registrarBilhete(final, { clienteId: cli.id, grupoId: chatId });
       console.log(`   ✅ aposta #${aposta.id} gravada (odd ${aposta.odd}, valor ${aposta.valor}, casa "${aposta.casa}", EM ABERTO)`);
+      // Conferência: marca a imagem reagida desta mensagem como transcrita/lançada.
+      await marcarReagida(reaction.msgId._serialized, {
+        apostaId: aposta.id, emoji: reaction.reaction,
+        grupoId: chatId, grupoNome: nomeGrupo, clienteId: cli.id,
+      });
     } catch (e) {
       console.error('❌ Erro ao processar reação:', e.message);
     }

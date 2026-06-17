@@ -1,0 +1,51 @@
+const Jimp = require('jimp');
+const { sb } = require('./ingest');
+
+const BUCKET = 'conferencia';
+const safe = (s) => String(s || '').replace(/[^\w.-]/g, '_');
+
+/** Gera uma miniatura JPEG (~400px, qualidade 60) a partir do base64 da imagem. */
+async function fazerThumb(base64) {
+  const img = await Jimp.read(Buffer.from(base64, 'base64'));
+  img.scaleToFit(400, 400).quality(60);
+  return img.getBufferAsync(Jimp.MIME_JPEG);
+}
+
+/**
+ * Registra TODA imagem recebida num grupo (para a tela de Conferência).
+ * Faz upload da miniatura no Storage e insere a linha (ignora duplicado por msg_id).
+ */
+async function registrarImagemRecebida({ grupoId, grupoNome, clienteId, msgId, remetente, enviadoEm, base64 }) {
+  let thumb_path = null;
+  try {
+    if (base64) {
+      const thumb = await fazerThumb(base64);
+      thumb_path = `${safe(grupoId)}/${safe(msgId)}.jpg`;
+      const up = await sb.storage.from(BUCKET).upload(thumb_path, thumb, { contentType: 'image/jpeg', upsert: true });
+      if (up.error) { console.error('   thumb upload:', up.error.message); thumb_path = null; }
+    }
+  } catch (e) { console.error('   thumb erro:', e.message); }
+
+  const { error } = await sb.from('imagens_recebidas').upsert({
+    grupo_id: grupoId, grupo_nome: grupoNome, cliente_id: clienteId ?? null,
+    msg_id: msgId, remetente: remetente || '', enviado_em: enviadoEm, thumb_path,
+  }, { onConflict: 'msg_id', ignoreDuplicates: true });
+  if (error) console.error('   conferencia insert:', error.message);
+}
+
+/** Marca a imagem como reagida/lançada quando a reação dispara a transcrição. */
+async function marcarReagida(msgId, { apostaId = null, emoji = '', grupoId, grupoNome, clienteId } = {}) {
+  const { data } = await sb.from('imagens_recebidas').select('id').eq('msg_id', msgId).maybeSingle();
+  const patch = { reagida: true, lancada: !!apostaId, aposta_id: apostaId, emoji };
+  if (data) {
+    await sb.from('imagens_recebidas').update(patch).eq('msg_id', msgId);
+  } else {
+    // Reação chegou mas a imagem não tinha sido capturada (bot estava off). Cria a linha mesmo assim.
+    await sb.from('imagens_recebidas').upsert({
+      msg_id: msgId, grupo_id: grupoId || '', grupo_nome: grupoNome || '', cliente_id: clienteId ?? null,
+      enviado_em: new Date().toISOString(), ...patch,
+    }, { onConflict: 'msg_id' });
+  }
+}
+
+module.exports = { registrarImagemRecebida, marcarReagida };

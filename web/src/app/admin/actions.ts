@@ -6,8 +6,9 @@ import {
   type Afiliado, type Cliente, type Reg,
   type AfiliadoRow, type ClienteRow, type ApostaRow,
   type ApostasPage, type FiltroApostas, type Totals, type FechCliResp, type FechAfResp,
-  mapAfiliado, mapCliente, mapAposta, parseTs,
+  mapAfiliado, mapCliente, mapAposta, parseTs, fmtTs,
 } from './types';
+import type { ConfGrupo, ConfImagensResp, ConfFiltro } from './conferencia/types';
 
 // ═══════════════════ LISTAGEM / FECHAMENTO (paginação no servidor) ═══════════════════
 export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
@@ -42,6 +43,51 @@ export async function fechamentoAfiliados(dt1?: string | null, dt2?: string | nu
   const { data, error } = await db.rpc('fechamento_afiliados', { p_dt1: dt1 || null, p_dt2: dt2 || null });
   if (error) throw error;
   return data as FechAfResp;
+}
+
+// ═══════════════════ CONFERÊNCIA DE GRUPOS ═══════════════════
+export async function listarConfGrupos(dt1?: string | null, dt2?: string | null): Promise<ConfGrupo[]> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { data, error } = await db.rpc('conferencia_grupos', { p_dt1: dt1 || null, p_dt2: dt2 || null });
+  if (error) throw error;
+  return (data ?? []) as ConfGrupo[];
+}
+
+export async function listarConfImagens(f: ConfFiltro): Promise<ConfImagensResp> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const per = 48;
+  const page = f.page || 1;
+  let q = db.from('imagens_recebidas').select('*', { count: 'exact' }).order('enviado_em', { ascending: false });
+  if (f.grupoId) q = q.eq('grupo_id', f.grupoId);
+  if (f.pend) q = q.eq('reagida', false).eq('ignorada', false);
+  if (f.dt1) q = q.gte('enviado_em', `${f.dt1}T00:00:00`);
+  if (f.dt2) q = q.lte('enviado_em', `${f.dt2}T23:59:59.999`);
+  q = q.range((page - 1) * per, (page - 1) * per + per - 1);
+  const { data, error, count } = await q;
+  if (error) throw error;
+
+  const rows = await Promise.all((data ?? []).map(async (r) => {
+    let thumbUrl: string | null = null;
+    if (r.thumb_path) {
+      const s = await db.storage.from('conferencia').createSignedUrl(r.thumb_path, 3600);
+      thumbUrl = s.data?.signedUrl ?? null;
+    }
+    return {
+      id: r.id, grupoId: r.grupo_id, grupoNome: r.grupo_nome, clienteId: r.cliente_id,
+      remetente: r.remetente ?? '', enviadoEm: fmtTs(r.enviado_em), thumbUrl,
+      reagida: r.reagida, lancada: r.lancada, ignorada: r.ignorada, emoji: r.emoji, apostaId: r.aposta_id,
+    };
+  }));
+  return { rows, total: count ?? 0 };
+}
+
+export async function ignorarImagem(id: number, ignorar = true): Promise<void> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { error } = await db.from('imagens_recebidas').update({ ignorada: ignorar }).eq('id', id);
+  if (error) throw error;
 }
 
 // ─────────── Auth: só equipe logada pode mutar ───────────
