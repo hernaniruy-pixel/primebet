@@ -181,9 +181,9 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setLancar(null)}>
           <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="mb-3 text-base font-semibold text-slate-800">Lançar bilhete — {lancar.grupoNome || lancar.grupoId}</h3>
-            <div className="flex gap-3">
-              {lancar.thumbUrl && <img src={lancar.thumbUrl} alt="bilhete" className="max-h-56 rounded-lg border border-slate-200 object-contain" />}
-              <div className="flex-1">
+            <div className="flex items-start gap-3">
+              {lancar.thumbUrl && <img src={lancar.thumbUrl} alt="bilhete" className="w-40 shrink-0 self-start rounded-lg border border-slate-200 object-contain" />}
+              <div className="min-w-0 flex-1">
                 <label className="mb-1 block text-[11px] font-medium text-slate-500">Tipo de reação</label>
                 <div className="space-y-1">
                   {EMOJIS.map((o) => (
