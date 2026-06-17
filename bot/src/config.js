@@ -35,5 +35,7 @@ module.exports = {
   EMOJIS_ATIVOS: Object.keys(EMOJI_REGRAS),
   regraPorEmoji,
   norm,
+  // Lista de números autorizados a reagir (só dígitos, ex.: 5511999999999). Vazio = aceita qualquer reação no grupo.
+  OPERADORES: (process.env.OPERADORES || '').split(',').map((s) => s.replace(/\D/g, '')).filter(Boolean),
   AUTH_PATH: path.join(__dirname, '..', '.wwebjs_auth'),
 };

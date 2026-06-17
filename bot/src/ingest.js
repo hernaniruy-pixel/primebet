@@ -46,4 +46,26 @@ async function registrarBilhete(final, { clienteId, grupoId = null }) {
   return data;
 }
 
-module.exports = { sb, buscarClientePorNome, listarClientes, registrarBilhete };
+// Normaliza nome para comparação (maiúsculas, sem acento, só letras/números).
+const normNome = (s) => (s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9]/g, '');
+
+/**
+ * Acha o cliente correspondente ao NOME DO GRUPO (vínculo automático).
+ * Ex.: grupo "🎯 CRISTIAN apostas" -> cliente "CRISTIAN".
+ * Retorna {id, nome} do melhor casamento, ou null.
+ */
+async function acharClientePorGrupo(nomeGrupo) {
+  const alvo = normNome(nomeGrupo);
+  if (!alvo) return null;
+  const cls = await listarClientes(2000);
+  let best = null;
+  for (const c of cls) {
+    const n = normNome(c.nome);
+    if (n && alvo.includes(n)) {
+      if (!best || n.length > normNome(best.nome).length) best = c; // prefere o nome mais específico
+    }
+  }
+  return best;
+}
+
+module.exports = { sb, buscarClientePorNome, listarClientes, registrarBilhete, acharClientePorGrupo };
