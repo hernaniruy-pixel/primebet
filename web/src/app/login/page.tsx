@@ -46,7 +46,7 @@ export default function LoginPage() {
               className="lg-inp"
               type="text"
               autoComplete="username"
-              placeholder="e-mail (equipe) ou usuário (cliente)"
+              placeholder="usuário"
             />
 
             <label className="lg-lbl">SENHA</label>
