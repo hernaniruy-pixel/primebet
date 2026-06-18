@@ -13,7 +13,9 @@ const MAX_AGE = 60 * 60 * 24 * 7; // 7 dias
 export type ClienteSessao = { cid: number; nome: string; exp: number };
 
 function secret(): string {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY || 'dev-secret-troque-em-producao';
+  const s = process.env.PRIMEBET_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!s) throw new Error('Sessão do cliente sem segredo: defina SUPABASE_SERVICE_ROLE_KEY (ou PRIMEBET_SESSION_SECRET).');
+  return s;
 }
 
 function sign(data: string): string {
@@ -34,6 +36,8 @@ function verificarToken(token: string): ClienteSessao | null {
   if (mac.length !== esperado.length || !crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(esperado))) return null;
   try {
     const p = JSON.parse(Buffer.from(body, 'base64url').toString()) as ClienteSessao;
+    // Falha fechada se o formato não for o esperado (cid numérico, nome string, exp válido).
+    if (typeof p.cid !== 'number' || !Number.isFinite(p.cid) || typeof p.nome !== 'string') return null;
     if (!p.exp || p.exp < Math.floor(Date.now() / 1000)) return null;
     return p;
   } catch {

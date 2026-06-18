@@ -16,21 +16,23 @@ async function fazerThumb(base64) {
  * Faz upload da miniatura no Storage e insere a linha (ignora duplicado por msg_id).
  */
 async function registrarImagemRecebida({ grupoId, grupoNome, clienteId, msgId, remetente, enviadoEm, base64 }) {
-  let thumb_path = null;
-  try {
-    if (base64) {
-      const thumb = await fazerThumb(base64);
-      thumb_path = `${safe(grupoId)}/${safe(msgId)}.jpg`;
-      const up = await sb.storage.from(BUCKET).upload(thumb_path, thumb, { contentType: 'image/jpeg', upsert: true });
-      if (up.error) { console.error('   thumb upload:', up.error.message); thumb_path = null; }
-    }
-  } catch (e) { console.error('   thumb erro:', e.message); }
-
+  // 1) grava a linha JÁ (rápido) — não bloqueia o processamento de eventos do WhatsApp.
   const { error } = await sb.from('imagens_recebidas').upsert({
     grupo_id: grupoId, grupo_nome: grupoNome, cliente_id: clienteId ?? null,
-    msg_id: msgId, remetente: remetente || '', enviado_em: enviadoEm, thumb_path,
+    msg_id: msgId, remetente: remetente || '', enviado_em: enviadoEm, thumb_path: null,
   }, { onConflict: 'msg_id', ignoreDuplicates: true });
-  if (error) console.error('   conferencia insert:', error.message);
+  if (error) { console.error('   conferencia insert:', error.message); return; }
+
+  // 2) miniatura em SEGUNDO PLANO (jimp é pesado; não segura a fila de reações/pedidos).
+  if (base64) gerarEAnexarThumb(grupoId, msgId, base64).catch((e) => console.error('   thumb bg:', e.message));
+}
+
+async function gerarEAnexarThumb(grupoId, msgId, base64) {
+  const thumb = await fazerThumb(base64);
+  const thumb_path = `${safe(grupoId)}/${safe(msgId)}.jpg`;
+  const up = await sb.storage.from(BUCKET).upload(thumb_path, thumb, { contentType: 'image/jpeg', upsert: true });
+  if (up.error) { console.error('   thumb upload:', up.error.message); return; }
+  await sb.from('imagens_recebidas').update({ thumb_path }).eq('msg_id', msgId);
 }
 
 /** Marca a imagem como reagida/lançada quando a reação dispara a transcrição. */

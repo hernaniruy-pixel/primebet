@@ -68,18 +68,20 @@ export async function listarConfImagens(f: ConfFiltro): Promise<ConfImagensResp>
   const { data, error, count } = await q;
   if (error) throw error;
 
-  const rows = await Promise.all((data ?? []).map(async (r) => {
-    let thumbUrl: string | null = null;
-    if (r.thumb_path) {
-      const s = await db.storage.from('conferencia').createSignedUrl(r.thumb_path, 3600);
-      thumbUrl = s.data?.signedUrl ?? null;
-    }
-    return {
-      id: r.id, grupoId: r.grupo_id, grupoNome: r.grupo_nome, clienteId: r.cliente_id,
-      remetente: r.remetente ?? '', enviadoEm: fmtTs(r.enviado_em), thumbUrl,
-      reagida: r.reagida, lancada: r.lancada, ignorada: r.ignorada, emoji: r.emoji, apostaId: r.aposta_id,
-      pedidoStatus: r.pedido_status ?? null, pedidoErro: r.pedido_erro ?? null,
-    };
+  // Assina TODAS as miniaturas em UMA chamada (em vez de 1 request por linha).
+  const paths = (data ?? []).map((r) => r.thumb_path).filter((p): p is string => !!p);
+  const urlPorPath: Record<string, string> = {};
+  if (paths.length) {
+    const { data: signed } = await db.storage.from('conferencia').createSignedUrls(paths, 3600);
+    (signed ?? []).forEach((s) => { if (s.path && s.signedUrl) urlPorPath[s.path] = s.signedUrl; });
+  }
+
+  const rows = (data ?? []).map((r) => ({
+    id: r.id, grupoId: r.grupo_id, grupoNome: r.grupo_nome, clienteId: r.cliente_id,
+    remetente: r.remetente ?? '', enviadoEm: fmtTs(r.enviado_em),
+    thumbUrl: r.thumb_path ? (urlPorPath[r.thumb_path] ?? null) : null,
+    reagida: r.reagida, lancada: r.lancada, ignorada: r.ignorada, emoji: r.emoji, apostaId: r.aposta_id,
+    pedidoStatus: r.pedido_status ?? null, pedidoErro: r.pedido_erro ?? null,
   }));
   return { rows, total: count ?? 0 };
 }
@@ -150,7 +152,7 @@ export async function atualizarAposta(id: number, patch: PatchAposta): Promise<R
   if (patch.st !== undefined) {
     upd.status = patch.st;
     // Ao resolver (sair de EM ABERTO), encerra eventual contestação -> sai da fila do admin.
-    if (patch.st !== 'EM ABERTO') { upd.contestada = false; upd.contestada_em = null; }
+    if (patch.st !== 'EM ABERTO') { upd.contestada = false; upd.contestada_em = null; upd.contestacao = null; }
   }
   if (patch.dc !== undefined) upd.casa = patch.dc;
   if (patch.bl !== undefined) upd.baixa_liquidez = patch.bl;

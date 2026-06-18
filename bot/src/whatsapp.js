@@ -2,8 +2,33 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { AUTH_PATH, regraPorEmoji, OPERADORES } = require('./config');
 const { transcreverBilhete } = require('./transcrever');
+const { parseValor } = require('./valor');
 const { registrarBilhete, acharClientePorGrupo } = require('./ingest');
 const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64 } = require('./conferencia');
+
+// Odd digitada (dashboard) -> número, ou null se vazia/ inválida.
+function parseOdd(t) {
+  if (t == null || String(t).trim() === '') return null;
+  const n = parseFloat(String(t).replace(',', '.'));
+  return isNaN(n) ? null : n;
+}
+
+/**
+ * Caminho ÚNICO de lançamento (reação no WhatsApp OU "Lançar" no dashboard).
+ * Transcreve a imagem completa; os campos que o emoji deixa "em aberto" recebem o
+ * valor MANUAL digitado (dashboard) ou ficam null (operador preenche depois).
+ * Assim a reação e o dashboard se comportam IGUAL para o mesmo emoji.
+ */
+async function lancarAposta({ base64, mime, emoji, legenda = '', oddManual = null, valorManual = null, clienteId, grupoId, grupoNome, msgId, msgParaReagir = null }) {
+  const regra = regraPorEmoji(emoji) || { emoji, mascara: [] };
+  const { bruto, final } = await transcreverBilhete(base64, '⚪', mime, legenda); // lê tudo; valor da legenda aplicado
+  if (regra.mascara.includes('odd')) final.odd = parseOdd(oddManual);            // em aberto: manual ou null
+  if (regra.mascara.includes('valor')) final.valor = parseValor(valorManual);    // em aberto: manual ou null
+  const aposta = await registrarBilhete(final, { clienteId, grupoId });
+  await marcarReagida(msgId, { apostaId: aposta.id, emoji: regra.emoji, grupoId, grupoNome, clienteId });
+  if (msgParaReagir) { try { await msgParaReagir.react(regra.emoji); } catch (e) { console.log('   (não consegui reagir na imagem do grupo:', e.message, ')'); } }
+  return { bruto, aposta };
+}
 
 /**
  * Conecta como "aparelho conectado" (WhatsApp Web) de UMA conta que é membro dos grupos.
@@ -99,17 +124,14 @@ function iniciarWhatsApp() {
         return;
       }
 
-      const legenda = msg.body || ''; // caso 2: valor pode vir aqui
+      const legenda = msg.body || ''; // caso 2: valor pode vir na legenda
       console.log(`\n📩 ${regra.emoji} ${regra.label} | grupo "${nomeGrupo}" → cliente ${cli.nome}`);
-      const { bruto, final } = await transcreverBilhete(media.data, reaction.reaction, media.mimetype, legenda);
-      console.log('   ↳ lido:', JSON.stringify(bruto));
-      const aposta = await registrarBilhete(final, { clienteId: cli.id, grupoId: chatId });
-      console.log(`   ✅ aposta #${aposta.id} gravada (odd ${aposta.odd}, valor ${aposta.valor}, casa "${aposta.casa}", EM ABERTO)`);
-      // Conferência: marca a imagem reagida desta mensagem como transcrita/lançada.
-      await marcarReagida(reaction.msgId._serialized, {
-        apostaId: aposta.id, emoji: reaction.reaction,
-        grupoId: chatId, grupoNome: nomeGrupo, clienteId: cli.id,
+      const { bruto, aposta } = await lancarAposta({
+        base64: media.data, mime: media.mimetype, emoji: reaction.reaction, legenda,
+        clienteId: cli.id, grupoId: chatId, grupoNome: nomeGrupo, msgId: reaction.msgId._serialized,
       });
+      console.log('   ↳ lido:', JSON.stringify(bruto));
+      console.log(`   ✅ aposta #${aposta.id} gravada (odd ${aposta.odd}, valor ${aposta.valor}, casa "${aposta.casa}", EM ABERTO)`);
     } catch (e) {
       console.error('❌ Erro ao processar reação:', e.message);
     }
@@ -153,21 +175,13 @@ async function processarPedido(client, p) {
 
     const emoji = p.pedido_emoji || '⚪';
     console.log(`\n🖱  lançar do dashboard | grupo "${p.grupo_nome}" | ${emoji}`);
-    // Transcreve a imagem por completo; o VALOR digitado (se houver) entra via legenda (parseValor).
-    const { final } = await transcreverBilhete(base64, '⚪', mime, p.pedido_valor || '');
-    // ODD digitada (campo "odd em aberto") sobrescreve a odd lida.
-    if (p.pedido_odd != null && String(p.pedido_odd).trim() !== '') {
-      const o = parseFloat(String(p.pedido_odd).replace(',', '.'));
-      if (!isNaN(o)) final.odd = o;
-    }
-    const aposta = await registrarBilhete(final, { clienteId: p.cliente_id, grupoId: p.grupo_id });
-    await marcarReagida(p.msg_id, { apostaId: aposta.id, emoji });
+    // Mesmo caminho da reação: emoji define o que fica "em aberto"; odd/valor digitados preenchem.
+    const { aposta } = await lancarAposta({
+      base64, mime, emoji, oddManual: p.pedido_odd, valorManual: p.pedido_valor,
+      clienteId: p.cliente_id, grupoId: p.grupo_id, grupoNome: p.grupo_nome,
+      msgId: p.msg_id, msgParaReagir: msgRef,
+    });
     await marcarPedido(p.id, 'feito');
-    // Reage na imagem DENTRO do grupo (mesmo emoji) para o pessoal ver que foi tratada.
-    if (msgRef) {
-      try { await msgRef.react(emoji); }
-      catch (e) { console.log('   (não consegui reagir na imagem do grupo:', e.message, ')'); }
-    }
     console.log(`   ✅ aposta #${aposta.id} lançada do dashboard (odd ${aposta.odd}, valor ${aposta.valor})${msgRef ? ' + reagiu no grupo' : ''}`);
   } catch (e) {
     await marcarPedido(p.id, 'erro', String(e.message || e).slice(0, 200));

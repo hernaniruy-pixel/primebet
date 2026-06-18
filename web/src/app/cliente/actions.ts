@@ -6,24 +6,29 @@ import { getClienteSessao, limparClienteCookie } from '@/lib/cliente-session';
 import { mapAposta, type ApostaRow } from '../admin/types';
 import type { SemanaExtrato, ExtratoResp } from './types';
 
+// Fuso do Brasil (UTC-3, sem horário de verão). Trabalhamos com Datas cujos
+// campos UTC representam a "hora de parede" do Brasil, e fechamos a janela da
+// consulta com o offset -03:00 para casar com a coluna timestamptz `data`.
+const TZ_BR_MS = 3 * 60 * 60 * 1000;
+const agoraBR = () => new Date(Date.now() - TZ_BR_MS);
 const fmtD = (d: Date) => d.toISOString().split('T')[0];
 
-// segunda-feira da semana que contém `base`
+// segunda-feira (00:00 BR) da semana que contém `base` (base em "BR sobre UTC")
 function segunda(base: Date): Date {
   const d = new Date(base);
-  const dow = d.getDay(); // 0=dom ... 6=sab
-  d.setDate(d.getDate() - ((dow + 6) % 7)); // recua até segunda
-  d.setHours(0, 0, 0, 0);
+  const dow = d.getUTCDay(); // 0=dom ... 6=sab (campos UTC = hora BR)
+  d.setUTCDate(d.getUTCDate() - ((dow + 6) % 7)); // recua até segunda
+  d.setUTCHours(0, 0, 0, 0);
   return d;
 }
 
 async function semana(db: ReturnType<typeof createAdminClient>, cid: number, mon: Date, rotulo: string): Promise<SemanaExtrato> {
-  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const sun = new Date(mon); sun.setUTCDate(mon.getUTCDate() + 6);
   const d1 = fmtD(mon), d2 = fmtD(sun);
   const { data } = await db.from('apostas').select('*')
     .eq('cliente_id', cid)
-    .gte('data', `${d1}T00:00:00`)
-    .lte('data', `${d2}T23:59:59.999`)
+    .gte('data', `${d1}T00:00:00-03:00`)
+    .lte('data', `${d2}T23:59:59.999-03:00`)
     .order('data', { ascending: false });
   const rows = ((data ?? []) as ApostaRow[]).map(mapAposta);
   const entradas = rows.reduce((s, r) => s + r.val, 0);
@@ -39,8 +44,8 @@ export async function carregarExtrato(): Promise<ExtratoResp> {
   const db = createAdminClient();
 
   const { data: cli } = await db.from('clientes').select('id,nome,calcao').eq('id', ses.cid).single();
-  const monAtual = segunda(new Date());
-  const monPassada = new Date(monAtual); monPassada.setDate(monAtual.getDate() - 7);
+  const monAtual = segunda(agoraBR());
+  const monPassada = new Date(monAtual); monPassada.setUTCDate(monAtual.getUTCDate() - 7);
 
   const [atual, passada] = await Promise.all([
     semana(db, ses.cid, monAtual, 'Semana atual'),
