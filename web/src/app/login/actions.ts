@@ -2,12 +2,14 @@
 
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { setClienteCookie } from '@/lib/cliente-session';
 
 export type LoginState = { erro?: string };
 
-// LOCKDOWN: por enquanto SÓ o admin entra. O usuário "admin" é mapeado para o
-// e-mail interno do Supabase Auth. Login de cliente/banca fica desativado até
-// reativarmos (multi-banca). Não exponha o e-mail interno na tela.
+// O usuário "admin" é a equipe (Supabase Auth, e-mail interno). Qualquer outro
+// usuário é tratado como CLIENTE: login = nome do cliente, senha = campo "Senha"
+// do cadastro (editável no painel). Não expõe o e-mail interno do admin na tela.
 const ADMIN_USER = 'admin';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@primebet.app';
 
@@ -16,10 +18,22 @@ export async function entrar(_prev: LoginState, formData: FormData): Promise<Log
   const senha = String(formData.get('senha') || '');
   if (!usuario || !senha) return { erro: 'Preencha usuário e senha.' };
 
-  if (usuario.toLowerCase() !== ADMIN_USER) return { erro: 'Usuário ou senha incorretos.' };
+  // 1) Equipe/admin
+  if (usuario.toLowerCase() === ADMIN_USER) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: senha });
+    if (error) return { erro: 'Usuário ou senha incorretos.' };
+    redirect('/admin');
+  }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: senha });
-  if (error) return { erro: 'Usuário ou senha incorretos.' };
-  redirect('/admin');
+  // 2) Cliente (nome + senha do cadastro). Só clientes ativos com senha definida.
+  const db = createAdminClient();
+  const { data: cli } = await db.rpc('cliente_login', { p_nome: usuario, p_senha: senha });
+  if (cli) {
+    const c = cli as { id: number; nome: string };
+    await setClienteCookie(c.id, c.nome);
+    redirect('/cliente');
+  }
+
+  return { erro: 'Usuário ou senha incorretos.' };
 }
