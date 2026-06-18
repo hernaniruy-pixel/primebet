@@ -9,6 +9,8 @@ import {
   mapAfiliado, mapCliente, mapAposta, parseTs, fmtTs,
 } from './types';
 import type { ConfGrupo, ConfImagensResp, ConfFiltro } from './conferencia/types';
+import type { DespesasResp, SemanaDespesas, Despesa } from './despesas/types';
+import { semanasBR, janelaSemana } from '@/lib/semana';
 
 // ═══════════════════ LISTAGEM / FECHAMENTO (paginação no servidor) ═══════════════════
 export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
@@ -106,6 +108,38 @@ export async function lancarImagem(id: number, emoji: string, odd?: string, valo
     .eq('id', id);
   if (error) return { ok: false, erro: 'Não foi possível enfileirar. Tente de novo.' };
   return { ok: true };
+}
+
+// ═══════════════════ DESPESAS (documentação semanal) ═══════════════════
+async function despesasDaSemana(db: ReturnType<typeof createAdminClient>, mon: Date, rotulo: string): Promise<SemanaDespesas> {
+  const { d1, d2 } = janelaSemana(mon);
+  const { data } = await db.from('despesas').select('id,descricao,valor,data,grupo_nome')
+    .gte('data', `${d1}T00:00:00-03:00`)
+    .lte('data', `${d2}T23:59:59.999-03:00`)
+    .order('data', { ascending: false });
+  const rows: Despesa[] = (data ?? []).map((r) => ({
+    id: r.id, descricao: r.descricao, valor: Number(r.valor), data: fmtTs(r.data), grupoNome: r.grupo_nome,
+  }));
+  const total = rows.reduce((s, r) => s + r.valor, 0);
+  return { rotulo, d1, d2, rows, total };
+}
+
+export async function listarDespesas(): Promise<DespesasResp> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { atual, passada } = semanasBR();
+  const [a, p] = await Promise.all([
+    despesasDaSemana(db, atual, 'Semana atual'),
+    despesasDaSemana(db, passada, 'Semana passada'),
+  ]);
+  return { atual: a, passada: p };
+}
+
+export async function excluirDespesa(id: number): Promise<void> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { error } = await db.from('despesas').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─────────── Auth: só equipe logada pode mutar ───────────

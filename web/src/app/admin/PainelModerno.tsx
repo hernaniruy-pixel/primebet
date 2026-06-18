@@ -265,6 +265,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             <button onClick={() => setModal('fech')} className={navBtn}>Fechamento</button>
             <button onClick={() => setModal('faf')} className={navBtn}>Fech. afiliado</button>
             <a href="/admin/conferencia" className={navBtn} title="Conferência de grupos (imagens recebidas × transcritas)">🗂 Conferência</a>
+            <a href="/admin/despesas" className={navBtn} title="Despesas (lançadas pelo grupo despesa)">💸 Despesas</a>
             <button onClick={toggleTheme} title="Tema" className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
             <button onClick={sair} className="rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
           </div>

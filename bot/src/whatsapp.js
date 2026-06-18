@@ -5,6 +5,24 @@ const { transcreverBilhete } = require('./transcrever');
 const { parseValor } = require('./valor');
 const { registrarBilhete, acharClientePorGrupo } = require('./ingest');
 const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64 } = require('./conferencia');
+const { registrarDespesa } = require('./despesas');
+
+/** Grupo "despesa": mensagem "descrição: valor" -> grava despesa com a data da mensagem. */
+async function tratarDespesa(msg, chat, nomeGrupo) {
+  const body = (msg.body || '').trim();
+  const idx = body.lastIndexOf(':');
+  if (idx < 1) return; // sem ":" ou sem descrição antes dele
+  const descricao = body.slice(0, idx).trim();
+  const valor = parseValor(body.slice(idx + 1));
+  if (!descricao || valor == null) return; // formato inválido -> ignora
+  await registrarDespesa({
+    grupoId: chat.id._serialized, grupoNome: nomeGrupo,
+    descricao, valor,
+    data: new Date((msg.timestamp || Date.now() / 1000) * 1000).toISOString(),
+    msgId: msg.id._serialized,
+  });
+  console.log(`💸 despesa registrada | "${descricao}" R$ ${valor} | grupo "${nomeGrupo}"`);
+}
 
 // Odd digitada (dashboard) -> número, ou null se vazia/ inválida.
 function parseOdd(t) {
@@ -62,17 +80,22 @@ function iniciarWhatsApp() {
   client.on('ready', () => { console.log('✅ Bot conectado e ouvindo reações nos grupos.'); iniciarPollerPedidos(client); });
   client.on('disconnected', (r) => console.log('⚠️  Desconectado:', r));
 
-  // CONFERÊNCIA: registra TODA imagem recebida em grupo (mesmo sem reação),
-  // para auditar depois o que foi (ou não) transcrito.
+  // Mensagens de grupo: DESPESAS (texto "descrição: valor" no grupo "despesa")
+  // e CONFERÊNCIA (toda imagem recebida nos demais grupos).
   client.on('message', async (msg) => {
     try {
-      if (!msg.hasMedia || msg.type !== 'image') return;
       const chat = await msg.getChat();
       if (!chat.isGroup) return;
+      const nomeGrupo = chat.name || '';
+
+      // Grupo de DESPESAS: captura texto "descrição: valor" (lança automático).
+      if (/despesa/i.test(nomeGrupo)) { await tratarDespesa(msg, chat, nomeGrupo); return; }
+
+      // Demais grupos: só imagens, para a conferência.
+      if (!msg.hasMedia || msg.type !== 'image') return;
       const media = await msg.downloadMedia();
       if (!media || !String(media.mimetype).startsWith('image/')) return;
 
-      const nomeGrupo = chat.name || '';
       const cli = await acharClientePorGrupo(nomeGrupo);
       const contato = await msg.getContact().catch(() => null);
       const remetente = (contato && (contato.pushname || contato.number)) || msg.author || '';
