@@ -135,6 +135,21 @@ export async function listarDespesas(): Promise<DespesasResp> {
   return { atual: a, passada: p };
 }
 
+/** Despesas por período arbitrário (datas vazias = todo o histórico). */
+export async function listarDespesasPeriodo(dt1?: string | null, dt2?: string | null): Promise<SemanaDespesas> {
+  await exigirSessao();
+  const db = createAdminClient();
+  let q = db.from('despesas').select('id,descricao,valor,data,grupo_nome').order('data', { ascending: false });
+  if (dt1) q = q.gte('data', `${dt1}T00:00:00-03:00`);
+  if (dt2) q = q.lte('data', `${dt2}T23:59:59.999-03:00`);
+  const { data } = await q;
+  const rows: Despesa[] = (data ?? []).map((r) => ({
+    id: r.id, descricao: r.descricao, valor: Number(r.valor), data: fmtTs(r.data), grupoNome: r.grupo_nome,
+  }));
+  const total = rows.reduce((s, r) => s + r.valor, 0);
+  return { rotulo: 'Período', d1: dt1 || '', d2: dt2 || '', rows, total };
+}
+
 export async function excluirDespesa(id: number): Promise<void> {
   await exigirSessao();
   const db = createAdminClient();
