@@ -98,6 +98,8 @@ begin
 
   cm  := case when sb > 0 then sb * (coalesce(c_com,0) / 100) else 0 end;
   caf := cm * (coalesce(c_af,0) / 100);
+  -- taxa de baixa liquidez: 5% do valor, sempre que ativa (independe do resultado)
+  if new.baixa_liquidez then cm := cm + new.valor * 0.05; end if;
 
   new.saldo_bruto       := round(sb, 2);
   new.comissao          := round(cm, 2);
