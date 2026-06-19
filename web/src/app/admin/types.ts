@@ -49,12 +49,16 @@ export interface ApostaRow {
 
 const num = (v: number | string | null | undefined) => Number(v ?? 0);
 
-// timestamptz (ISO) → 'HH:mm DD-MM-AAAA' (hora local)
+// timestamptz (ISO) → 'HH:mm DD-MM-AAAA' no horário de Brasília (America/Sao_Paulo)
 export function fmtTs(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${p(d.getHours())}:${p(d.getMinutes())} ${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}`;
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo', hour12: false,
+    hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric',
+  }).formatToParts(d);
+  const g = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+  return `${g('hour')}:${g('minute')} ${g('day')}-${g('month')}-${g('year')}`;
 }
 
 // 'HH:mm DD-MM-AAAA' (ou 'YYYY-MM-DD HH:mm' antigo) → ISO para gravar no banco
