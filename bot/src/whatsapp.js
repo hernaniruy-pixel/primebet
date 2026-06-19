@@ -6,6 +6,7 @@ const { parseValor } = require('./valor');
 const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId } = require('./ingest');
 const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
+const { setQr, setPronto } = require('./webqr');
 
 /** Grupo "despesa": mensagem "descrição: valor" -> grava despesa com a data da mensagem. */
 async function tratarDespesa(msg, chat, nomeGrupo) {
@@ -71,6 +72,7 @@ function iniciarWhatsApp() {
 
   client.on('qr', (qr) => {
     console.log('\n📱 Escaneie o QR no WhatsApp do número do BOT (Configurações → Aparelhos conectados → Conectar um aparelho):\n');
+    setQr(qr); // alimenta a página web do QR
     qrcode.generate(qr, { small: true });
     // Salva também como PNG na Área de Trabalho — fácil de abrir e enviar pro sócio.
     try {
@@ -83,7 +85,7 @@ function iniciarWhatsApp() {
     } catch (e) { /* sem o pacote qrcode, segue só com o ASCII acima */ }
   });
   client.on('authenticated', () => console.log('🔐 Autenticado.'));
-  client.on('ready', () => { console.log('✅ Bot conectado e ouvindo reações nos grupos.'); iniciarPollerPedidos(client); });
+  client.on('ready', () => { console.log('✅ Bot conectado e ouvindo reações nos grupos.'); setPronto(); iniciarPollerPedidos(client); });
   client.on('disconnected', (r) => console.log('⚠️  Desconectado:', r));
 
   // Mensagens enviadas pelo PRÓPRIO número do bot (o evento 'message' não as cobre).
