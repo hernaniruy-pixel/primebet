@@ -74,18 +74,23 @@ returns trigger
 language plpgsql
 as $$
 declare
-  c_com numeric(5,2) := 0;
-  c_af  numeric(5,2) := 0;
-  sb    numeric(12,2);
-  cm    numeric(12,2);
-  caf   numeric(12,2);
+  c_com  numeric(5,2) := 0;
+  c_af   numeric(5,2) := 0;
+  c_desc numeric(6,2) := 0;
+  odd_ef numeric(12,2);
+  sb     numeric(12,2);
+  cm     numeric(12,2);
+  caf    numeric(12,2);
 begin
-  select comissao_pct, afiliado_comissao_pct into c_com, c_af
+  select comissao_pct, afiliado_comissao_pct, desconto into c_com, c_af, c_desc
   from public.clientes where id = new.cliente_id;
 
+  -- odd efetiva = odd - desconto do cliente (ex.: 2,00 - 0,01 = 1,99). Nunca negativa.
+  odd_ef := greatest(new.odd - coalesce(c_desc, 0), 0);
+
   sb := case new.status
-          when 'GREEN'      then new.valor * (new.odd - 1)
-          when 'MEIO GREEN' then new.valor * (new.odd - 1) / 2
+          when 'GREEN'      then new.valor * (odd_ef - 1)
+          when 'MEIO GREEN' then new.valor * (odd_ef - 1) / 2
           when 'RED'        then -new.valor
           when 'MEIO RED'   then -new.valor / 2
           else 0
