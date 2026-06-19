@@ -1,5 +1,6 @@
 # Bot PrimeBet (WhatsApp + transcrição) — roda 24/7 num container.
-FROM node:20-bookworm-slim
+# Node 22 (tem WebSocket nativo, exigido pelo @supabase/realtime-js).
+FROM node:22-bookworm-slim
 
 # Chromium do sistema + bibliotecas que o WhatsApp Web (puppeteer) precisa.
 RUN apt-get update && apt-get install -y --no-install-recommends \
