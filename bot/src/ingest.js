@@ -9,6 +9,15 @@ if (!URL || !KEY) {
 }
 const sb = createClient(URL || '', KEY || '', { auth: { persistSession: false } });
 
+// Banca padrão (enquanto é mono-banca: PrimeBet). Depois vira por sessão.
+let _bancaId = null;
+async function bancaPadrao() {
+  if (_bancaId) return _bancaId;
+  const { data } = await sb.from('bancas').select('id').eq('slug', 'primebet').single();
+  _bancaId = (data && data.id) || 1;
+  return _bancaId;
+}
+
 /** Busca um cliente pelo NOME (case-insensitive). Retorna {id, nome} ou null. */
 async function buscarClientePorNome(nome) {
   const { data, error } = await sb.from('clientes').select('id,nome').ilike('nome', String(nome)).limit(1);
@@ -32,6 +41,7 @@ async function listarClientes(limit = 20) {
 async function registrarBilhete(final, { clienteId, grupoId = null }) {
   if (!clienteId) throw new Error('registrarBilhete: clienteId é obrigatório');
   const row = {
+    banca_id: await bancaPadrao(),
     cliente_id: clienteId,
     jogo: final.jogo || '',
     odd: final.odd == null ? 0 : Number(final.odd),
@@ -68,4 +78,4 @@ async function acharClientePorGrupo(nomeGrupo) {
   return best;
 }
 
-module.exports = { sb, buscarClientePorNome, listarClientes, registrarBilhete, acharClientePorGrupo };
+module.exports = { sb, bancaPadrao, buscarClientePorNome, listarClientes, registrarBilhete, acharClientePorGrupo };

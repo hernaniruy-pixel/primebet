@@ -178,7 +178,9 @@ export interface NovaAposta { cId: number; jogo: string; odd: number; val: numbe
 export async function criarAposta(input: NovaAposta): Promise<Reg> {
   await exigirSessao();
   const db = createAdminClient();
+  const { data: cli } = await db.from('clientes').select('banca_id').eq('id', input.cId).single();
   const { data, error } = await db.from('apostas').insert({
+    banca_id: cli?.banca_id,
     cliente_id: input.cId, jogo: input.jogo, odd: input.odd, valor: input.val,
     status: input.st, casa: input.dc || '', origem: 'manual',
   }).select('*').single();

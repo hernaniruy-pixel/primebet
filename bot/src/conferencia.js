@@ -1,5 +1,5 @@
 const Jimp = require('jimp');
-const { sb } = require('./ingest');
+const { sb, bancaPadrao } = require('./ingest');
 
 const BUCKET = 'conferencia';
 const safe = (s) => String(s || '').replace(/[^\w.-]/g, '_');
@@ -18,6 +18,7 @@ async function fazerThumb(base64) {
 async function registrarImagemRecebida({ grupoId, grupoNome, clienteId, msgId, remetente, enviadoEm, base64 }) {
   // 1) grava a linha JÁ (rápido) — não bloqueia o processamento de eventos do WhatsApp.
   const { error } = await sb.from('imagens_recebidas').upsert({
+    banca_id: await bancaPadrao(),
     grupo_id: grupoId, grupo_nome: grupoNome, cliente_id: clienteId ?? null,
     msg_id: msgId, remetente: remetente || '', enviado_em: enviadoEm, thumb_path: null,
   }, { onConflict: 'msg_id', ignoreDuplicates: true });
@@ -44,6 +45,7 @@ async function marcarReagida(msgId, { apostaId = null, emoji = '', grupoId, grup
   } else {
     // Reação chegou mas a imagem não tinha sido capturada (bot estava off). Cria a linha mesmo assim.
     await sb.from('imagens_recebidas').upsert({
+      banca_id: await bancaPadrao(),
       msg_id: msgId, grupo_id: grupoId || '', grupo_nome: grupoNome || '', cliente_id: clienteId ?? null,
       enviado_em: new Date().toISOString(), ...patch,
     }, { onConflict: 'msg_id' });
