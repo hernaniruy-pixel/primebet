@@ -1,6 +1,6 @@
 // ═══════════ TIPOS DO PAINEL (forma compacta usada na UI) ═══════════
 export interface Afiliado { id: number; nome: string; com: number }
-export interface Cliente { id: number; nome: string; s: string; on: boolean; cal: number; desc: number; com: number; sup: string | null; af: number; link: string | null }
+export interface Cliente { id: number; nome: string; s: string; on: boolean; cal: number; desc: number; com: number; sup: string | null; af: number; link: string | null; grupoLink: string | null; grupoId: string | null }
 export interface Reg { id: number; dt: string; cId: number; jogo: string; odd: number; val: number; st: string; dc: string; sb: number; cm: number; caf: number; sl: number; bl: boolean; adv: boolean; irr: boolean; obs: string; ct: boolean; ctMotivo: string }
 
 export interface PanelData { afiliados: Afiliado[]; clientes: Cliente[]; regs: Reg[] }
@@ -38,6 +38,7 @@ export interface ClienteRow {
   id: number; nome: string; senha_hash: string | null; ativo: boolean;
   calcao: number | string; desconto: number | string; comissao_pct: number | string;
   afiliado_id: number | null; afiliado_comissao_pct: number | string; link: string | null;
+  grupo_link: string | null; grupo_id: string | null;
 }
 export interface ApostaRow {
   id: number; cliente_id: number; data: string; jogo: string; odd: number | string; valor: number | string;
@@ -83,6 +84,7 @@ export function mapCliente(r: ClienteRow, afNome: Record<number, string>): Clien
     sup: r.afiliado_id != null ? (afNome[r.afiliado_id] ?? null) : null,
     af: num(r.afiliado_comissao_pct),
     link: r.link ?? null,
+    grupoLink: r.grupo_link ?? null, grupoId: r.grupo_id ?? null,
   };
 }
 

@@ -78,4 +78,29 @@ async function acharClientePorGrupo(nomeGrupo) {
   return best;
 }
 
-module.exports = { sb, bancaPadrao, buscarClientePorNome, listarClientes, registrarBilhete, acharClientePorGrupo };
+/**
+ * Acha o cliente do grupo: primeiro pelo ID do grupo (vínculo explícito, assertivo),
+ * depois cai no match por NOME (reserva).
+ */
+async function acharCliente(grupoId, nomeGrupo) {
+  if (grupoId) {
+    const { data } = await sb.from('clientes').select('id,nome').eq('grupo_id', grupoId).limit(1);
+    if (data && data[0]) return data[0];
+  }
+  return acharClientePorGrupo(nomeGrupo);
+}
+
+/** Clientes com link de grupo colado mas ainda NÃO resolvido (grupo_id nulo). */
+async function vinculosPendentes() {
+  const { data } = await sb.from('clientes').select('id,grupo_link').not('grupo_link', 'is', null).is('grupo_id', null).limit(20);
+  return data || [];
+}
+
+async function salvarGrupoId(clienteId, grupoId) {
+  await sb.from('clientes').update({ grupo_id: grupoId }).eq('id', clienteId);
+}
+
+module.exports = {
+  sb, bancaPadrao, buscarClientePorNome, listarClientes, registrarBilhete,
+  acharClientePorGrupo, acharCliente, vinculosPendentes, salvarGrupoId,
+};

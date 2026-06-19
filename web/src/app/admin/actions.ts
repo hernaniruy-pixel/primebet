@@ -227,7 +227,7 @@ export async function excluirAposta(id: number): Promise<void> {
 // ═══════════════════ CLIENTES ═══════════════════
 export interface NovoClienteInput {
   nome: string; senha?: string; calcao?: number; desconto?: number;
-  comissao?: number; comissaoSup?: number; sup?: string | null;
+  comissao?: number; comissaoSup?: number; sup?: string | null; grupoLink?: string | null;
 }
 const gerarSlug = () => Math.random().toString(36).slice(2, 8);
 
@@ -248,6 +248,7 @@ export async function criarCliente(input: NovoClienteInput): Promise<Cliente> {
     comissao_pct: input.comissao ?? 0, afiliado_id: afiliadoId,
     afiliado_comissao_pct: input.comissaoSup ?? 0,
     link: `/${gerarSlug()}/${nome}`,
+    grupo_link: input.grupoLink || null,
   }).select('*').single();
   if (error) throw error;
   const m = await afNomeMap(db);
@@ -255,7 +256,7 @@ export async function criarCliente(input: NovoClienteInput): Promise<Cliente> {
 }
 
 export interface PatchCliente {
-  nome?: string; s?: string; on?: boolean; cal?: number; desc?: number; com?: number; sup?: string | null; af?: number; link?: string | null;
+  nome?: string; s?: string; on?: boolean; cal?: number; desc?: number; com?: number; sup?: string | null; af?: number; link?: string | null; grupoLink?: string | null;
 }
 
 /**
@@ -275,6 +276,8 @@ export async function atualizarCliente(id: number, patch: PatchCliente): Promise
   if (patch.com !== undefined) upd.comissao_pct = patch.com;
   if (patch.af !== undefined) upd.afiliado_comissao_pct = patch.af;
   if (patch.link !== undefined) upd.link = patch.link || null;
+  // Link do grupo mudou -> grava e zera o grupo_id para o bot re-resolver.
+  if (patch.grupoLink !== undefined) { upd.grupo_link = patch.grupoLink || null; upd.grupo_id = null; }
   if (patch.sup !== undefined) {
     if (patch.sup == null) upd.afiliado_id = null;
     else {

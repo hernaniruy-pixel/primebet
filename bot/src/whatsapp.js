@@ -3,7 +3,7 @@ const qrcode = require('qrcode-terminal');
 const { AUTH_PATH, regraPorEmoji, OPERADORES } = require('./config');
 const { transcreverBilhete } = require('./transcrever');
 const { parseValor } = require('./valor');
-const { registrarBilhete, acharClientePorGrupo } = require('./ingest');
+const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId } = require('./ingest');
 const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
 
@@ -96,7 +96,7 @@ function iniciarWhatsApp() {
       const media = await msg.downloadMedia();
       if (!media || !String(media.mimetype).startsWith('image/')) return;
 
-      const cli = await acharClientePorGrupo(nomeGrupo);
+      const cli = await acharCliente(chat.id._serialized, nomeGrupo);
       const contato = await msg.getContact().catch(() => null);
       const remetente = (contato && (contato.pushname || contato.number)) || msg.author || '';
 
@@ -141,7 +141,7 @@ function iniciarWhatsApp() {
 
       const chat = await msg.getChat();
       const nomeGrupo = chat.name || '';
-      const cli = await acharClientePorGrupo(nomeGrupo);
+      const cli = await acharCliente(chatId, nomeGrupo);
       if (!cli) {
         console.log(`⚠️  Grupo "${nomeGrupo}" (${chatId}) não casou com nenhum cliente cadastrado — pulei. (Cadastre o cliente com esse nome no painel.)`);
         return;
@@ -173,6 +173,7 @@ function iniciarPollerPedidos(client) {
     try {
       const pendentes = await listarPedidosPendentes();
       for (const p of pendentes) await processarPedido(client, p);
+      await resolverVinculos(client); // resolve links de grupo recém-colados
     } catch (e) {
       console.error('poller pedidos:', e.message);
     } finally {
@@ -209,6 +210,25 @@ async function processarPedido(client, p) {
   } catch (e) {
     await marcarPedido(p.id, 'erro', String(e.message || e).slice(0, 200));
     console.error('   ❌ erro no pedido:', e.message);
+  }
+}
+
+// Resolve o LINK do grupo (colado no cadastro) para o ID interno (...@g.us).
+async function resolverVinculos(client) {
+  const pend = await vinculosPendentes();
+  for (const c of pend) {
+    try {
+      const code = String(c.grupo_link).trim().replace(/\?.*$/, '').split('/').filter(Boolean).pop();
+      if (!code) continue;
+      const info = await client.getInviteInfo(code);
+      const gid = info && info.id && (info.id._serialized || info.id);
+      if (gid) {
+        await salvarGrupoId(c.id, String(gid));
+        console.log(`🔗 grupo vinculado | cliente #${c.id} -> ${gid}`);
+      }
+    } catch (e) {
+      console.log(`   (não resolvi o link do grupo do cliente #${c.id}:`, e.message, ')');
+    }
   }
 }
 

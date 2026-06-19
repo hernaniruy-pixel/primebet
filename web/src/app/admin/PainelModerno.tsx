@@ -108,7 +108,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp'>(null);
   const [wpp, setWpp] = useState({ cId: '', jogo: '', odd: '', val: '', dc: '' });
-  const [novoCli, setNovoCli] = useState({ open: false, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '' });
+  const [novoCli, setNovoCli] = useState({ open: false, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '', grupoLink: '' });
   const [novoAf, setNovoAf] = useState({ open: false, nome: '', com: '0' });
   const [obsModal, setObsModal] = useState<{ id: number; text: string } | null>(null);
   const [fech, setFech] = useState({ dt1: semana.d1, dt2: semana.d2, period: 'semana' });
@@ -217,16 +217,16 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   async function saveCli(id: number) {
     const c = clientes.find((x) => x.id === id); if (!c) return;
     try {
-      const res = await atualizarCliente(id, { nome: c.nome, s: c.s, on: c.on, cal: c.cal, desc: c.desc, com: c.com, sup: c.sup, af: c.af, link: c.link });
+      const res = await atualizarCliente(id, { nome: c.nome, s: c.s, on: c.on, cal: c.cal, desc: c.desc, com: c.com, sup: c.sup, af: c.af, link: c.link, grupoLink: c.grupoLink });
       setClientes((cs) => cs.map((x) => (x.id === id ? res.cliente : x))); reload(); toast('Cliente salvo!');
     } catch { toast('Erro ao salvar cliente.'); }
   }
   function copiarLink(link: string | null) { if (!link) { toast('Cliente sem link.'); return; } const u = window.location.origin + link; navigator.clipboard?.writeText(u).then(() => toast('Link copiado!'), () => toast(u)); }
-  function novoCliente() { setNovoCli({ open: true, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '' }); }
+  function novoCliente() { setNovoCli({ open: true, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '', grupoLink: '' }); }
   async function salvarNovoCliente() {
     if (!novoCli.nome.trim()) { alert('Informe o nome.'); return; }
     try {
-      const c = await criarCliente({ nome: novoCli.nome, senha: novoCli.senha, calcao: Number(novoCli.cal) || 0, desconto: Number(novoCli.desc) || 0, comissao: Number(novoCli.com) || 0, comissaoSup: Number(novoCli.af) || 0, sup: novoCli.sup || null });
+      const c = await criarCliente({ nome: novoCli.nome, senha: novoCli.senha, calcao: Number(novoCli.cal) || 0, desconto: Number(novoCli.desc) || 0, comissao: Number(novoCli.com) || 0, comissaoSup: Number(novoCli.af) || 0, sup: novoCli.sup || null, grupoLink: novoCli.grupoLink || null });
       setClientes((cs) => [...cs, c].sort((a, b) => a.nome.localeCompare(b.nome))); setNovoCli((s) => ({ ...s, open: false })); toast('Cliente criado!');
     } catch { toast('Erro ao criar cliente.'); }
   }
@@ -452,7 +452,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead><tr className="text-left text-slate-400">
-                  <th className="px-2 py-2 font-medium">ID</th><th className="px-2 py-2 font-medium">Nome</th><th className="px-2 py-2 font-medium">Senha</th><th className="px-2 py-2 font-medium">Ativo</th><th className="px-2 py-2 font-medium">Calção</th><th className="px-2 py-2 font-medium">Desc.</th><th className="px-2 py-2 font-medium">Com.%</th><th className="px-2 py-2 font-medium">Supervisor</th><th className="px-2 py-2 font-medium">C.Afil.%</th><th className="px-2 py-2 font-medium">Link</th><th className="px-2 py-2 font-medium">Ações</th>
+                  <th className="px-2 py-2 font-medium">ID</th><th className="px-2 py-2 font-medium">Nome</th><th className="px-2 py-2 font-medium">Senha</th><th className="px-2 py-2 font-medium">Ativo</th><th className="px-2 py-2 font-medium">Calção</th><th className="px-2 py-2 font-medium">Desc.</th><th className="px-2 py-2 font-medium">Com.%</th><th className="px-2 py-2 font-medium">Supervisor</th><th className="px-2 py-2 font-medium">C.Afil.%</th><th className="px-2 py-2 font-medium">Grupo (link)</th><th className="px-2 py-2 font-medium">Link</th><th className="px-2 py-2 font-medium">Ações</th>
                 </tr></thead>
                 <tbody>{clientes.map((c) => (
                   <tr key={c.id} className="border-t border-slate-100 dark:border-slate-800">
@@ -465,6 +465,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                     <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-14`} value={c.com} onChange={(e) => updCli(c.id, { com: Number(e.target.value) })} /></td>
                     <td className="px-2 py-1.5"><select className={`${cinp} w-32`} value={c.sup ?? '—'} onChange={(e) => updCli(c.id, { sup: e.target.value === '—' ? null : e.target.value })}><option>—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></td>
                     <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-14`} value={c.af} onChange={(e) => updCli(c.id, { af: Number(e.target.value) })} /></td>
+                    <td className="px-2 py-1.5"><div className="flex items-center gap-1"><input className={`${cinp} w-44`} placeholder="link do grupo" value={c.grupoLink ?? ''} onChange={(e) => updCli(c.id, { grupoLink: e.target.value })} /><span title={c.grupoId ? 'Grupo vinculado: ' + c.grupoId : 'Aguardando o bot resolver o link'}>{c.grupoId ? '✅' : (c.grupoLink ? '⏳' : '')}</span></div></td>
                     <td className="px-2 py-1.5"><div className="flex items-center gap-1"><input className={`${cinp} w-36`} value={c.link ?? ''} onChange={(e) => updCli(c.id, { link: e.target.value })} /><button onClick={() => copiarLink(c.link)} title="Copiar" className="rounded-md border border-slate-200 px-1.5 py-1 dark:border-slate-700">⧉</button></div></td>
                     <td className="px-2 py-1.5"><button onClick={() => saveCli(c.id)} className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700">Salvar</button></td>
                   </tr>
@@ -561,6 +562,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                 <div><span className={lbl}>Comissão afiliado %</span><input type="number" step="0.01" className={inp} value={novoCli.af} onChange={(e) => setNovoCli((s) => ({ ...s, af: e.target.value }))} /></div>
               </div>
               <div><span className={lbl}>Supervisor</span><select className={inp} value={novoCli.sup} onChange={(e) => setNovoCli((s) => ({ ...s, sup: e.target.value }))}><option value="">—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></div>
+              <div><span className={lbl}>Link do grupo (WhatsApp)</span><input className={inp} placeholder="https://chat.whatsapp.com/..." value={novoCli.grupoLink} onChange={(e) => setNovoCli((s) => ({ ...s, grupoLink: e.target.value }))} /><div className="mt-1 text-[11px] text-slate-400">Cole o link do grupo deste cliente. O bot resolve e vincula os bilhetes a ele.</div></div>
               <div className="text-[11px] text-slate-400">O link de acesso é gerado automaticamente.</div>
               <div className="mt-1 flex justify-end gap-2"><button onClick={() => setNovoCli((s) => ({ ...s, open: false }))} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button><button onClick={salvarNovoCliente} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Cadastrar</button></div>
             </div>
