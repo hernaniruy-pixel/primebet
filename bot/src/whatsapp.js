@@ -61,7 +61,12 @@ async function lancarAposta({ base64, mime, emoji, legenda = '', oddManual = nul
 function iniciarWhatsApp() {
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: AUTH_PATH }),
-    puppeteer: { args: ['--no-sandbox', '--disable-setuid-sandbox'] },
+    puppeteer: {
+      // No servidor (Docker) usamos o Chromium do sistema via PUPPETEER_EXECUTABLE_PATH.
+      // Local (Windows) fica undefined e usa o Chromium que o puppeteer baixou.
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    },
   });
 
   client.on('qr', (qr) => {
