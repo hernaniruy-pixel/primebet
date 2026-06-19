@@ -10,11 +10,12 @@ const { registrarDespesa } = require('./despesas');
 /** Grupo "despesa": mensagem "descrição: valor" -> grava despesa com a data da mensagem. */
 async function tratarDespesa(msg, chat, nomeGrupo) {
   const body = (msg.body || '').trim();
+  console.log(`💬 grupo despesa "${nomeGrupo}" | msg: "${body}"`);
   const idx = body.lastIndexOf(':');
-  if (idx < 1) return; // sem ":" ou sem descrição antes dele
+  if (idx < 1) { console.log('   ↳ ignorada: sem ":" (use "descrição: valor")'); return; }
   const descricao = body.slice(0, idx).trim();
   const valor = parseValor(body.slice(idx + 1));
-  if (!descricao || valor == null) return; // formato inválido -> ignora
+  if (!descricao || valor == null) { console.log('   ↳ ignorada: descrição/valor inválido'); return; }
   await registrarDespesa({
     grupoId: chat.id._serialized, grupoNome: nomeGrupo,
     descricao, valor,
@@ -79,6 +80,20 @@ function iniciarWhatsApp() {
   client.on('authenticated', () => console.log('🔐 Autenticado.'));
   client.on('ready', () => { console.log('✅ Bot conectado e ouvindo reações nos grupos.'); iniciarPollerPedidos(client); });
   client.on('disconnected', (r) => console.log('⚠️  Desconectado:', r));
+
+  // Mensagens enviadas pelo PRÓPRIO número do bot (o evento 'message' não as cobre).
+  // Cobre o caso de lançar despesa pelo número que está conectado.
+  client.on('message_create', async (msg) => {
+    try {
+      if (!msg.fromMe) return; // de terceiros já é tratado em 'message'
+      const chat = await msg.getChat();
+      if (!chat.isGroup) return;
+      const nomeGrupo = chat.name || '';
+      if (/despesa/i.test(nomeGrupo)) await tratarDespesa(msg, chat, nomeGrupo);
+    } catch (e) {
+      console.error('❌ Erro (message_create despesa):', e.message);
+    }
+  });
 
   // Mensagens de grupo: DESPESAS (texto "descrição: valor" no grupo "despesa")
   // e CONFERÊNCIA (toda imagem recebida nos demais grupos).
