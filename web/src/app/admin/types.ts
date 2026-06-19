@@ -49,16 +49,22 @@ export interface ApostaRow {
 
 const num = (v: number | string | null | undefined) => Number(v ?? 0);
 
-// timestamptz (ISO) → 'YYYY-MM-DD HH:mm' (hora local)
+// timestamptz (ISO) → 'HH:mm DD-MM-AAAA' (hora local)
 export function fmtTs(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${p(d.getHours())}:${p(d.getMinutes())} ${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}`;
 }
 
-// 'YYYY-MM-DD HH:mm' (hora local) → ISO para gravar no banco
+// 'HH:mm DD-MM-AAAA' (ou 'YYYY-MM-DD HH:mm' antigo) → ISO para gravar no banco
 export function parseTs(s: string): string {
+  const m = s.match(/^(\d{1,2}):(\d{2})\s+(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (m) {
+    const [, hh, mm, dd, mo, yyyy] = m;
+    const d = new Date(Number(yyyy), Number(mo) - 1, Number(dd), Number(hh), Number(mm));
+    return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+  }
   const d = new Date(s.replace(' ', 'T'));
   return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
