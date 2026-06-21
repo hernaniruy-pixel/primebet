@@ -120,7 +120,7 @@ function iniciarWhatsApp() {
       if (!chat.isGroup) return;
       const nomeGrupo = chat.name || '';
 
-      if (/avisos/i.test(nomeGrupo)) return; // grupo de avisos: não entra na conferência
+      if (/avisos|alerta/i.test(nomeGrupo)) return; // grupo de avisos/alerta: não entra na conferência
 
       // Grupo de DESPESAS: captura texto "descrição: valor" (lança automático).
       if (/despesa/i.test(nomeGrupo)) { await tratarDespesa(msg, chat, nomeGrupo); return; }

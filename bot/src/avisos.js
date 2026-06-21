@@ -6,7 +6,7 @@ async function acharGrupo(client) {
   if (grupoAvisosId) return grupoAvisosId;
   try {
     const chats = await client.getChats();
-    const g = chats.find((c) => c.isGroup && /avisos/i.test(c.name || ''));
+    const g = chats.find((c) => c.isGroup && /avisos|alerta/i.test(c.name || ''));
     grupoAvisosId = g ? g.id._serialized : null;
   } catch { grupoAvisosId = null; }
   return grupoAvisosId;
