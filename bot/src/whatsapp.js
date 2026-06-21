@@ -7,6 +7,7 @@ const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId } = req
 const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto } = require('./webqr');
+const { avisar, iniciarHeartbeat, horaBR } = require('./avisos');
 
 /** Grupo "despesa": mensagem "descrição: valor" -> grava despesa com a data da mensagem. */
 async function tratarDespesa(msg, chat, nomeGrupo) {
@@ -85,8 +86,17 @@ function iniciarWhatsApp() {
     } catch (e) { /* sem o pacote qrcode, segue só com o ASCII acima */ }
   });
   client.on('authenticated', () => console.log('🔐 Autenticado.'));
-  client.on('ready', () => { console.log('✅ Bot conectado e ouvindo reações nos grupos.'); setPronto(); iniciarPollerPedidos(client); });
-  client.on('disconnected', (r) => console.log('⚠️  Desconectado:', r));
+  client.on('ready', () => {
+    console.log('✅ Bot conectado e ouvindo reações nos grupos.');
+    setPronto();
+    iniciarPollerPedidos(client);
+    avisar(client, `✅ PrimeBet bot ONLINE — ${horaBR()}`);
+    iniciarHeartbeat(client);
+  });
+  client.on('disconnected', (r) => {
+    console.log('⚠️  Desconectado:', r);
+    avisar(client, `⚠️ PrimeBet bot DESCONECTOU (${r}). Pode precisar reescanear o QR.`);
+  });
 
   // Mensagens enviadas pelo PRÓPRIO número do bot (o evento 'message' não as cobre).
   // Cobre o caso de lançar despesa pelo número que está conectado.
@@ -109,6 +119,8 @@ function iniciarWhatsApp() {
       const chat = await msg.getChat();
       if (!chat.isGroup) return;
       const nomeGrupo = chat.name || '';
+
+      if (/avisos/i.test(nomeGrupo)) return; // grupo de avisos: não entra na conferência
 
       // Grupo de DESPESAS: captura texto "descrição: valor" (lança automático).
       if (/despesa/i.test(nomeGrupo)) { await tratarDespesa(msg, chat, nomeGrupo); return; }
