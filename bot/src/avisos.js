@@ -2,13 +2,21 @@
 const horaBR = () => new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }).format(new Date());
 
 let grupoAvisosId = null;
+// Cacheia o ID do grupo de alertas a partir de uma mensagem recebida nele
+// (rápido e direto — evita o getChats() que TRAVA quando há muitos grupos).
+const setGrupoAvisos = (id) => { if (id) grupoAvisosId = id; };
+
 async function acharGrupo(client) {
   if (grupoAvisosId) return grupoAvisosId;
   try {
-    const chats = await client.getChats();
+    // getChats() pode travar em contas com muitos grupos -> timeout de 12s.
+    const chats = await Promise.race([
+      client.getChats(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('getChats timeout')), 12000)),
+    ]);
     const g = chats.find((c) => c.isGroup && /avisos|alerta/i.test(c.name || ''));
-    grupoAvisosId = g ? g.id._serialized : null;
-  } catch { grupoAvisosId = null; }
+    if (g) grupoAvisosId = g.id._serialized;
+  } catch (e) { console.log('   (acharGrupo:', e.message, '— mande uma msg no grupo de alertas p/ cachear)'); }
   return grupoAvisosId;
 }
 
@@ -49,4 +57,4 @@ function iniciarHeartbeat(client) {
   setInterval(() => avisar(client, `🟢 PrimeBet bot ativo — ${horaBR()}`), Math.max(1, horas) * 3600 * 1000);
 }
 
-module.exports = { avisar, anunciarOnline, iniciarHeartbeat, horaBR };
+module.exports = { avisar, anunciarOnline, iniciarHeartbeat, horaBR, setGrupoAvisos };

@@ -7,7 +7,7 @@ const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId } = req
 const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto, setTeste } = require('./webqr');
-const { avisar, anunciarOnline, iniciarHeartbeat, horaBR } = require('./avisos');
+const { avisar, anunciarOnline, iniciarHeartbeat, horaBR, setGrupoAvisos } = require('./avisos');
 
 // Momento de boot — usado no /status para mostrar há quanto tempo o bot está no ar.
 const BOOT = Date.now();
@@ -133,6 +133,7 @@ function iniciarWhatsApp() {
       const chat = await msg.getChat();
       if (!chat.isGroup) return;
       const nomeGrupo = chat.name || '';
+      if (/avisos|alerta/i.test(nomeGrupo)) setGrupoAvisos(chat.id._serialized); // cacheia p/ os avisos
       if (ehComandoStatus(msg.body)) { console.log(`🔧 /status (próprio nº) no grupo "${nomeGrupo}"`); await chat.sendMessage(await montarStatus(client, nomeGrupo)); return; }
       if (/avisos|alerta/i.test(nomeGrupo)) return;
       if (/despesa/i.test(nomeGrupo)) await tratarDespesa(msg, chat, nomeGrupo);
@@ -148,6 +149,7 @@ function iniciarWhatsApp() {
       const chat = await msg.getChat();
       if (!chat.isGroup) return;
       const nomeGrupo = chat.name || '';
+      if (/avisos|alerta/i.test(nomeGrupo)) setGrupoAvisos(chat.id._serialized); // cacheia p/ os avisos
 
       // Comando /status: responde em QUALQUER grupo (e diz se ali é o grupo de alertas).
       if (ehComandoStatus(msg.body)) { console.log(`🔧 /status no grupo "${nomeGrupo}"`); await chat.sendMessage(await montarStatus(client, nomeGrupo)); return; }
