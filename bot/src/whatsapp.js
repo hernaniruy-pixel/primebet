@@ -12,8 +12,8 @@ const { avisar, anunciarOnline, iniciarHeartbeat, horaBR } = require('./avisos')
 // Momento de boot — usado no /status para mostrar há quanto tempo o bot está no ar.
 const BOOT = Date.now();
 
-/** Monta o texto de status do bot (resposta ao comando /status no grupo de alertas). */
-async function montarStatus(client) {
+/** Monta o texto de status do bot (resposta ao comando /status). */
+async function montarStatus(client, nomeGrupo = '') {
   let estado = '?';
   try { estado = await client.getState(); } catch { /* sem estado */ }
   let pend = '?';
@@ -21,11 +21,13 @@ async function montarStatus(client) {
   const s = Math.floor((Date.now() - BOOT) / 1000);
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
+  const ehAlertas = /avisos|alerta/i.test(nomeGrupo);
   return [
     '🤖 *PrimeBet bot — status*',
     `• conexão: ${estado === 'CONNECTED' ? '✅ CONNECTED' : '⚠️ ' + estado}`,
     `• no ar há: ${h}h ${m}min`,
     `• pedidos na fila (dashboard): ${pend}`,
+    `• grupo de alertas reconhecido: ${ehAlertas ? '✅ sim (avisos/ONLINE saem aqui)' : '⚠️ NÃO — renomeie o grupo p/ conter "avisos" ou "alerta"'}`,
     `• hora: ${horaBR()}`,
   ].join('\n');
 }
@@ -131,7 +133,8 @@ function iniciarWhatsApp() {
       const chat = await msg.getChat();
       if (!chat.isGroup) return;
       const nomeGrupo = chat.name || '';
-      if (/avisos|alerta/i.test(nomeGrupo)) { if (ehComandoStatus(msg.body)) await chat.sendMessage(await montarStatus(client)); return; }
+      if (ehComandoStatus(msg.body)) { console.log(`🔧 /status (próprio nº) no grupo "${nomeGrupo}"`); await chat.sendMessage(await montarStatus(client, nomeGrupo)); return; }
+      if (/avisos|alerta/i.test(nomeGrupo)) return;
       if (/despesa/i.test(nomeGrupo)) await tratarDespesa(msg, chat, nomeGrupo);
     } catch (e) {
       console.error('❌ Erro (message_create despesa):', e.message);
@@ -146,10 +149,10 @@ function iniciarWhatsApp() {
       if (!chat.isGroup) return;
       const nomeGrupo = chat.name || '';
 
-      if (/avisos|alerta/i.test(nomeGrupo)) {
-        if (ehComandoStatus(msg.body)) await chat.sendMessage(await montarStatus(client));
-        return; // grupo de avisos/alerta: não entra na conferência
-      }
+      // Comando /status: responde em QUALQUER grupo (e diz se ali é o grupo de alertas).
+      if (ehComandoStatus(msg.body)) { console.log(`🔧 /status no grupo "${nomeGrupo}"`); await chat.sendMessage(await montarStatus(client, nomeGrupo)); return; }
+
+      if (/avisos|alerta/i.test(nomeGrupo)) return; // grupo de avisos/alerta: não entra na conferência
 
       // Grupo de DESPESAS: captura texto "descrição: valor" (lança automático).
       if (/despesa/i.test(nomeGrupo)) { await tratarDespesa(msg, chat, nomeGrupo); return; }
