@@ -22,7 +22,7 @@ function limparLocksChromium(dir) {
   }
 }
 
-console.log('🤖 PrimeBet bot — iniciando...');
+console.log('🤖 PrimeBet bot — iniciando... (build com /status + lock-fix)');
 limparLocksChromium(AUTH_PATH);  // limpa travas antes de abrir o Chromium
 iniciarWebQR();                  // página web do QR (escanear no servidor)
 iniciarWhatsApp();
