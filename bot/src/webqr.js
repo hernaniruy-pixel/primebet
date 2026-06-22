@@ -1,6 +1,8 @@
 const http = require('http');
 const QR = require('qrcode');
 
+const BOOT = Date.now(); // para medir uptime via /health (diagnóstico de reinícios)
+
 // Estado atual do pareamento, alimentado pelos eventos do WhatsApp.
 let estado = { qr: null, pronto: false };
 const setQr = (qr) => { estado = { qr, pronto: false }; };
@@ -21,7 +23,11 @@ function iniciarWebQR() {
 
   http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
-    if (url.pathname === '/health') { res.writeHead(200); return res.end('ok'); }
+    if (url.pathname === '/health') {
+      const up = Math.floor((Date.now() - BOOT) / 1000);
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      return res.end(`ok up=${up}s pronto=${estado.pronto}`);
+    }
     if (token && url.searchParams.get('t') !== token) { res.writeHead(401); return res.end('Acesso negado.'); }
 
     // Dispara um aviso de teste no grupo ALERTA/AVISOS (pra validar o canal).
