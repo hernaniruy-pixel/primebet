@@ -6,7 +6,7 @@ const { parseValor } = require('./valor');
 const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId } = require('./ingest');
 const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
-const { setQr, setPronto } = require('./webqr');
+const { setQr, setPronto, setTeste } = require('./webqr');
 const { avisar, iniciarHeartbeat, horaBR } = require('./avisos');
 
 /** Grupo "despesa": mensagem "descrição: valor" -> grava despesa com a data da mensagem. */
@@ -90,7 +90,8 @@ function iniciarWhatsApp() {
     console.log('✅ Bot conectado e ouvindo reações nos grupos.');
     setPronto();
     iniciarPollerPedidos(client);
-    avisar(client, `✅ PrimeBet bot ONLINE — ${horaBR()}`);
+    setTeste(() => avisar(client, `🔔 Teste de alerta — ${horaBR()}`)); // habilita /teste
+    setTimeout(() => avisar(client, `✅ PrimeBet bot ONLINE — ${horaBR()}`), 8000); // espera os grupos carregarem
     iniciarHeartbeat(client);
   });
   client.on('disconnected', (r) => {

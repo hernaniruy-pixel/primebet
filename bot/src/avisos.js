@@ -12,15 +12,17 @@ async function acharGrupo(client) {
   return grupoAvisosId;
 }
 
-/** Envia um aviso ao grupo AVISOS (melhor esforço). */
+/** Envia um aviso ao grupo AVISOS/ALERTA (melhor esforço). Retorna {ok, motivo}. */
 async function avisar(client, texto) {
   try {
     const id = await acharGrupo(client);
-    if (!id) { console.log('   (grupo AVISOS não encontrado — crie um grupo com "AVISOS" no nome e adicione o bot)'); return; }
+    if (!id) { console.log('   (grupo AVISOS/ALERTA não encontrado — o bot está nesse grupo?)'); return { ok: false, motivo: 'grupo nao encontrado (o bot esta no grupo ALERTA/AVISOS?)' }; }
     await client.sendMessage(id, texto);
     console.log('   📣 aviso enviado:', texto);
+    return { ok: true };
   } catch (e) {
     console.log('   (falha ao enviar aviso:', e.message, ')');
+    return { ok: false, motivo: e.message };
   }
 }
 

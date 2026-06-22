@@ -6,6 +6,10 @@ let estado = { qr: null, pronto: false };
 const setQr = (qr) => { estado = { qr, pronto: false }; };
 const setPronto = () => { estado = { qr: null, pronto: true }; };
 
+// Função de teste de aviso (registrada pelo whatsapp.js) — acionável via /teste.
+let testeFn = null;
+const setTeste = (fn) => { testeFn = fn; };
+
 /**
  * Sobe um mini site que mostra o QR como IMAGEM (escaneável) e o status.
  * No Railway/Render o serviço ganha uma URL pública; abra-a para parear.
@@ -20,6 +24,14 @@ function iniciarWebQR() {
     if (url.pathname === '/health') { res.writeHead(200); return res.end('ok'); }
     if (token && url.searchParams.get('t') !== token) { res.writeHead(401); return res.end('Acesso negado.'); }
 
+    // Dispara um aviso de teste no grupo ALERTA/AVISOS (pra validar o canal).
+    if (url.pathname === '/teste') {
+      if (!testeFn) { res.writeHead(503); return res.end('bot ainda nao pronto'); }
+      const r = await testeFn();
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end(r && r.ok ? 'OK: aviso enviado ao grupo' : 'FALHOU: ' + ((r && r.motivo) || '?'));
+    }
+
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     const head = '<meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:system-ui;text-align:center;background:#13200a;color:#eee;padding:30px}img{background:#fff;padding:12px;border-radius:12px}</style>';
     if (estado.pronto) return res.end(`${head}<meta http-equiv="refresh" content="15"><h2>✅ Bot conectado</h2><p>Tudo certo. Pode fechar.</p>`);
@@ -29,4 +41,4 @@ function iniciarWebQR() {
   }).listen(port, () => console.log(`🌐 Página do QR ativa na porta ${port}`));
 }
 
-module.exports = { iniciarWebQR, setQr, setPronto };
+module.exports = { iniciarWebQR, setQr, setPronto, setTeste };
