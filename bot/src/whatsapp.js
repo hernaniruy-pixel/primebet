@@ -7,7 +7,31 @@ const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId } = req
 const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto, setTeste } = require('./webqr');
-const { avisar, iniciarHeartbeat, horaBR } = require('./avisos');
+const { avisar, anunciarOnline, iniciarHeartbeat, horaBR } = require('./avisos');
+
+// Momento de boot — usado no /status para mostrar há quanto tempo o bot está no ar.
+const BOOT = Date.now();
+
+/** Monta o texto de status do bot (resposta ao comando /status no grupo de alertas). */
+async function montarStatus(client) {
+  let estado = '?';
+  try { estado = await client.getState(); } catch { /* sem estado */ }
+  let pend = '?';
+  try { pend = (await listarPedidosPendentes()).length; } catch { /* ignora */ }
+  const s = Math.floor((Date.now() - BOOT) / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return [
+    '🤖 *PrimeBet bot — status*',
+    `• conexão: ${estado === 'CONNECTED' ? '✅ CONNECTED' : '⚠️ ' + estado}`,
+    `• no ar há: ${h}h ${m}min`,
+    `• pedidos na fila (dashboard): ${pend}`,
+    `• hora: ${horaBR()}`,
+  ].join('\n');
+}
+
+/** True se o texto da mensagem for o comando /status. */
+const ehComandoStatus = (body) => (body || '').trim().toLowerCase() === '/status';
 
 /** Grupo "despesa": mensagem "descrição: valor" -> grava despesa com a data da mensagem. */
 async function tratarDespesa(msg, chat, nomeGrupo) {
@@ -91,7 +115,7 @@ function iniciarWhatsApp() {
     setPronto();
     iniciarPollerPedidos(client);
     setTeste(() => avisar(client, `🔔 Teste de alerta — ${horaBR()}`)); // habilita /teste
-    setTimeout(() => avisar(client, `✅ PrimeBet bot ONLINE — ${horaBR()}`), 8000); // espera os grupos carregarem
+    anunciarOnline(client); // tenta até o grupo AVISOS/ALERTA carregar (logo após o ready os chats vêm vazios)
     iniciarHeartbeat(client);
   });
   client.on('disconnected', (r) => {
@@ -107,6 +131,7 @@ function iniciarWhatsApp() {
       const chat = await msg.getChat();
       if (!chat.isGroup) return;
       const nomeGrupo = chat.name || '';
+      if (/avisos|alerta/i.test(nomeGrupo)) { if (ehComandoStatus(msg.body)) await chat.sendMessage(await montarStatus(client)); return; }
       if (/despesa/i.test(nomeGrupo)) await tratarDespesa(msg, chat, nomeGrupo);
     } catch (e) {
       console.error('❌ Erro (message_create despesa):', e.message);
@@ -121,7 +146,10 @@ function iniciarWhatsApp() {
       if (!chat.isGroup) return;
       const nomeGrupo = chat.name || '';
 
-      if (/avisos|alerta/i.test(nomeGrupo)) return; // grupo de avisos/alerta: não entra na conferência
+      if (/avisos|alerta/i.test(nomeGrupo)) {
+        if (ehComandoStatus(msg.body)) await chat.sendMessage(await montarStatus(client));
+        return; // grupo de avisos/alerta: não entra na conferência
+      }
 
       // Grupo de DESPESAS: captura texto "descrição: valor" (lança automático).
       if (/despesa/i.test(nomeGrupo)) { await tratarDespesa(msg, chat, nomeGrupo); return; }
