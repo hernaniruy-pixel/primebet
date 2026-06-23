@@ -12,6 +12,10 @@ const setPronto = () => { estado = { qr: null, pronto: true }; };
 let testeFn = null;
 const setTeste = (fn) => { testeFn = fn; };
 
+// Função de importação de apostas (registrada no boot) — acionável via POST /importar.
+let importFn = null;
+const setImport = (fn) => { importFn = fn; };
+
 /**
  * Sobe um mini site que mostra o QR como IMAGEM (escaneável) e o status.
  * No Railway/Render o serviço ganha uma URL pública; abra-a para parear.
@@ -23,12 +27,33 @@ function iniciarWebQR() {
 
   http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
+    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
+    if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
+
     if (url.pathname === '/health') {
       const up = Math.floor((Date.now() - BOOT) / 1000);
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.writeHead(200, { 'Content-Type': 'text/plain', ...cors });
       return res.end(`ok up=${up}s pronto=${estado.pronto}`);
     }
-    if (token && url.searchParams.get('t') !== token) { res.writeHead(401); return res.end('Acesso negado.'); }
+    if (token && url.searchParams.get('t') !== token) { res.writeHead(401, cors); return res.end('Acesso negado.'); }
+
+    // Importação temporária de apostas (JM -> PrimeBet). POST de lista JSON.
+    if (url.pathname === '/importar' && req.method === 'POST') {
+      if (!importFn) { res.writeHead(503, cors); return res.end('bot ainda nao pronto'); }
+      let body = '';
+      req.on('data', (c) => { body += c; });
+      req.on('end', async () => {
+        try {
+          const r = await importFn(JSON.parse(body));
+          res.writeHead(200, { 'Content-Type': 'application/json', ...cors });
+          res.end(JSON.stringify(r));
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'text/plain', ...cors });
+          res.end('erro: ' + e.message);
+        }
+      });
+      return;
+    }
 
     // Dispara um aviso de teste no grupo ALERTA/AVISOS (pra validar o canal).
     if (url.pathname === '/teste') {
@@ -47,4 +72,4 @@ function iniciarWebQR() {
   }).listen(port, () => console.log(`🌐 Página do QR ativa na porta ${port}`));
 }
 
-module.exports = { iniciarWebQR, setQr, setPronto, setTeste };
+module.exports = { iniciarWebQR, setQr, setPronto, setTeste, setImport };
