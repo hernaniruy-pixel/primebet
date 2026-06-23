@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { iniciarWhatsApp } = require('./whatsapp');
 const { iniciarWebQR } = require('./webqr');
+const { limparImagensAntigas } = require('./conferencia');
 const { AUTH_PATH } = require('./config');
 
 /**
@@ -26,6 +27,10 @@ console.log('🤖 PrimeBet bot — iniciando... (build com /status + lock-fix)')
 limparLocksChromium(AUTH_PATH);  // limpa travas antes de abrir o Chromium
 iniciarWebQR();                  // página web do QR (escanear no servidor)
 iniciarWhatsApp();
+
+// Retenção da Conferência: mantém só 2 semanas (atual + anterior). Roda ao subir e a cada 24h.
+setTimeout(() => limparImagensAntigas().catch((e) => console.error('limpeza:', e.message)), 90 * 1000);
+setInterval(() => limparImagensAntigas().catch((e) => console.error('limpeza:', e.message)), 24 * 3600 * 1000);
 
 // Mantém o processo vivo e loga erros não tratados (em vez de derrubar tudo).
 process.on('unhandledRejection', (e) => console.error('unhandledRejection:', e && e.message ? e.message : e));

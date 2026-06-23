@@ -74,7 +74,34 @@ async function baixarThumbBase64(thumbPath) {
   return buf.toString('base64');
 }
 
+// Início (em UTC real) da SEGUNDA-FEIRA da SEMANA PASSADA, no fuso BR (UTC-3).
+// Tudo antes disso é "mais de 2 semanas" (mantém: semana atual + semana anterior).
+function corteDuasSemanas() {
+  const d = new Date(Date.now() - 3 * 3600 * 1000); // campos UTC = hora de parede BR
+  const dow = d.getUTCDay();                          // 0=dom..6=sab
+  d.setUTCDate(d.getUTCDate() - ((dow + 6) % 7) - 7); // segunda da semana passada
+  d.setUTCHours(0, 0, 0, 0);
+  return new Date(d.getTime() + 3 * 3600 * 1000).toISOString(); // volta p/ instante UTC real
+}
+
+/**
+ * Apaga as imagens da Conferência com mais de 2 semanas (banco + miniatura no Storage).
+ * Mantém só a semana atual + a anterior — alivia o banco/Storage de dados desnecessários.
+ */
+async function limparImagensAntigas() {
+  const corte = corteDuasSemanas();
+  const { data, error } = await sb.from('imagens_recebidas').select('id,thumb_path').lt('enviado_em', corte).limit(5000);
+  if (error) { console.error('   limpeza conferência:', error.message); return 0; }
+  if (!data || !data.length) return 0;
+  const paths = data.map((r) => r.thumb_path).filter(Boolean);
+  if (paths.length) { try { await sb.storage.from(BUCKET).remove(paths); } catch (e) { console.error('   limpeza storage:', e.message); } }
+  await sb.from('imagens_recebidas').delete().in('id', data.map((r) => r.id));
+  console.log(`🧹 Conferência: ${data.length} imagens com +2 semanas removidas (corte ${corte.slice(0, 10)})`);
+  return data.length;
+}
+
 module.exports = {
   registrarImagemRecebida, marcarReagida,
   listarPedidosPendentes, marcarPedido, baixarThumbBase64,
+  limparImagensAntigas,
 };
