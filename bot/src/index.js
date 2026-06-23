@@ -2,9 +2,8 @@
 const fs = require('fs');
 const path = require('path');
 const { iniciarWhatsApp } = require('./whatsapp');
-const { iniciarWebQR, setImport } = require('./webqr');
+const { iniciarWebQR } = require('./webqr');
 const { limparImagensAntigas } = require('./conferencia');
-const { importarApostas } = require('./importador');
 const { AUTH_PATH } = require('./config');
 
 /**
@@ -26,7 +25,6 @@ function limparLocksChromium(dir) {
 
 console.log('🤖 PrimeBet bot — iniciando... (build com /status + lock-fix)');
 limparLocksChromium(AUTH_PATH);  // limpa travas antes de abrir o Chromium
-setImport(importarApostas);      // habilita o POST /importar (import temporário JM->PrimeBet)
 iniciarWebQR();                  // página web do QR (escanear no servidor)
 iniciarWhatsApp();
 
