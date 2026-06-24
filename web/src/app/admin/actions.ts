@@ -47,6 +47,23 @@ export async function fechamentoAfiliados(dt1?: string | null, dt2?: string | nu
   return data as FechAfResp;
 }
 
+// Todos os bilhetes de um cliente no período (para o PDF de fechamento). Sem paginar.
+export async function bilhetesCliente(clienteId: number, dt1?: string | null, dt2?: string | null): Promise<Reg[]> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { data, error } = await db.rpc('controle_listar', {
+    p_dt1: dt1 || null, p_dt2: dt2 || null,
+    p_id: null, p_cliente: clienteId,
+    p_status: null, p_jogo: null, p_descarrego: null,
+    p_odd_min: null, p_odd_max: null, p_val_min: null, p_val_max: null,
+    p_bl: null, p_adv: null, p_irr: null,
+    p_sort: 'data_asc', p_page: 1, p_per: 5000, p_pendentes: null,
+  });
+  if (error) throw error;
+  const j = data as { rows: ApostaRow[] };
+  return (j.rows ?? []).map(mapAposta);
+}
+
 // ═══════════════════ CONFERÊNCIA DE GRUPOS ═══════════════════
 export async function listarConfGrupos(dt1?: string | null, dt2?: string | null): Promise<ConfGrupo[]> {
   await exigirSessao();

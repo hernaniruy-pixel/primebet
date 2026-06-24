@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp } from './types';
+import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow } from './types';
 import {
   criarAposta, atualizarAposta, excluirAposta, listarApostas,
   criarCliente, atualizarCliente, criarAfiliado, atualizarAfiliado,
-  fechamentoClientes, fechamentoAfiliados,
+  fechamentoClientes, fechamentoAfiliados, bilhetesCliente,
 } from './actions';
+import { gerarPdfFechamento } from './pdf-fechamento';
 
 interface Draft { dt?: string; odd?: string; val?: string; jogo?: string; _saved?: boolean }
 
@@ -111,10 +112,11 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [novoCli, setNovoCli] = useState({ open: false, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '', grupoLink: '' });
   const [novoAf, setNovoAf] = useState({ open: false, nome: '', com: '0' });
   const [obsModal, setObsModal] = useState<{ id: number; text: string } | null>(null);
-  const [fech, setFech] = useState({ dt1: semana.d1, dt2: semana.d2, period: 'semana' });
+  const [fech, setFech] = useState(() => { const p = periodDates('semana_ant'); return { dt1: p.d1, dt2: p.d2, period: 'semana_ant' }; }); // fechamento é sempre da semana passada
   const [faf, setFaf] = useState({ dt1: semana.d1, dt2: semana.d2, period: 'semana' });
   const [fechRes, setFechRes] = useState<FechCliResp | null>(null);
   const [fafRes, setFafRes] = useState<FechAfResp | null>(null);
+  const [pdfBusy, setPdfBusy] = useState<number | null>(null); // id do cliente cujo PDF está sendo gerado
   const [filtros, setFiltros] = useState({ ...filtrosVazios, dt1: semana.d1, dt2: semana.d2, period: 'semana' });
   const [debFiltros, setDebFiltros] = useState(filtros);
   const [page, setPage] = useState(1);
@@ -236,6 +238,15 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   async function salvarNovoAfiliado() { if (!novoAf.nome.trim()) { alert('Informe o nome.'); return; } try { const a = await criarAfiliado(novoAf.nome, Number(novoAf.com) || 0); setAfiliados((as) => [...as, a].sort((x, y) => x.nome.localeCompare(y.nome))); setNovoAf((s) => ({ ...s, open: false })); toast('Afiliado criado!'); } catch { toast('Erro ao criar afiliado.'); } }
   // fechamento
   function loadFech(d1: string, d2: string) { fechamentoClientes(d1 || null, d2 || null).then(setFechRes).catch(() => toast('Erro no fechamento.')); }
+  async function baixarPdfCliente(row: FechCliRow) {
+    if (pdfBusy != null) return;
+    setPdfBusy(row.id);
+    try {
+      const bilhetes = await bilhetesCliente(row.id, fech.dt1 || null, fech.dt2 || null);
+      gerarPdfFechamento({ banca: 'PrimeBet', resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2 });
+    } catch { toast('Erro ao gerar o PDF.'); }
+    finally { setPdfBusy(null); }
+  }
   function loadFaf(d1: string, d2: string) { fechamentoAfiliados(d1 || null, d2 || null).then(setFafRes).catch(() => toast('Erro no fechamento.')); }
   useEffect(() => {
     if (modal === 'fech') loadFech(fech.dt1, fech.dt2);
@@ -505,14 +516,21 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               ))}
             </div>
             <div className="overflow-x-auto"><table className="w-full text-xs">
-              <thead><tr className="text-left text-slate-400"><th className="px-2 py-2 font-medium">Cliente</th><th className="px-2 py-2 text-right font-medium">Calção</th><th className="px-2 py-2 text-right font-medium">Saldo calção</th><th className="px-2 py-2 text-right font-medium">Apostado</th><th className="px-2 py-2 text-right font-medium">Em aberto</th><th className="px-2 py-2 text-right font-medium">S. bruto</th><th className="px-2 py-2 text-right font-medium">Comissão</th><th className="px-2 py-2 text-right font-medium">C. afil.</th><th className="px-2 py-2 text-right font-medium">S. líquido</th></tr></thead>
+              <thead><tr className="text-left text-slate-400"><th className="px-2 py-2 font-medium">Cliente</th><th className="px-2 py-2 text-right font-medium">Calção</th><th className="px-2 py-2 text-right font-medium">Saldo calção</th><th className="px-2 py-2 text-right font-medium">Apostado</th><th className="px-2 py-2 text-right font-medium">Em aberto</th><th className="px-2 py-2 text-right font-medium">S. bruto</th><th className="px-2 py-2 text-right font-medium">Comissão</th><th className="px-2 py-2 text-right font-medium">C. afil.</th><th className="px-2 py-2 text-right font-medium">S. líquido</th><th className="px-2 py-2 text-center font-medium sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">PDF</th></tr></thead>
               <tbody>{fechData.rows.map((r) => (
                 <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800">
                   <td className="px-2 py-1.5 font-medium">{r.nome}</td>
                   <td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.cal)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.saldoCal)}`}>{fmt(r.saldoCal)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${entCls(r.val)}`}>{fmt(r.val)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${entCls(r.ab)}`}>{fmt(r.ab)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.caf)}`}>{fmt(r.caf)}</td><td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${clrCls(r.sl)}`}>{fmt(r.sl)}</td>
+                  <td className="px-2 py-1.5 text-center sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800">
+                    <button onClick={() => baixarPdfCliente(r)} disabled={pdfBusy != null} title="Baixar PDF do fechamento" className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-emerald-600 disabled:opacity-40 dark:border-slate-700 dark:hover:bg-slate-800">
+                      {pdfBusy === r.id
+                        ? <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 60"/></svg>
+                        : <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
+                    </button>
+                  </td>
                 </tr>
               ))}
-              {fechData.rows.length === 0 && <tr><td colSpan={9} className="px-2 py-8 text-center text-slate-400">Sem movimento no período.</td></tr>}
+              {fechData.rows.length === 0 && <tr><td colSpan={10} className="px-2 py-8 text-center text-slate-400">Sem movimento no período.</td></tr>}
               </tbody>
             </table></div>
           </Modal>
