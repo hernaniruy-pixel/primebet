@@ -4,10 +4,11 @@ const { AUTH_PATH, regraPorEmoji, OPERADORES } = require('./config');
 const { transcreverBilhete } = require('./transcrever');
 const { parseValor } = require('./valor');
 const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId } = require('./ingest');
-const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64 } = require('./conferencia');
+const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64, imagemJaRegistrada } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto, setTeste } = require('./webqr');
 const { avisar, aoConectar, aoDesconectar, horaBR, setGrupoAvisos } = require('./avisos');
+const { lembrarGrupo, bootstrapGrupos, rodarCatchup } = require('./catchup');
 
 // Momento de boot — usado no /status para mostrar há quanto tempo o bot está no ar.
 const BOOT = Date.now();
@@ -35,22 +36,70 @@ async function montarStatus(client, nomeGrupo = '') {
 /** True se o texto da mensagem for o comando /status. */
 const ehComandoStatus = (body) => (body || '').trim().toLowerCase() === '/status';
 
-/** Grupo "despesa": mensagem "descrição: valor" -> grava despesa com a data da mensagem. */
+/** Grupo "despesa": mensagem "descrição: valor" -> grava despesa com a data da mensagem. Retorna true se inseriu. */
 async function tratarDespesa(msg, chat, nomeGrupo) {
+  lembrarGrupo(chat.id._serialized, 'despesa'); // catch-up: este é um grupo de despesas
   const body = (msg.body || '').trim();
-  console.log(`💬 grupo despesa "${nomeGrupo}" | msg: "${body}"`);
   const idx = body.lastIndexOf(':');
-  if (idx < 1) { console.log('   ↳ ignorada: sem ":" (use "descrição: valor")'); return; }
+  if (idx < 1) { console.log(`💬 grupo despesa "${nomeGrupo}" | ignorada: sem ":" -> "${body}"`); return false; }
   const descricao = body.slice(0, idx).trim();
   const valor = parseValor(body.slice(idx + 1));
-  if (!descricao || valor == null) { console.log('   ↳ ignorada: descrição/valor inválido'); return; }
-  await registrarDespesa({
+  if (!descricao || valor == null) { console.log(`💬 grupo despesa "${nomeGrupo}" | ignorada: descrição/valor inválido -> "${body}"`); return false; }
+  const inseriu = await registrarDespesa({
     grupoId: chat.id._serialized, grupoNome: nomeGrupo,
     descricao, valor,
     data: new Date((msg.timestamp || Date.now() / 1000) * 1000).toISOString(),
     msgId: msg.id._serialized,
   });
-  console.log(`💸 despesa registrada | "${descricao}" R$ ${valor} | grupo "${nomeGrupo}"`);
+  if (inseriu) console.log(`💸 despesa registrada | "${descricao}" R$ ${valor} | grupo "${nomeGrupo}"`);
+  return inseriu;
+}
+
+/**
+ * Registra uma imagem de bilhete na Conferência (usado ao vivo e no catch-up).
+ * Com pularSeExiste=true, não rebaixa a mídia se a mensagem já está registrada.
+ * Retorna true se registrou algo novo.
+ */
+async function registrarImagemDeMsg(msg, chat, nomeGrupo, { pularSeExiste = false } = {}) {
+  if (!msg.hasMedia || msg.type !== 'image') return false;
+  lembrarGrupo(chat.id._serialized, 'bilhete'); // catch-up: grupo que recebe bilhetes
+  const msgId = msg.id._serialized;
+  if (pularSeExiste && (await imagemJaRegistrada(msgId))) return false; // já está na conferência
+  const media = await msg.downloadMedia();
+  if (!media || !String(media.mimetype).startsWith('image/')) return false;
+  const cli = await acharCliente(chat.id._serialized, nomeGrupo);
+  const contato = await msg.getContact().catch(() => null);
+  const remetente = (contato && (contato.pushname || contato.number)) || msg.author || '';
+  await registrarImagemRecebida({
+    grupoId: chat.id._serialized, grupoNome: nomeGrupo,
+    clienteId: cli ? cli.id : null, msgId, remetente,
+    enviadoEm: new Date((msg.timestamp || Date.now() / 1000) * 1000).toISOString(),
+    base64: media.data,
+  });
+  console.log(`🗂  imagem registrada p/ conferência | grupo "${nomeGrupo}"${cli ? '' : ' (⚠️ SEM cliente)'}`);
+  return true;
+}
+
+// Callbacks idempotentes que o catch-up usa pra reprocessar mensagens recuperadas.
+const catchupOpts = (client) => ({
+  processarDespesa: (msg, chat, nome) => tratarDespesa(msg, chat, nome),
+  processarImagem: (msg, chat, nome) => registrarImagemDeMsg(msg, chat, nome, { pularSeExiste: true }),
+});
+
+let catchupTimer = null;
+/**
+ * Liga a rede de segurança: ao (re)conectar, faz uma varredura após ~25s
+ * (tempo de os chats carregarem) e depois a cada ~12 min. Como é idempotente,
+ * rodar repetidamente não duplica nada — só recupera o que faltou.
+ */
+function iniciarCatchup(client) {
+  bootstrapGrupos().catch((e) => console.error('catchup bootstrap:', e.message));
+  setTimeout(() => rodarCatchup(client, catchupOpts(client)).catch((e) => console.error('catchup:', e.message)), 25 * 1000);
+  if (catchupTimer) return; // o intervalo é criado uma única vez (sobrevive a reconexões)
+  catchupTimer = setInterval(
+    () => rodarCatchup(client, catchupOpts(client)).catch((e) => console.error('catchup:', e.message)),
+    12 * 60 * 1000,
+  );
 }
 
 // Odd digitada (dashboard) -> número, ou null se vazia/ inválida.
@@ -118,6 +167,7 @@ function iniciarWhatsApp() {
     iniciarPollerPedidos(client);
     setTeste(() => avisar(client, `🔔 Teste de alerta — ${horaBR()}`)); // habilita /teste
     aoConectar(client); // aquece o cache do grupo em silêncio; só avisa se for recuperação de queda
+    iniciarCatchup(client); // rede de segurança: recupera o que chegou enquanto a conexão estava caída
   });
   client.on('disconnected', (r) => {
     console.log('⚠️  Desconectado:', r);
@@ -159,24 +209,7 @@ function iniciarWhatsApp() {
       if (/despesa/i.test(nomeGrupo)) { await tratarDespesa(msg, chat, nomeGrupo); return; }
 
       // Demais grupos: só imagens, para a conferência.
-      if (!msg.hasMedia || msg.type !== 'image') return;
-      const media = await msg.downloadMedia();
-      if (!media || !String(media.mimetype).startsWith('image/')) return;
-
-      const cli = await acharCliente(chat.id._serialized, nomeGrupo);
-      const contato = await msg.getContact().catch(() => null);
-      const remetente = (contato && (contato.pushname || contato.number)) || msg.author || '';
-
-      await registrarImagemRecebida({
-        grupoId: chat.id._serialized,
-        grupoNome: nomeGrupo,
-        clienteId: cli ? cli.id : null,
-        msgId: msg.id._serialized,
-        remetente,
-        enviadoEm: new Date((msg.timestamp || Date.now() / 1000) * 1000).toISOString(),
-        base64: media.data,
-      });
-      console.log(`🗂  imagem registrada p/ conferência | grupo "${nomeGrupo}"${cli ? '' : ' (⚠️ SEM cliente)'}`);
+      await registrarImagemDeMsg(msg, chat, nomeGrupo);
     } catch (e) {
       console.error('❌ Erro ao registrar imagem (conferência):', e.message);
     }

@@ -65,6 +65,13 @@ async function marcarPedido(id, status, erro = null) {
   await sb.from('imagens_recebidas').update({ pedido_status: status, pedido_erro: erro }).eq('id', id);
 }
 
+/** Já existe linha para esta mensagem? (usado pelo catch-up p/ não rebaixar imagem já registrada.) */
+async function imagemJaRegistrada(msgId) {
+  if (!msgId) return false;
+  const { data } = await sb.from('imagens_recebidas').select('id').eq('msg_id', msgId).maybeSingle();
+  return !!data;
+}
+
 /** Baixa a miniatura do Storage como base64 (fallback quando a msg original não está mais acessível). */
 async function baixarThumbBase64(thumbPath) {
   if (!thumbPath) return null;
@@ -103,5 +110,5 @@ async function limparImagensAntigas() {
 module.exports = {
   registrarImagemRecebida, marcarReagida,
   listarPedidosPendentes, marcarPedido, baixarThumbBase64,
-  limparImagensAntigas,
+  limparImagensAntigas, imagemJaRegistrada,
 };

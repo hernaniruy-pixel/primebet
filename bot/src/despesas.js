@@ -9,14 +9,15 @@ async function bancaPadrao() {
   return bancaIdCache;
 }
 
-/** Registra uma despesa (mensagem "descrição: valor" no grupo de despesas). */
+/** Registra uma despesa (mensagem "descrição: valor" no grupo de despesas). Retorna true se inseriu (false se já existia). */
 async function registrarDespesa({ grupoId, grupoNome, descricao, valor, data, msgId }) {
   const banca_id = await bancaPadrao();
-  const { error } = await sb.from('despesas').upsert({
+  const { data: ins, error } = await sb.from('despesas').upsert({
     banca_id, grupo_id: grupoId, grupo_nome: grupoNome,
     descricao, valor, data, msg_id: msgId,
-  }, { onConflict: 'msg_id', ignoreDuplicates: true });
-  if (error) console.error('   despesa insert:', error.message);
+  }, { onConflict: 'msg_id', ignoreDuplicates: true }).select('id');
+  if (error) { console.error('   despesa insert:', error.message); return false; }
+  return !!(ins && ins.length); // vazio = já existia (duplicado ignorado)
 }
 
 module.exports = { registrarDespesa };
