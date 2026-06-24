@@ -7,7 +7,7 @@ const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId } = req
 const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto, setTeste } = require('./webqr');
-const { avisar, anunciarOnline, iniciarHeartbeat, horaBR, setGrupoAvisos } = require('./avisos');
+const { avisar, aoConectar, aoDesconectar, horaBR, setGrupoAvisos } = require('./avisos');
 
 // Momento de boot — usado no /status para mostrar há quanto tempo o bot está no ar.
 const BOOT = Date.now();
@@ -117,12 +117,11 @@ function iniciarWhatsApp() {
     setPronto();
     iniciarPollerPedidos(client);
     setTeste(() => avisar(client, `🔔 Teste de alerta — ${horaBR()}`)); // habilita /teste
-    anunciarOnline(client); // tenta até o grupo AVISOS/ALERTA carregar (logo após o ready os chats vêm vazios)
-    iniciarHeartbeat(client);
+    aoConectar(client); // aquece o cache do grupo em silêncio; só avisa se for recuperação de queda
   });
   client.on('disconnected', (r) => {
     console.log('⚠️  Desconectado:', r);
-    avisar(client, `⚠️ PrimeBet bot DESCONECTOU (${r}). Pode precisar reescanear o QR.`);
+    aoDesconectar(client, r);
   });
 
   // Mensagens enviadas pelo PRÓPRIO número do bot (o evento 'message' não as cobre).

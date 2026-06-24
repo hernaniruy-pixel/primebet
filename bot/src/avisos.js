@@ -34,27 +34,27 @@ async function avisar(client, texto) {
   }
 }
 
+// O grupo só recebe aviso quando algo acontece de fato: o bot CAIU ou VOLTOU
+// de uma queda real. Reinício/redeploy/reconexão normal NÃO gera mensagem.
+let caiu = false; // houve uma desconexão desde a última conexão?
+
 /**
- * Anuncia "ONLINE" assim que o grupo AVISOS/ALERTA aparecer. Logo após o
- * 'ready' o client.getChats() costuma vir vazio/incompleto, então tentamos
- * por alguns minutos em vez de uma única vez.
+ * Chamado no 'ready'. Aquece o cache do grupo AVISOS/ALERTA em silêncio
+ * (logo após o ready o getChats vem vazio, por isso tentamos por ~3 min) e
+ * só anuncia se estivermos nos RECUPERANDO de uma queda — nunca no boot.
  */
-async function anunciarOnline(client) {
-  for (let i = 0; i < 18; i++) {              // ~3 min de tentativas
-    if (await acharGrupo(client)) { await avisar(client, `✅ PrimeBet bot ONLINE — ${horaBR()}`); return true; }
+async function aoConectar(client) {
+  for (let i = 0; i < 18; i++) {              // ~3 min tentando achar/cachear o grupo
+    if (await acharGrupo(client)) break;
     await new Promise((r) => setTimeout(r, 10000));
   }
-  console.log('   (grupo AVISOS/ALERTA não apareceu após ~3min — o bot está nesse grupo? o nome contém "avisos" ou "alerta"?)');
-  return false;
+  if (caiu) { caiu = false; await avisar(client, `✅ PrimeBet bot voltou ONLINE — ${horaBR()}`); }
 }
 
-let hbStarted = false;
-/** Batimento periódico ("estou vivo") — a ausência dele indica que o bot caiu. */
-function iniciarHeartbeat(client) {
-  if (hbStarted) return;
-  hbStarted = true;
-  const horas = Number(process.env.HEARTBEAT_HORAS || 12);
-  setInterval(() => avisar(client, `🟢 PrimeBet bot ativo — ${horaBR()}`), Math.max(1, horas) * 3600 * 1000);
+/** Chamado no 'disconnected'. Marca a queda e alerta o grupo. */
+async function aoDesconectar(client, motivo) {
+  caiu = true;
+  await avisar(client, `⚠️ PrimeBet bot DESCONECTOU (${motivo}). Pode precisar reescanear o QR.`);
 }
 
-module.exports = { avisar, anunciarOnline, iniciarHeartbeat, horaBR, setGrupoAvisos };
+module.exports = { avisar, aoConectar, aoDesconectar, horaBR, setGrupoAvisos };
