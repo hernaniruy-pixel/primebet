@@ -52,4 +52,8 @@ function iniciarWebQR() {
   }).listen(port, () => console.log(`🌐 Página do QR ativa na porta ${port}`));
 }
 
-module.exports = { iniciarWebQR, setQr, setPronto, setTeste };
+// Consultas de estado para o watchdog (index.js): conectado? tem QR esperando scan?
+const estaPronto = () => estado.pronto;
+const temQrPendente = () => !!estado.qr;
+
+module.exports = { iniciarWebQR, setQr, setPronto, setTeste, estaPronto, temQrPendente };
