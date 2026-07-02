@@ -4,298 +4,238 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>PrimeBet · Seu gerenciador de apostas</title>
-<meta name="description" content="Acompanhe suas apostas, seu saldo e seu lucro real em um só lugar. Sem planilha, sem confusão — o gerenciador financeiro feito pra quem aposta." />
+<meta name="description" content="Acompanhe suas apostas, seu saldo e seu lucro real em um só lugar. Sem planilha, sem achismo — o gerenciador financeiro feito pra quem aposta." />
 <style>
   :root{
-    --bg:#070b12; --bg2:#0b111c; --card:rgba(255,255,255,.035); --line:rgba(255,255,255,.09);
-    --txt:#e7ecf3; --muted:#9aa7ba; --brand:#22c55e; --brand2:#16a34a; --gold:#e6b34a;
-    --radius:18px;
+    --bg:#060b18; --card:#0d1220; --card2:#161b2e; --panel:#0f1117;
+    --line:#1e2a45; --line2:#2d3f6b;
+    --brand:#3b5bf5; --brand-h:#2a48e8; --b2:#4f6ef7; --b3:#6d86fa; --b4:#818cf8;
+    --txt:#e2e8f0; --muted:#64748b; --muted2:#94a3b8; --muted3:#475569;
+    --ok:#34d399; --bad:#f87171;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif;background:var(--bg);color:var(--txt);line-height:1.55;overflow-x:hidden;-webkit-font-smoothing:antialiased}
-  a{color:inherit;text-decoration:none}
-  .wrap{max-width:1160px;margin:0 auto;padding:0 22px}
-  .glow{position:absolute;border-radius:50%;filter:blur(120px);opacity:.5;pointer-events:none;z-index:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,system-ui,sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  a{text-decoration:none;color:inherit}
+  .wrap{max-width:1152px;margin:0 auto;padding:0 24px}
+  .grad{background:linear-gradient(135deg,var(--b2),var(--b4) 50%,var(--b3));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  svg{display:block}
 
-  /* HEADER */
-  header{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);background:rgba(7,11,18,.72);border-bottom:1px solid var(--line)}
-  .nav{display:flex;align-items:center;justify-content:space-between;height:66px}
-  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.3px}
-  .logo b{color:var(--brand)}
-  .logo .dot{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--brand2));display:grid;place-items:center;color:#05130a;font-weight:900}
-  .nav-links{display:flex;gap:28px;font-size:14px;color:var(--muted)}
-  .nav-links a:hover{color:var(--txt)}
-  .btn{display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;font-weight:700;font-size:15px;padding:12px 20px;border-radius:12px;transition:.18s;font-family:inherit}
-  .btn-primary{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#05130a;box-shadow:0 12px 30px rgba(34,197,94,.28)}
-  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 38px rgba(34,197,94,.38)}
-  .btn-ghost{background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--txt)}
-  .btn-ghost:hover{background:rgba(255,255,255,.09)}
-  @media(max-width:820px){.nav-links{display:none}}
+  /* NAV */
+  nav{position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(30,42,69,.6);backdrop-filter:blur(16px);background:rgba(6,11,24,.8)}
+  .nav-in{height:64px;display:flex;align-items:center;justify-content:space-between}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;color:#fff}
+  .logo .mk{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--brand),var(--b3));display:grid;place-items:center;color:#fff;font-weight:900}
+  .nav-links{display:flex;align-items:center;gap:6px}
+  .nav-links a.txt{color:var(--muted2);font-size:14px;padding:8px 12px;transition:.15s}
+  .nav-links a.txt:hover{color:#fff}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;border:none;cursor:pointer;border-radius:12px;padding:10px 18px;transition:.18s;font-family:inherit}
+  .btn-b{background:var(--brand);color:#fff;box-shadow:0 10px 26px rgba(59,91,245,.25)}
+  .btn-b:hover{background:var(--brand-h);box-shadow:0 14px 32px rgba(59,91,245,.4)}
+  .btn-ghost{background:var(--card);border:1px solid var(--line);color:var(--muted2)}
+  .btn-ghost:hover{border-color:var(--line2);color:#fff}
+  @media(max-width:720px){.nav-links a.txt{display:none}}
 
   /* HERO */
-  .hero{position:relative;padding:88px 0 70px;overflow:hidden}
-  .hero .glow-1{width:520px;height:520px;background:#16a34a;top:-160px;left:-120px}
-  .hero .glow-2{width:460px;height:460px;background:#2563eb;top:-80px;right:-140px;opacity:.35}
-  .hero-grid{position:relative;z-index:2;display:grid;grid-template-columns:1.05fr .95fr;gap:54px;align-items:center}
-  .badge{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#9ff0c0;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);padding:7px 13px;border-radius:999px;margin-bottom:22px}
-  .badge .pulse{width:8px;height:8px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:pulse 2s infinite}
-  @keyframes pulse{70%{box-shadow:0 0 0 8px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
-  h1{font-size:clamp(34px,5vw,54px);line-height:1.08;letter-spacing:-1.4px;font-weight:800}
-  h1 .grad{background:linear-gradient(120deg,var(--brand),var(--gold));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  .sub{color:var(--muted);font-size:18px;margin:22px 0 32px;max-width:540px}
-  .cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-  .cta-note{color:var(--muted);font-size:13px;margin-top:16px;display:flex;align-items:center;gap:7px}
+  .hero{position:relative;overflow:hidden;padding:88px 0 72px;text-align:center}
+  .hero .rg{position:absolute;top:0;left:50%;transform:translateX(-50%);width:820px;height:600px;opacity:.2;pointer-events:none;background:radial-gradient(ellipse at center top,#3b5bf5 0%,transparent 70%)}
+  .hero .b1{position:absolute;top:150px;left:24px;width:260px;height:260px;border-radius:50%;background:#6d86fa;filter:blur(80px);opacity:.1;pointer-events:none}
+  .hero .b2{position:absolute;top:70px;right:24px;width:200px;height:200px;border-radius:50%;background:#4f6ef7;filter:blur(60px);opacity:.1;pointer-events:none}
+  .hero-in{position:relative;z-index:2}
+  .badge{display:inline-flex;align-items:center;gap:8px;background:rgba(59,91,245,.1);border:1px solid rgba(59,91,245,.3);border-radius:999px;padding:6px 14px;margin-bottom:30px;color:var(--b3);font-size:12.5px;font-weight:600}
+  .badge svg{width:14px;height:14px;stroke:var(--b2);fill:none}
+  h1{font-size:clamp(36px,6vw,60px);line-height:1.08;font-weight:800;letter-spacing:-1.6px;max-width:820px;margin:0 auto;color:#fff}
+  .sub{color:var(--muted);font-size:clamp(17px,2.4vw,20px);max-width:600px;margin:24px auto 40px}
+  .cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:22px}
+  .btn-lg{padding:14px 26px;font-size:15px;border-radius:14px}
+  .cta-note{color:var(--muted3);font-size:13px;margin-bottom:56px}
 
-  /* HERO CARD (preview do painel) */
-  .preview{position:relative;background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 40px 90px rgba(0,0,0,.5)}
-  .pv-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-  .pv-top small{color:var(--muted);font-size:12px}
-  .pv-saldo{font-size:13px;color:var(--muted)}
-  .pv-val{font-size:34px;font-weight:800;letter-spacing:-1px}
-  .pv-up{color:var(--brand);font-size:13px;font-weight:700}
-  .pv-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:18px 0}
-  .pv-stat{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:11px}
-  .pv-stat span{display:block;color:var(--muted);font-size:11px;margin-bottom:3px}
-  .pv-stat b{font-size:16px}
-  .pv-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid var(--line);font-size:13px}
-  .pill{font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px}
-  .pill.green{background:rgba(34,197,94,.16);color:#8ff0b6}
-  .pill.open{background:rgba(59,130,246,.16);color:#a9c8ff}
-  .pill.red{background:rgba(244,63,94,.16);color:#ffb0bb}
-  @media(max-width:900px){.hero-grid{grid-template-columns:1fr;gap:40px}.preview{order:2}}
+  /* DASHBOARD PREVIEW */
+  .preview{position:relative;max-width:660px;margin:0 auto}
+  .preview .halo{position:absolute;inset:0;background:rgba(59,91,245,.2);filter:blur(60px);border-radius:32px;transform:scale(.95)}
+  .pv{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.55);text-align:left}
+  .pv-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:#0d1015}
+  .pv-bar .l{display:flex;align-items:center;gap:9px;color:#fff;font-size:13px;font-weight:700}
+  .pv-bar .mk{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--brand),var(--b3));display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff}
+  .dots{display:flex;gap:6px}.dots i{width:11px;height:11px;border-radius:50%}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;padding:16px}
+  .kpi{background:rgba(22,27,46,.8);border:1px solid var(--line);border-radius:12px;padding:13px}
+  .kpi span{color:var(--muted);font-size:11px;font-weight:500;display:block;margin-bottom:5px}
+  .kpi b{font-size:18px;font-weight:800}
+  .box{margin:0 16px 16px;background:rgba(22,27,46,.6);border:1px solid var(--line);border-radius:12px;padding:15px}
+  .box-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .box-h span{color:var(--muted2);font-size:12px;font-weight:500}
+  .box-h b{color:var(--b2);font-size:12px;font-weight:700}
+  .bars{display:flex;align-items:flex-end;gap:6px;height:64px}
+  .bars i{flex:1;border-radius:3px 3px 0 0;background:linear-gradient(to top,#3b5bf5,#6d86fa)}
+  .tbl-h,.tbl-r{display:flex;align-items:center;padding:9px 16px}
+  .tbl-h{color:var(--muted3);font-size:10px;font-weight:600;border-bottom:1px solid var(--line)}
+  .tbl-r{border-bottom:1px solid rgba(30,42,69,.5);font-size:11.5px}
+  .tbl-r:last-child{border-bottom:none}
+  .tbl .g{flex:1;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tbl .v{width:74px;text-align:right;color:#fff}
+  .tbl .s{width:92px;text-align:right}
+  .pill{font-size:10px;font-weight:800;padding:2px 9px;border-radius:999px}
+  .pill.ok{background:rgba(52,211,153,.14);color:var(--ok)}
+  .pill.open{background:rgba(59,91,245,.16);color:var(--b3)}
+  .pill.bad{background:rgba(248,113,113,.14);color:var(--bad)}
+  @media(max-width:560px){.kpis{grid-template-columns:1fr 1fr}}
 
-  /* TRUST STRIP */
-  .trust{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg2)}
-  .trust .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:30px 22px}
-  .trust b{font-size:26px;font-weight:800;display:block}
-  .trust span{color:var(--muted);font-size:13px}
-  .trust .grad{background:linear-gradient(120deg,var(--brand),var(--gold));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  @media(max-width:700px){.trust .wrap{grid-template-columns:1fr 1fr;gap:26px}}
+  /* TRUST */
+  .trust{border-top:1px solid rgba(30,42,69,.5);border-bottom:1px solid rgba(30,42,69,.5)}
+  .trust-in{display:flex;justify-content:center;gap:56px;flex-wrap:wrap;text-align:center;padding:30px 24px}
+  .trust b{color:#fff;font-weight:800;font-size:18px;display:block}
+  .trust span{color:var(--muted3);font-size:12px}
 
   /* SECTIONS */
-  section.pad{padding:92px 0}
-  .eyebrow{color:var(--brand);font-weight:800;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;text-align:center}
-  .h2{font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-1px;text-align:center;line-height:1.15}
-  .lead{color:var(--muted);font-size:17px;text-align:center;max-width:620px;margin:16px auto 0}
+  section.pad{padding:96px 0}
+  .head{text-align:center;margin-bottom:56px}
+  .eyebrow{color:var(--b2);font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+  h2{font-size:clamp(28px,4vw,40px);font-weight:800;color:#fff;letter-spacing:-1px;margin:12px 0 0;line-height:1.15}
+  .lead{color:var(--muted);font-size:18px;max-width:600px;margin:16px auto 0}
 
-  /* VANTAGENS */
-  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:52px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px;transition:.2s}
-  .card:hover{border-color:rgba(34,197,94,.4);transform:translateY(-4px);background:rgba(34,197,94,.04)}
-  .ic{width:46px;height:46px;border-radius:12px;background:rgba(34,197,94,.12);display:grid;place-items:center;margin-bottom:16px;color:var(--brand)}
-  .ic svg{width:24px;height:24px}
-  .card h3{font-size:18px;margin-bottom:8px;letter-spacing:-.3px}
-  .card p{color:var(--muted);font-size:14.5px}
-  @media(max-width:900px){.cards{grid-template-columns:1fr 1fr}}
-  @media(max-width:600px){.cards{grid-template-columns:1fr}}
+  .feats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .fcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;transition:.25s}
+  .fcard:hover{border-color:var(--line2);background:#111827;transform:translateY(-3px)}
+  .fic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;margin-bottom:16px}
+  .fic svg{width:21px;height:21px;fill:none}
+  .fcard h3{color:#fff;font-size:15px;font-weight:700;margin-bottom:7px}
+  .fcard p{color:var(--muted);font-size:14px}
+  @media(max-width:900px){.feats{grid-template-columns:1fr 1fr}}
+  @media(max-width:600px){.feats{grid-template-columns:1fr}}
 
-  /* COMO FUNCIONA */
-  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:52px}
-  .step{position:relative;padding:28px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
-  .step .n{font-size:14px;font-weight:900;color:#05130a;background:linear-gradient(135deg,var(--brand),var(--gold));width:34px;height:34px;border-radius:10px;display:grid;place-items:center;margin-bottom:16px}
-  .step h3{font-size:17px;margin-bottom:8px}
-  .step p{color:var(--muted);font-size:14.5px}
-  @media(max-width:800px){.steps{grid-template-columns:1fr}}
-
-  /* FEATURE ROW */
-  .feat{display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center;margin-top:64px}
-  .feat:nth-child(even) .feat-media{order:-1}
-  .feat h3{font-size:26px;letter-spacing:-.6px;margin-bottom:14px}
-  .feat p{color:var(--muted);font-size:16px;margin-bottom:18px}
-  .flist{list-style:none;display:grid;gap:11px}
-  .flist li{display:flex;gap:11px;align-items:flex-start;font-size:15px}
-  .flist .chk{flex-shrink:0;width:22px;height:22px;border-radius:7px;background:rgba(34,197,94,.15);color:var(--brand);display:grid;place-items:center;font-size:13px;font-weight:900;margin-top:1px}
-  .feat-media{background:linear-gradient(160deg,rgba(34,197,94,.08),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:20px;padding:24px;min-height:230px;display:grid;place-items:center}
-  .bars{display:flex;align-items:flex-end;gap:12px;height:150px;width:100%;justify-content:center}
-  .bar{width:34px;border-radius:8px 8px 0 0;background:linear-gradient(180deg,var(--brand),rgba(34,197,94,.25))}
-  @media(max-width:820px){.feat{grid-template-columns:1fr;gap:26px}.feat:nth-child(even) .feat-media{order:0}}
+  /* STEPS */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:36px;max-width:900px;margin:0 auto}
+  .step{display:flex;gap:18px}
+  .step .n{flex-shrink:0;width:40px;height:40px;border-radius:50%;background:rgba(59,91,245,.15);border:1px solid rgba(59,91,245,.3);display:grid;place-items:center;color:var(--b2);font-weight:800;font-size:15px}
+  .step h4{color:#fff;font-size:15px;font-weight:700;margin-bottom:5px}
+  .step p{color:var(--muted);font-size:14px}
+  @media(max-width:760px){.steps{grid-template-columns:1fr;gap:26px}}
 
   /* FAQ */
-  .faq{max-width:760px;margin:48px auto 0}
-  details{border:1px solid var(--line);border-radius:14px;padding:0 20px;margin-bottom:12px;background:var(--card)}
-  summary{cursor:pointer;list-style:none;padding:19px 0;font-weight:700;font-size:16px;display:flex;justify-content:space-between;align-items:center}
+  .faq{max-width:760px;margin:0 auto}
+  details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0 22px;margin-bottom:12px}
+  summary{cursor:pointer;list-style:none;padding:19px 0;font-weight:600;font-size:15.5px;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:14px}
   summary::-webkit-details-marker{display:none}
-  summary::after{content:'+';color:var(--brand);font-size:22px;font-weight:400}
-  details[open] summary::after{content:'−'}
-  details p{color:var(--muted);font-size:15px;padding:0 0 20px}
+  summary::after{content:'+';color:var(--b2);font-size:22px}
+  details[open] summary::after{content:'\2212'}
+  details p{color:var(--muted);font-size:14.5px;padding:0 0 20px}
 
-  /* CTA BAND */
-  .cta-band{position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(34,197,94,.14),rgba(37,99,235,.1));border:1px solid var(--line);border-radius:26px;padding:60px 40px;text-align:center;margin:0 22px}
-  .cta-band h2{font-size:clamp(26px,3.4vw,38px);letter-spacing:-1px;font-weight:800}
-  .cta-band p{color:var(--muted);font-size:17px;margin:14px auto 28px;max-width:520px}
+  /* FINAL CTA */
+  .final{position:relative;overflow:hidden;text-align:center;max-width:820px;margin:0 auto;padding:0 24px}
+  .final .rg{position:absolute;inset:0;opacity:.1;pointer-events:none;background:radial-gradient(ellipse at center,#3b5bf5 0%,transparent 70%)}
+  .final h2{font-size:clamp(30px,5vw,50px)}
+  .final p{color:var(--muted);font-size:18px;margin:18px 0 34px}
 
-  footer{border-top:1px solid var(--line);margin-top:92px;padding:40px 0;color:var(--muted);font-size:13px}
-  .foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+  footer{border-top:1px solid rgba(30,42,69,.5);margin-top:96px;padding:40px 0}
+  .foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+  .foot .c{color:var(--muted3);font-size:13px}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="wrap nav">
-    <div class="logo"><span class="dot">P</span>Prime<b>Bet</b></div>
-    <nav class="nav-links">
-      <a href="#vantagens">Vantagens</a>
-      <a href="#como">Como funciona</a>
-      <a href="#faq">Dúvidas</a>
-    </nav>
-    <a class="btn btn-primary" href="/cliente/login">Acessar meu painel</a>
+<nav>
+  <div class="wrap nav-in">
+    <div class="logo"><span class="mk">P</span>PrimeBet</div>
+    <div class="nav-links">
+      <a class="txt" href="#vantagens">Vantagens</a>
+      <a class="txt" href="#como">Como funciona</a>
+      <a class="txt" href="#faq">Dúvidas</a>
+      <a class="btn btn-b" href="/cliente/login">Acessar painel</a>
+    </div>
   </div>
-</header>
+</nav>
 
 <!-- HERO -->
 <section class="hero">
-  <div class="glow glow-1"></div>
-  <div class="glow glow-2"></div>
-  <div class="wrap hero-grid">
-    <div>
-      <div class="badge"><span class="pulse"></span> Seu dinheiro, sob controle</div>
-      <h1>Pare de apostar no escuro. <span class="grad">Saiba exatamente quanto você tem.</span></h1>
-      <p class="sub">O gerenciador financeiro feito pra quem aposta: todas as suas entradas, seu saldo e seu lucro real — em tempo real, num só lugar. Sem planilha, sem achismo.</p>
-      <div class="cta-row">
-        <a class="btn btn-primary" href="/cliente/login">Acessar meu painel →</a>
-        <a class="btn btn-ghost" href="#como">Ver como funciona</a>
-      </div>
-      <div class="cta-note">🔒 Acesso privado pelo seu link exclusivo — só você vê os seus números.</div>
+  <div class="rg"></div><div class="b1"></div><div class="b2"></div>
+  <div class="wrap hero-in">
+    <div class="badge"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Seu dinheiro, sob controle</div>
+    <h1>Pare de apostar no escuro. <span class="grad">Saiba exatamente quanto você tem.</span></h1>
+    <p class="sub">O gerenciador financeiro feito pra quem aposta: todas as suas entradas, seu saldo e seu lucro real — em tempo real, num só lugar.</p>
+    <div class="cta-row">
+      <a class="btn btn-b btn-lg" href="/cliente/login">Acessar meu painel <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      <a class="btn btn-ghost btn-lg" href="#como">Ver como funciona</a>
     </div>
+    <div class="cta-note">🔒 Acesso privado pelo seu link exclusivo — só você vê os seus números.</div>
 
-    <!-- Preview do painel -->
+    <!-- PREVIEW -->
     <div class="preview">
-      <div class="pv-top">
-        <div><div class="pv-saldo">Saldo atual</div><div class="pv-val">R$ 4.820<span class="pv-up"> ▲ 12,4%</span></div></div>
-        <small>Semana atual</small>
+      <div class="halo"></div>
+      <div class="pv">
+        <div class="pv-bar">
+          <div class="l"><span class="mk">P</span>PrimeBet</div>
+          <div class="dots"><i style="background:rgba(248,113,113,.7)"></i><i style="background:rgba(234,179,8,.7)"></i><i style="background:rgba(52,211,153,.7)"></i></div>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><span>Saldo</span><b style="color:#fff">R$ 4.820</b></div>
+          <div class="kpi"><span>Lucro (mês)</span><b style="color:var(--ok)">+R$ 940</b></div>
+          <div class="kpi"><span>Aproveit.</span><b style="color:var(--ok)">63%</b></div>
+          <div class="kpi"><span>Em aberto</span><b style="color:var(--b3)">R$ 1.200</b></div>
+        </div>
+        <div class="box">
+          <div class="box-h"><span>Evolução do saldo</span><b>+34,2%</b></div>
+          <div class="bars">
+            <i style="height:40%;opacity:.4"></i><i style="height:65%;opacity:.5"></i><i style="height:45%;opacity:.55"></i><i style="height:80%;opacity:.6"></i><i style="height:60%;opacity:.7"></i><i style="height:90%;opacity:.8"></i><i style="height:70%;opacity:.85"></i><i style="height:100%;opacity:1"></i>
+          </div>
+        </div>
+        <div class="tbl">
+          <div class="tbl-h"><span class="g">Jogo</span><span class="v">Entrada</span><span class="s">Status</span></div>
+          <div class="tbl-r"><span class="g">Flamengo x Palmeiras</span><span class="v">R$ 300</span><span class="s"><span class="pill ok">GREEN</span></span></div>
+          <div class="tbl-r"><span class="g">Real x Barcelona</span><span class="v">R$ 500</span><span class="s"><span class="pill open">EM ABERTO</span></span></div>
+          <div class="tbl-r"><span class="g">Bayern x Dortmund</span><span class="v">R$ 250</span><span class="s"><span class="pill ok">GREEN</span></span></div>
+          <div class="tbl-r"><span class="g">PSG x Marseille</span><span class="v">R$ 200</span><span class="s"><span class="pill bad">RED</span></span></div>
+        </div>
       </div>
-      <div class="pv-stats">
-        <div class="pv-stat"><span>Em aberto</span><b>R$ 1.200</b></div>
-        <div class="pv-stat"><span>Lucro (mês)</span><b style="color:var(--brand)">+R$ 940</b></div>
-        <div class="pv-stat"><span>Aproveit.</span><b>63%</b></div>
-      </div>
-      <div class="pv-row"><span>Flamengo x Palmeiras</span><span class="pill green">GREEN</span></div>
-      <div class="pv-row"><span>Real x Barcelona</span><span class="pill open">EM ABERTO</span></div>
-      <div class="pv-row"><span>Bayern x Dortmund</span><span class="pill green">GREEN</span></div>
-      <div class="pv-row"><span>PSG x Marseille</span><span class="pill red">RED</span></div>
     </div>
   </div>
 </section>
 
 <!-- TRUST -->
 <div class="trust">
-  <div class="wrap">
-    <div><b class="grad">100%</b><span>das suas apostas registradas</span></div>
+  <div class="trust-in">
+    <div><b>100%</b><span>das apostas registradas</span></div>
     <div><b>Tempo real</b><span>saldo atualizado na hora</span></div>
-    <div><b>Zero</b><span>planilha pra preencher</span></div>
-    <div><b>24/7</b><span>acesso de qualquer lugar</span></div>
+    <div><b>Seguro</b><span>acesso privado por senha</span></div>
+    <div><b>Grátis</b><span>pra você acompanhar</span></div>
   </div>
 </div>
 
 <!-- VANTAGENS -->
 <section class="pad" id="vantagens">
   <div class="wrap">
-    <div class="eyebrow">Por que usar</div>
-    <div class="h2">Tudo que uma planilha nunca vai te dar</div>
-    <p class="lead">Você aposta pra ganhar. Pra ganhar de verdade, precisa saber onde está pisando. É isso que o painel entrega.</p>
-    <div class="cards">
-      <div class="card">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></div>
-        <h3>Lucro real, sem enganação</h3>
-        <p>Veja seu resultado líquido de verdade — entradas, greens, reds e o que sobrou no bolso. Nada de "achar" que está ganhando.</p>
-      </div>
-      <div class="card">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
-        <h3>Saldo em tempo real</h3>
-        <p>Cada aposta cai automaticamente no seu painel. Abriu, foi green, foi red — seu saldo se atualiza na hora, sem você mexer em nada.</p>
-      </div>
-      <div class="card">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/></svg></div>
-        <h3>Transparência total</h3>
-        <p>Histórico completo e auditável de todas as suas entradas. Bateu dúvida num valor? Você contesta direto pelo painel.</p>
-      </div>
-      <div class="card">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v4"/></svg></div>
-        <h3>Controle de banca</h3>
-        <p>Enxergue quanto está em aberto, quanto já entrou e quanto pode arriscar. Gestão de banca clara pra não estourar no impulso.</p>
-      </div>
-      <div class="card">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></div>
-        <h3>Acesso seguro e privado</h3>
-        <p>Seu painel abre por um link exclusivo com senha. Ninguém além de você enxerga os seus números.</p>
-      </div>
-      <div class="card">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H5.2L4 17.2z"/><path d="M8 9h8M8 12h5"/></svg></div>
-        <h3>Sem trabalho manual</h3>
-        <p>Você só aposta. O registro é automático. Chega de anotar em caderninho ou preencher planilha no fim do dia.</p>
-      </div>
+    <div class="head">
+      <span class="eyebrow">Por que usar</span>
+      <h2>Tudo que uma planilha nunca vai te dar</h2>
+      <p class="lead">Você aposta pra ganhar. Pra ganhar de verdade, precisa saber onde está pisando.</p>
+    </div>
+    <div class="feats">
+      <div class="fcard"><div class="fic" style="background:rgba(52,211,153,.1);color:var(--ok)"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg></div><h3>Lucro real, sem enganação</h3><p>Seu resultado líquido de verdade — entradas, greens, reds e o que sobrou no bolso. Nada de "achar" que está ganhando.</p></div>
+      <div class="fcard"><div class="fic" style="background:rgba(79,110,247,.1);color:var(--b3)"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><h3>Saldo em tempo real</h3><p>Cada aposta cai automaticamente no seu painel. Abriu, foi green, foi red — o saldo se atualiza na hora.</p></div>
+      <div class="fcard"><div class="fic" style="background:rgba(56,189,248,.1);color:#38bdf8"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><h3>Transparência total</h3><p>Histórico completo e auditável das suas entradas. Bateu dúvida num valor? Você contesta direto pelo painel.</p></div>
+      <div class="fcard"><div class="fic" style="background:rgba(139,92,246,.1);color:#a78bfa"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div><h3>Controle de banca</h3><p>Veja quanto está em aberto, quanto entrou e quanto pode arriscar. Gestão clara pra não estourar no impulso.</p></div>
+      <div class="fcard"><div class="fic" style="background:rgba(59,91,245,.1);color:var(--b2)"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div><h3>Acesso seguro e privado</h3><p>Seu painel abre por um link exclusivo com senha. Ninguém além de você enxerga os seus números.</p></div>
+      <div class="fcard"><div class="fic" style="background:rgba(245,158,11,.1);color:#fbbf24"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><h3>Sem trabalho manual</h3><p>Você só aposta. O registro é automático. Chega de caderninho ou de preencher planilha no fim do dia.</p></div>
     </div>
   </div>
 </section>
 
 <!-- COMO FUNCIONA -->
-<section class="pad" id="como" style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+<section class="pad" id="como" style="border-top:1px solid rgba(30,42,69,.5)">
   <div class="wrap">
-    <div class="eyebrow">Como funciona</div>
-    <div class="h2">Simples assim, em 3 passos</div>
+    <div class="head"><span class="eyebrow">Como funciona</span><h2>Simples assim, em 3 passos</h2></div>
     <div class="steps">
-      <div class="step"><div class="n">1</div><h3>Você recebe seu acesso</h3><p>Ganha um link exclusivo com senha. É o seu painel pessoal, pronto pra usar no celular ou no computador.</p></div>
-      <div class="step"><div class="n">2</div><h3>Aposta como sempre</h3><p>Continua apostando normal. Cada entrada é registrada automaticamente no seu painel — sem você digitar nada.</p></div>
-      <div class="step"><div class="n">3</div><h3>Acompanha e decide melhor</h3><p>Abre o painel a qualquer hora e vê saldo, apostas em aberto, greens/reds e seu lucro real. Decisão no controle, não no impulso.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- FEATURES -->
-<section class="pad">
-  <div class="wrap">
-    <div class="eyebrow">Feito pra apostador</div>
-    <div class="h2">Números que fazem sentido pra você</div>
-
-    <div class="feat">
-      <div>
-        <h3>Saiba na hora se está no lucro ou no prejuízo</h3>
-        <p>Sem enrolação: o painel mostra o que importa — entrou quanto, ganhou quanto, sobrou quanto. Do dia, da semana, do mês.</p>
-        <ul class="flist">
-          <li><span class="chk">✓</span> Saldo líquido real, já com comissões</li>
-          <li><span class="chk">✓</span> Filtro por período (hoje, semana, mês)</li>
-          <li><span class="chk">✓</span> Apostas em aberto separadas do que já fechou</li>
-        </ul>
-      </div>
-      <div class="feat-media">
-        <div class="bars">
-          <div class="bar" style="height:45%"></div>
-          <div class="bar" style="height:70%"></div>
-          <div class="bar" style="height:38%"></div>
-          <div class="bar" style="height:88%"></div>
-          <div class="bar" style="height:60%"></div>
-          <div class="bar" style="height:100%"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="feat">
-      <div>
-        <h3>Histórico completo, sem cair nada no esquecimento</h3>
-        <p>Toda aposta fica registrada com data, jogo, odd e valor. Bateu uma dúvida? Você contesta ali mesmo e resolve rápido.</p>
-        <ul class="flist">
-          <li><span class="chk">✓</span> Registro automático de cada bilhete</li>
-          <li><span class="chk">✓</span> Contestação de aposta pelo próprio painel</li>
-          <li><span class="chk">✓</span> Tudo transparente e do seu lado</li>
-        </ul>
-      </div>
-      <div class="feat-media">
-        <div style="width:100%;display:grid;gap:10px">
-          <div class="pv-row" style="border:none;background:rgba(255,255,255,.04);border-radius:10px;padding:12px 14px">Cruzeiro x Corinthians <span class="pill green">GREEN</span></div>
-          <div class="pv-row" style="border:none;background:rgba(255,255,255,.04);border-radius:10px;padding:12px 14px">Arsenal x Burnley <span class="pill open">EM ABERTO</span></div>
-          <div class="pv-row" style="border:none;background:rgba(255,255,255,.04);border-radius:10px;padding:12px 14px">Liverpool x Arsenal <span class="pill green">GREEN</span></div>
-        </div>
-      </div>
+      <div class="step"><div class="n">1</div><div><h4>Você recebe seu acesso</h4><p>Um link exclusivo com senha. É o seu painel pessoal, pronto pra usar no celular ou no computador.</p></div></div>
+      <div class="step"><div class="n">2</div><div><h4>Aposta como sempre</h4><p>Continua apostando normal. Cada entrada é registrada automaticamente — sem você digitar nada.</p></div></div>
+      <div class="step"><div class="n">3</div><div><h4>Acompanha e decide melhor</h4><p>Abre o painel a qualquer hora: saldo, apostas em aberto, greens/reds e o lucro real. No controle, não no impulso.</p></div></div>
     </div>
   </div>
 </section>
 
 <!-- FAQ -->
-<section class="pad" id="faq" style="background:var(--bg2);border-top:1px solid var(--line)">
+<section class="pad" id="faq" style="border-top:1px solid rgba(30,42,69,.5)">
   <div class="wrap">
-    <div class="eyebrow">Dúvidas</div>
-    <div class="h2">Perguntas frequentes</div>
+    <div class="head"><span class="eyebrow">Dúvidas</span><h2>Perguntas frequentes</h2></div>
     <div class="faq">
       <details open><summary>Preciso preencher alguma coisa?</summary><p>Não. Suas apostas são registradas automaticamente no painel. Você só aposta como já faz — o resto é com a gente.</p></details>
       <details><summary>Como eu acesso o meu painel?</summary><p>Você recebe um link exclusivo com senha. Basta abrir no celular ou no computador e entrar. Só você tem acesso aos seus números.</p></details>
@@ -306,19 +246,20 @@
   </div>
 </section>
 
-<!-- CTA -->
-<section style="padding:70px 0 0">
-  <div class="cta-band">
-    <h2>Comece a apostar com o controle na mão</h2>
+<!-- FINAL CTA -->
+<section style="padding:88px 0;border-top:1px solid rgba(30,42,69,.5)">
+  <div class="final">
+    <div class="rg"></div>
+    <h2>Aposte com o <span class="grad">controle na mão</span></h2>
     <p>Chega de não saber quanto você realmente tem. Acesse seu painel e veja tudo, em tempo real.</p>
-    <a class="btn btn-primary" href="/cliente/login" style="font-size:16px;padding:15px 28px">Acessar meu painel →</a>
+    <a class="btn btn-b btn-lg" href="/cliente/login" style="font-size:16px;padding:15px 30px">Acessar meu painel <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
   </div>
 </section>
 
 <footer>
   <div class="wrap foot">
-    <div class="logo" style="font-size:16px"><span class="dot" style="width:26px;height:26px;border-radius:8px">P</span>Prime<b>Bet</b></div>
-    <div>© 2026 PrimeBet · Seu gerenciador de apostas</div>
+    <div class="logo" style="font-size:16px"><span class="mk" style="width:26px;height:26px;border-radius:8px">P</span>PrimeBet</div>
+    <div class="c">© 2026 PrimeBet · Seu gerenciador de apostas</div>
   </div>
 </footer>
 
