@@ -4,143 +4,178 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>WorldNexus · Seu gerenciador de apostas</title>
-<meta name="description" content="Acompanhe suas apostas, seu saldo e seu lucro real em um só lugar. Sem planilha, sem achismo — o gerenciador financeiro feito pra quem aposta." />
+<meta name="description" content="Acompanhe suas apostas, seu saldo e seu lucro real em tempo real. Sem planilha, sem achismo — o gerenciador financeiro feito pra quem aposta." />
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#060b18; --card:#0d1220; --card2:#161b2e; --panel:#0f1117;
-    --line:#1e2a45; --line2:#2d3f6b;
-    --brand:#3b5bf5; --brand-h:#2a48e8; --b2:#4f6ef7; --b3:#6d86fa; --b4:#818cf8;
-    --txt:#e2e8f0; --muted:#64748b; --muted2:#94a3b8; --muted3:#475569;
-    --ok:#34d399; --bad:#f87171;
+    --bg:#050914; --card:#0c1322; --card2:#111a2e; --panel:#0b1020;
+    --line:#1c2743; --line2:#2d3f6b;
+    --brand:#3b5bf5; --brand-h:#2a48e8; --b2:#5b7cff; --b3:#7d94ff; --b4:#93a5ff;
+    --txt:#eef2fb; --muted:#8b98b4; --muted2:#a9b4cd; --muted3:#556080;
+    --ok:#34d399; --bad:#f87171; --gold:#f5c451;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,system-ui,sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;z-index:-1;background:
+    radial-gradient(60% 50% at 15% -5%,rgba(59,91,245,.22),transparent 60%),
+    radial-gradient(50% 45% at 92% 8%,rgba(125,148,255,.14),transparent 60%),
+    radial-gradient(45% 40% at 50% 105%,rgba(59,91,245,.12),transparent 60%)}
   a{text-decoration:none;color:inherit}
-  .wrap{max-width:1152px;margin:0 auto;padding:0 24px}
-  .grad{background:linear-gradient(135deg,var(--b2),var(--b4) 50%,var(--b3));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+  .grad{background:linear-gradient(115deg,#7d94ff,#c8d2ff 45%,#5b7cff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
   svg{display:block}
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
 
   /* NAV */
-  nav{position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(30,42,69,.6);backdrop-filter:blur(16px);background:rgba(6,11,24,.8)}
-  .nav-in{height:64px;display:flex;align-items:center;justify-content:space-between}
-  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;color:#fff}
-  .logo .mk{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--brand),var(--b3));display:grid;place-items:center;color:#fff;font-weight:900}
-  .nav-links{display:flex;align-items:center;gap:6px}
-  .nav-links a.txt{color:var(--muted2);font-size:14px;padding:8px 12px;transition:.15s}
-  .nav-links a.txt:hover{color:#fff}
-  .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;border:none;cursor:pointer;border-radius:12px;padding:10px 18px;transition:.18s;font-family:inherit}
-  .btn-b{background:var(--brand);color:#fff;box-shadow:0 10px 26px rgba(59,91,245,.25)}
-  .btn-b:hover{background:var(--brand-h);box-shadow:0 14px 32px rgba(59,91,245,.4)}
-  .btn-ghost{background:var(--card);border:1px solid var(--line);color:var(--muted2)}
-  .btn-ghost:hover{border-color:var(--line2);color:#fff}
-  @media(max-width:720px){.nav-links a.txt{display:none}}
+  nav{position:sticky;top:0;z-index:60;border-bottom:1px solid rgba(28,39,67,.7);backdrop-filter:blur(18px);background:rgba(5,9,20,.72)}
+  .nav-in{height:68px;display:flex;align-items:center;justify-content:space-between}
+  .logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:19px;color:#fff;letter-spacing:-.3px}
+  .logo img{width:34px;height:34px;border-radius:11px;object-fit:cover;box-shadow:0 6px 18px rgba(59,91,245,.35)}
+  .nav-links{display:flex;align-items:center;gap:4px}
+  .nav-links a.t{color:var(--muted2);font-size:14.5px;font-weight:500;padding:9px 14px;border-radius:9px;transition:.15s}
+  .nav-links a.t:hover{color:#fff;background:rgba(255,255,255,.04)}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14.5px;border:none;cursor:pointer;border-radius:12px;padding:11px 20px;transition:.2s;font-family:inherit}
+  .btn-b{background:linear-gradient(135deg,#4f6ef7,#3b5bf5);color:#fff;box-shadow:0 8px 24px rgba(59,91,245,.35)}
+  .btn-b:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(59,91,245,.5)}
+  .btn-ghost{background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--txt)}
+  .btn-ghost:hover{background:rgba(255,255,255,.08);border-color:var(--line2)}
+  @media(max-width:760px){.nav-links a.t{display:none}}
 
   /* HERO */
-  .hero{position:relative;overflow:hidden;padding:88px 0 72px;text-align:center}
-  .hero .rg{position:absolute;top:0;left:50%;transform:translateX(-50%);width:820px;height:600px;opacity:.2;pointer-events:none;background:radial-gradient(ellipse at center top,#3b5bf5 0%,transparent 70%)}
-  .hero .b1{position:absolute;top:150px;left:24px;width:260px;height:260px;border-radius:50%;background:#6d86fa;filter:blur(80px);opacity:.1;pointer-events:none}
-  .hero .b2{position:absolute;top:70px;right:24px;width:200px;height:200px;border-radius:50%;background:#4f6ef7;filter:blur(60px);opacity:.1;pointer-events:none}
-  .hero-in{position:relative;z-index:2}
-  .badge{display:inline-flex;align-items:center;gap:8px;background:rgba(59,91,245,.1);border:1px solid rgba(59,91,245,.3);border-radius:999px;padding:6px 14px;margin-bottom:30px;color:var(--b3);font-size:12.5px;font-weight:600}
-  .badge svg{width:14px;height:14px;stroke:var(--b2);fill:none}
-  h1{font-size:clamp(36px,6vw,60px);line-height:1.08;font-weight:800;letter-spacing:-1.6px;max-width:820px;margin:0 auto;color:#fff}
-  .sub{color:var(--muted);font-size:clamp(17px,2.4vw,20px);max-width:600px;margin:24px auto 40px}
-  .cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:22px}
-  .btn-lg{padding:14px 26px;font-size:15px;border-radius:14px}
-  .cta-note{color:var(--muted3);font-size:13px;margin-bottom:56px}
+  .hero{position:relative;padding:76px 0 56px}
+  .hero-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:56px;align-items:center}
+  .pill-badge{display:inline-flex;align-items:center;gap:9px;background:rgba(59,91,245,.1);border:1px solid rgba(91,124,255,.28);border-radius:999px;padding:7px 14px;margin-bottom:26px;color:var(--b3);font-size:13px;font-weight:600}
+  .pill-badge .d{width:7px;height:7px;border-radius:50%;background:#5b7cff;box-shadow:0 0 0 0 rgba(91,124,255,.55);animation:pl 2.2s infinite}
+  @keyframes pl{70%{box-shadow:0 0 0 8px rgba(91,124,255,0)}100%{box-shadow:0 0 0 0 rgba(91,124,255,0)}}
+  h1{font-size:clamp(38px,5.2vw,62px);line-height:1.05;font-weight:800;letter-spacing:-2px}
+  .sub{color:var(--muted);font-size:clamp(17px,2vw,20px);margin:24px 0 34px;max-width:520px}
+  .cta-row{display:flex;gap:13px;flex-wrap:wrap;align-items:center}
+  .btn-lg{padding:15px 28px;font-size:15.5px;border-radius:14px}
+  .proof{display:flex;align-items:center;gap:13px;margin-top:28px}
+  .avs{display:flex}
+  .avs span{width:34px;height:34px;border-radius:50%;border:2px solid var(--bg);margin-left:-10px;background:linear-gradient(135deg,#3b5bf5,#7d94ff);display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff}
+  .avs span:first-child{margin-left:0}
+  .proof small{color:var(--muted);font-size:13px}
+  .stars{color:var(--gold);font-size:14px;letter-spacing:2px}
 
-  /* DASHBOARD PREVIEW */
-  .preview{position:relative;max-width:660px;margin:0 auto}
-  .preview .halo{position:absolute;inset:0;background:rgba(59,91,245,.2);filter:blur(60px);border-radius:32px;transform:scale(.95)}
-  .pv{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.55);text-align:left}
-  .pv-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:#0d1015}
+  /* HERO PREVIEW */
+  .pv-holder{position:relative}
+  .pv-glow{position:absolute;inset:-10% -6%;background:radial-gradient(closest-side,rgba(59,91,245,.4),transparent);filter:blur(50px);z-index:0}
+  .pv{position:relative;z-index:2;background:linear-gradient(180deg,rgba(17,26,46,.95),rgba(11,16,32,.98));border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 50px 110px rgba(0,0,0,.6)}
+  .pv-bar{display:flex;align-items:center;justify-content:space-between;padding:13px 17px;border-bottom:1px solid var(--line);background:rgba(6,11,24,.6)}
   .pv-bar .l{display:flex;align-items:center;gap:9px;color:#fff;font-size:13px;font-weight:700}
-  .pv-bar .mk{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--brand),var(--b3));display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff}
+  .pv-bar .l img{width:22px;height:22px;border-radius:7px;object-fit:cover}
   .dots{display:flex;gap:6px}.dots i{width:11px;height:11px;border-radius:50%}
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;padding:16px}
-  .kpi{background:rgba(22,27,46,.8);border:1px solid var(--line);border-radius:12px;padding:13px}
-  .kpi span{color:var(--muted);font-size:11px;font-weight:500;display:block;margin-bottom:5px}
-  .kpi b{font-size:18px;font-weight:800}
-  .box{margin:0 16px 16px;background:rgba(22,27,46,.6);border:1px solid var(--line);border-radius:12px;padding:15px}
+  .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;padding:17px}
+  .kpi{background:rgba(28,39,67,.4);border:1px solid var(--line);border-radius:13px;padding:14px}
+  .kpi span{color:var(--muted);font-size:11.5px;font-weight:500;display:block;margin-bottom:5px}
+  .kpi b{font-size:21px;font-weight:800;letter-spacing:-.5px}
+  .box{margin:0 17px 17px;background:rgba(28,39,67,.32);border:1px solid var(--line);border-radius:13px;padding:16px}
   .box-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
   .box-h span{color:var(--muted2);font-size:12px;font-weight:500}
-  .box-h b{color:var(--b2);font-size:12px;font-weight:700}
-  .bars{display:flex;align-items:flex-end;gap:6px;height:64px}
-  .bars i{flex:1;border-radius:3px 3px 0 0;background:linear-gradient(to top,#3b5bf5,#6d86fa)}
-  .tbl-h,.tbl-r{display:flex;align-items:center;padding:9px 16px}
-  .tbl-h{color:var(--muted3);font-size:10px;font-weight:600;border-bottom:1px solid var(--line)}
-  .tbl-r{border-bottom:1px solid rgba(30,42,69,.5);font-size:11.5px}
-  .tbl-r:last-child{border-bottom:none}
-  .tbl .g{flex:1;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .tbl .v{width:74px;text-align:right;color:#fff}
-  .tbl .s{width:92px;text-align:right}
-  .pill{font-size:10px;font-weight:800;padding:2px 9px;border-radius:999px}
-  .pill.ok{background:rgba(52,211,153,.14);color:var(--ok)}
-  .pill.open{background:rgba(59,91,245,.16);color:var(--b3)}
-  .pill.bad{background:rgba(248,113,113,.14);color:var(--bad)}
-  @media(max-width:560px){.kpis{grid-template-columns:1fr 1fr}}
+  .box-h b{color:var(--ok);font-size:12.5px;font-weight:700}
+  .bars{display:flex;align-items:flex-end;gap:7px;height:68px}
+  .bars i{flex:1;border-radius:4px 4px 0 0;background:linear-gradient(to top,#3b5bf5,#7d94ff)}
+  .float{position:absolute;z-index:3;background:rgba(12,19,34,.92);border:1px solid var(--line2);border-radius:14px;padding:12px 15px;box-shadow:0 20px 50px rgba(0,0,0,.5);backdrop-filter:blur(8px)}
+  .float.f1{top:-22px;right:-18px;animation:fl 5s ease-in-out infinite alternate}
+  .float.f2{bottom:-20px;left:-20px;animation:fl 6s ease-in-out infinite alternate-reverse}
+  @keyframes fl{to{transform:translateY(-12px)}}
+  .float .ttl{color:var(--muted);font-size:10.5px;margin-bottom:2px}
+  .float .big{font-size:17px;font-weight:800}
+  @media(max-width:920px){.hero-grid{grid-template-columns:1fr;gap:60px}.pv-holder{max-width:520px;margin:0 auto}.sub{margin-left:auto;margin-right:auto}.hero-grid > div:first-child{text-align:center}.cta-row,.proof{justify-content:center}}
 
-  /* TRUST */
-  .trust{border-top:1px solid rgba(30,42,69,.5);border-bottom:1px solid rgba(30,42,69,.5)}
-  .trust-in{display:flex;justify-content:center;gap:56px;flex-wrap:wrap;text-align:center;padding:30px 24px}
-  .trust b{color:#fff;font-weight:800;font-size:18px;display:block}
-  .trust span{color:var(--muted3);font-size:12px}
+  /* STATS STRIP */
+  .stats{border-top:1px solid rgba(28,39,67,.6);border-bottom:1px solid rgba(28,39,67,.6);background:rgba(12,19,34,.4)}
+  .stats-in{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:36px 24px;text-align:center}
+  .stats b{font-size:clamp(26px,3vw,34px);font-weight:800;letter-spacing:-1px;display:block}
+  .stats span{color:var(--muted);font-size:13px}
+  @media(max-width:640px){.stats-in{grid-template-columns:1fr 1fr;gap:28px}}
 
   /* SECTIONS */
-  section.pad{padding:96px 0}
-  .head{text-align:center;margin-bottom:56px}
-  .eyebrow{color:var(--b2);font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
-  h2{font-size:clamp(28px,4vw,40px);font-weight:800;color:#fff;letter-spacing:-1px;margin:12px 0 0;line-height:1.15}
-  .lead{color:var(--muted);font-size:18px;max-width:600px;margin:16px auto 0}
+  section.pad{padding:104px 0}
+  .head{text-align:center;max-width:640px;margin:0 auto 60px}
+  .eyebrow{display:inline-block;color:var(--b3);font-size:12.5px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;padding:5px 12px;border:1px solid var(--line);border-radius:999px;background:rgba(59,91,245,.06)}
+  h2{font-size:clamp(30px,4.2vw,44px);font-weight:800;color:#fff;letter-spacing:-1.4px;margin:18px 0 0;line-height:1.12}
+  .lead{color:var(--muted);font-size:18px;margin-top:16px}
 
-  .feats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  .fcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;transition:.25s}
-  .fcard:hover{border-color:var(--line2);background:#111827;transform:translateY(-3px)}
-  .fic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;margin-bottom:16px}
-  .fic svg{width:21px;height:21px;fill:none}
-  .fcard h3{color:#fff;font-size:15px;font-weight:700;margin-bottom:7px}
-  .fcard p{color:var(--muted);font-size:14px}
-  @media(max-width:900px){.feats{grid-template-columns:1fr 1fr}}
-  @media(max-width:600px){.feats{grid-template-columns:1fr}}
+  /* BENTO */
+  .bento{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+  .b-card{background:linear-gradient(180deg,rgba(17,26,46,.6),rgba(12,19,34,.55));border:1px solid var(--line);border-radius:20px;padding:26px;transition:.28s;position:relative;overflow:hidden}
+  .b-card:hover{border-color:var(--line2);transform:translateY(-4px)}
+  .b-card.wide{grid-column:span 4}.b-card.half{grid-column:span 2}.b-card.third{grid-column:span 2}
+  .fic{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;margin-bottom:16px}
+  .fic svg{width:22px;height:22px;fill:none;stroke-width:2}
+  .b-card h3{color:#fff;font-size:17px;font-weight:700;margin-bottom:8px;letter-spacing:-.3px}
+  .b-card p{color:var(--muted);font-size:14.5px}
+  .mini-bars{display:flex;align-items:flex-end;gap:9px;height:88px;margin-top:20px}
+  .mini-bars i{flex:1;border-radius:5px 5px 0 0;background:linear-gradient(to top,#3b5bf5,#7d94ff);opacity:.85}
+  @media(max-width:820px){.bento{grid-template-columns:repeat(2,1fr)}.b-card.wide,.b-card.half,.b-card.third{grid-column:span 1}.b-card.wide{grid-column:span 2}}
+  @media(max-width:520px){.bento{grid-template-columns:1fr}.b-card.wide{grid-column:span 1}}
 
   /* STEPS */
-  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:36px;max-width:900px;margin:0 auto}
-  .step{display:flex;gap:18px}
-  .step .n{flex-shrink:0;width:40px;height:40px;border-radius:50%;background:rgba(59,91,245,.15);border:1px solid rgba(59,91,245,.3);display:grid;place-items:center;color:var(--b2);font-weight:800;font-size:15px}
-  .step h4{color:#fff;font-size:15px;font-weight:700;margin-bottom:5px}
-  .step p{color:var(--muted);font-size:14px}
-  @media(max-width:760px){.steps{grid-template-columns:1fr;gap:26px}}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;max-width:1000px;margin:0 auto}
+  .step{background:linear-gradient(180deg,rgba(17,26,46,.5),transparent);border:1px solid var(--line);border-radius:18px;padding:28px}
+  .step .n{width:44px;height:44px;border-radius:13px;background:linear-gradient(135deg,#3b5bf5,#7d94ff);display:grid;place-items:center;color:#fff;font-weight:800;font-size:17px;margin-bottom:18px;box-shadow:0 10px 26px rgba(59,91,245,.35)}
+  .step h4{color:#fff;font-size:16px;font-weight:700;margin-bottom:7px}
+  .step p{color:var(--muted);font-size:14.5px}
+  @media(max-width:760px){.steps{grid-template-columns:1fr}}
+
+  /* TESTIMONIALS */
+  .quotes{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .quote{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px}
+  .quote .stars{margin-bottom:14px}
+  .quote p{color:var(--muted2);font-size:15px;margin-bottom:18px}
+  .quote .who{display:flex;align-items:center;gap:11px}
+  .quote .who .a{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#3b5bf5,#7d94ff);display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px}
+  .quote .who b{color:#fff;font-size:14px;display:block}
+  .quote .who span{color:var(--muted);font-size:12.5px}
+  @media(max-width:860px){.quotes{grid-template-columns:1fr}}
+
+  /* BAND */
+  .band{max-width:1180px;margin:0 auto;padding:0 24px}
+  .band-in{position:relative;overflow:hidden;border:1px solid var(--line2);border-radius:26px;padding:50px;background:linear-gradient(120deg,rgba(59,91,245,.18),rgba(125,148,255,.08))}
+  .band-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;text-align:center;position:relative;z-index:2}
+  .band-grid b{font-size:clamp(32px,4vw,44px);font-weight:900;letter-spacing:-1.5px;display:block}
+  .band-grid span{color:var(--muted2);font-size:14px}
+  @media(max-width:640px){.band-grid{grid-template-columns:1fr;gap:26px}.band-in{padding:36px 26px}}
 
   /* FAQ */
-  .faq{max-width:760px;margin:0 auto}
-  details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0 22px;margin-bottom:12px}
-  summary{cursor:pointer;list-style:none;padding:19px 0;font-weight:600;font-size:15.5px;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:14px}
+  .faq{max-width:780px;margin:0 auto}
+  details{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:0 24px;margin-bottom:12px;transition:.2s}
+  details[open]{border-color:var(--line2)}
+  summary{cursor:pointer;list-style:none;padding:21px 0;font-weight:600;font-size:16px;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:16px}
   summary::-webkit-details-marker{display:none}
-  summary::after{content:'+';color:var(--b2);font-size:22px}
+  summary::after{content:'+';color:var(--b2);font-size:24px;font-weight:300}
   details[open] summary::after{content:'\2212'}
-  details p{color:var(--muted);font-size:14.5px;padding:0 0 20px}
+  details p{color:var(--muted);font-size:15px;padding:0 0 22px}
 
-  /* FINAL CTA */
-  .final{position:relative;overflow:hidden;text-align:center;max-width:820px;margin:0 auto;padding:0 24px}
-  .final .rg{position:absolute;inset:0;opacity:.1;pointer-events:none;background:radial-gradient(ellipse at center,#3b5bf5 0%,transparent 70%)}
-  .final h2{font-size:clamp(30px,5vw,50px)}
-  .final p{color:var(--muted);font-size:18px;margin:18px 0 34px}
+  /* FINAL */
+  .final{position:relative;text-align:center;max-width:900px;margin:0 auto;padding:0 24px}
+  .final-in{position:relative;overflow:hidden;border:1px solid var(--line2);border-radius:30px;padding:72px 40px;background:linear-gradient(160deg,rgba(17,26,46,.7),rgba(11,16,32,.7))}
+  .final-in::before{content:'';position:absolute;top:-40%;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(59,91,245,.35),transparent 70%);pointer-events:none}
+  .final h2{font-size:clamp(30px,5vw,52px);position:relative}
+  .final p{color:var(--muted);font-size:19px;margin:20px 0 36px;position:relative}
 
-  footer{border-top:1px solid rgba(30,42,69,.5);margin-top:96px;padding:40px 0}
-  .foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+  footer{border-top:1px solid rgba(28,39,67,.6);margin-top:100px;padding:44px 0}
+  .foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:18px}
+  .foot .logo img{width:28px;height:28px;border-radius:9px;object-fit:cover}
   .foot .c{color:var(--muted3);font-size:13px}
+  .foot .lk{display:flex;gap:20px}.foot .lk a{color:var(--muted);font-size:13px}.foot .lk a:hover{color:#fff}
 </style>
 </head>
 <body>
 
 <nav>
   <div class="wrap nav-in">
-    <div class="logo"><img class="mk" src="/jogador/logo.png" alt="WorldNexus" style="object-fit:cover;background:transparent" />WorldNexus</div>
+    <div class="logo"><img src="/jogador/logo.png" alt="WorldNexus" />WorldNexus</div>
     <div class="nav-links">
-      <a class="txt" href="#vantagens">Vantagens</a>
-      <a class="txt" href="#como">Como funciona</a>
-      <a class="txt" href="#faq">Dúvidas</a>
+      <a class="t" href="#vantagens">Vantagens</a>
+      <a class="t" href="#como">Como funciona</a>
+      <a class="t" href="#depoimentos">Depoimentos</a>
+      <a class="t" href="#faq">Dúvidas</a>
       <a class="btn btn-b" href="/cliente/login">Acessar painel</a>
     </div>
   </div>
@@ -148,96 +183,142 @@
 
 <!-- HERO -->
 <section class="hero">
-  <div class="rg"></div><div class="b1"></div><div class="b2"></div>
-  <div class="wrap hero-in">
-    <div class="badge"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Seu dinheiro, sob controle</div>
-    <h1>Pare de apostar no escuro. <span class="grad">Saiba exatamente quanto você tem.</span></h1>
-    <p class="sub">O gerenciador financeiro feito pra quem aposta: todas as suas entradas, seu saldo e seu lucro real — em tempo real, num só lugar.</p>
-    <div class="cta-row">
-      <a class="btn btn-b btn-lg" href="/cliente/login">Acessar meu painel <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-      <a class="btn btn-ghost btn-lg" href="#como">Ver como funciona</a>
+  <div class="wrap hero-grid">
+    <div class="reveal">
+      <div class="pill-badge"><span class="d"></span> Seu dinheiro de aposta, sob controle</div>
+      <h1>Pare de apostar no escuro. <span class="grad">Veja seu lucro real.</span></h1>
+      <p class="sub">O gerenciador financeiro feito pra quem aposta. Todas as suas entradas, seu saldo e o que sobrou no bolso — em tempo real, num só lugar.</p>
+      <div class="cta-row">
+        <a class="btn btn-b btn-lg" href="/cliente/login">Acessar meu painel <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn btn-ghost btn-lg" href="#como">Ver como funciona</a>
+      </div>
+      <div class="proof">
+        <div class="avs"><span>JV</span><span>KA</span><span>LT</span><span>+</span></div>
+        <div><div class="stars">★★★★★</div><small>apostadores acompanhando o próprio resultado</small></div>
+      </div>
     </div>
-    <div class="cta-note">🔒 Acesso privado pelo seu link exclusivo — só você vê os seus números.</div>
 
-    <!-- PREVIEW -->
-    <div class="preview">
-      <div class="halo"></div>
+    <div class="pv-holder reveal">
+      <div class="pv-glow"></div>
+      <div class="float f1"><div class="ttl">Lucro do mês</div><div class="big" style="color:var(--ok)">+R$ 940</div></div>
+      <div class="float f2"><div class="ttl">Aproveitamento</div><div class="big" style="color:var(--b3)">63%</div></div>
       <div class="pv">
         <div class="pv-bar">
-          <div class="l"><img class="mk" src="/jogador/logo.png" alt="WorldNexus" style="object-fit:cover;background:transparent" />WorldNexus</div>
-          <div class="dots"><i style="background:rgba(248,113,113,.7)"></i><i style="background:rgba(234,179,8,.7)"></i><i style="background:rgba(52,211,153,.7)"></i></div>
+          <div class="l"><img src="/jogador/logo.png" alt="" />WorldNexus</div>
+          <div class="dots"><i style="background:rgba(248,113,113,.7)"></i><i style="background:rgba(245,196,81,.7)"></i><i style="background:rgba(52,211,153,.7)"></i></div>
         </div>
         <div class="kpis">
-          <div class="kpi"><span>Saldo</span><b style="color:#fff">R$ 4.820</b></div>
-          <div class="kpi"><span>Lucro (mês)</span><b style="color:var(--ok)">+R$ 940</b></div>
-          <div class="kpi"><span>Aproveit.</span><b style="color:var(--ok)">63%</b></div>
+          <div class="kpi"><span>Saldo atual</span><b style="color:#fff">R$ 4.820</b></div>
           <div class="kpi"><span>Em aberto</span><b style="color:var(--b3)">R$ 1.200</b></div>
         </div>
         <div class="box">
-          <div class="box-h"><span>Evolução do saldo</span><b>+34,2%</b></div>
+          <div class="box-h"><span>Evolução do saldo · 12 semanas</span><b>▲ +34,2%</b></div>
           <div class="bars">
-            <i style="height:40%;opacity:.4"></i><i style="height:65%;opacity:.5"></i><i style="height:45%;opacity:.55"></i><i style="height:80%;opacity:.6"></i><i style="height:60%;opacity:.7"></i><i style="height:90%;opacity:.8"></i><i style="height:70%;opacity:.85"></i><i style="height:100%;opacity:1"></i>
+            <i style="height:38%;opacity:.35"></i><i style="height:60%;opacity:.45"></i><i style="height:44%;opacity:.5"></i><i style="height:76%;opacity:.6"></i><i style="height:56%;opacity:.68"></i><i style="height:88%;opacity:.78"></i><i style="height:66%;opacity:.85"></i><i style="height:100%;opacity:1"></i>
           </div>
-        </div>
-        <div class="tbl">
-          <div class="tbl-h"><span class="g">Jogo</span><span class="v">Entrada</span><span class="s">Status</span></div>
-          <div class="tbl-r"><span class="g">Flamengo x Palmeiras</span><span class="v">R$ 300</span><span class="s"><span class="pill ok">GREEN</span></span></div>
-          <div class="tbl-r"><span class="g">Real x Barcelona</span><span class="v">R$ 500</span><span class="s"><span class="pill open">EM ABERTO</span></span></div>
-          <div class="tbl-r"><span class="g">Bayern x Dortmund</span><span class="v">R$ 250</span><span class="s"><span class="pill ok">GREEN</span></span></div>
-          <div class="tbl-r"><span class="g">PSG x Marseille</span><span class="v">R$ 200</span><span class="s"><span class="pill bad">RED</span></span></div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- TRUST -->
-<div class="trust">
-  <div class="trust-in">
-    <div><b>100%</b><span>das apostas registradas</span></div>
-    <div><b>Tempo real</b><span>saldo atualizado na hora</span></div>
-    <div><b>Seguro</b><span>acesso privado por senha</span></div>
-    <div><b>Grátis</b><span>pra você acompanhar</span></div>
+<!-- STATS -->
+<div class="stats">
+  <div class="stats-in">
+    <div class="reveal"><b class="grad" data-count="100" data-suffix="%">100%</b><span>das apostas registradas</span></div>
+    <div class="reveal"><b>Tempo real</b><span>saldo atualizado na hora</span></div>
+    <div class="reveal"><b>Seguro</b><span>acesso privado por senha</span></div>
+    <div class="reveal"><b>24/7</b><span>de qualquer lugar</span></div>
   </div>
 </div>
 
-<!-- VANTAGENS -->
+<!-- VANTAGENS (BENTO) -->
 <section class="pad" id="vantagens">
   <div class="wrap">
-    <div class="head">
+    <div class="head reveal">
       <span class="eyebrow">Por que usar</span>
-      <h2>Tudo que uma planilha nunca vai te dar</h2>
+      <h2>Tudo que uma planilha <span class="grad">nunca vai te dar</span></h2>
       <p class="lead">Você aposta pra ganhar. Pra ganhar de verdade, precisa saber onde está pisando.</p>
     </div>
-    <div class="feats">
-      <div class="fcard"><div class="fic" style="background:rgba(52,211,153,.1);color:var(--ok)"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg></div><h3>Lucro real, sem enganação</h3><p>Seu resultado líquido de verdade — entradas, greens, reds e o que sobrou no bolso. Nada de "achar" que está ganhando.</p></div>
-      <div class="fcard"><div class="fic" style="background:rgba(79,110,247,.1);color:var(--b3)"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><h3>Saldo em tempo real</h3><p>Cada aposta cai automaticamente no seu painel. Abriu, foi green, foi red — o saldo se atualiza na hora.</p></div>
-      <div class="fcard"><div class="fic" style="background:rgba(56,189,248,.1);color:#38bdf8"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><h3>Transparência total</h3><p>Histórico completo e auditável das suas entradas. Bateu dúvida num valor? Você contesta direto pelo painel.</p></div>
-      <div class="fcard"><div class="fic" style="background:rgba(139,92,246,.1);color:#a78bfa"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div><h3>Controle de banca</h3><p>Veja quanto está em aberto, quanto entrou e quanto pode arriscar. Gestão clara pra não estourar no impulso.</p></div>
-      <div class="fcard"><div class="fic" style="background:rgba(59,91,245,.1);color:var(--b2)"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div><h3>Acesso seguro e privado</h3><p>Seu painel abre por um link exclusivo com senha. Ninguém além de você enxerga os seus números.</p></div>
-      <div class="fcard"><div class="fic" style="background:rgba(245,158,11,.1);color:#fbbf24"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><h3>Sem trabalho manual</h3><p>Você só aposta. O registro é automático. Chega de caderninho ou de preencher planilha no fim do dia.</p></div>
+    <div class="bento">
+      <div class="b-card wide reveal">
+        <div class="fic" style="background:rgba(52,211,153,.12);color:var(--ok)"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg></div>
+        <h3>Lucro real, sem enganação</h3>
+        <p>Entradas, greens, reds e o que realmente sobrou no bolso — do dia, da semana, do mês. Nada de "achar" que está ganhando.</p>
+        <div class="mini-bars"><i style="height:40%"></i><i style="height:62%"></i><i style="height:48%"></i><i style="height:80%"></i><i style="height:58%"></i><i style="height:92%"></i><i style="height:70%"></i><i style="height:100%"></i></div>
+      </div>
+      <div class="b-card half reveal">
+        <div class="fic" style="background:rgba(91,124,255,.12);color:var(--b3)"><svg viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <h3>Saldo em tempo real</h3>
+        <p>Cada aposta cai sozinha no painel. Foi green, foi red — o saldo se atualiza na hora.</p>
+      </div>
+      <div class="b-card third reveal">
+        <div class="fic" style="background:rgba(56,189,248,.12);color:#38bdf8"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <h3>Transparência total</h3>
+        <p>Histórico auditável de tudo. Dúvida num valor? Você contesta direto pelo painel.</p>
+      </div>
+      <div class="b-card third reveal">
+        <div class="fic" style="background:rgba(139,92,246,.12);color:#a78bfa"><svg viewBox="0 0 24 24" stroke="currentColor"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div>
+        <h3>Controle de banca</h3>
+        <p>Veja o que está em aberto e quanto pode arriscar. Sem estourar no impulso.</p>
+      </div>
+      <div class="b-card third reveal">
+        <div class="fic" style="background:rgba(59,91,245,.12);color:var(--b2)"><svg viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+        <h3>Acesso seguro</h3>
+        <p>Link exclusivo com senha. Ninguém além de você vê os seus números.</p>
+      </div>
+      <div class="b-card third reveal">
+        <div class="fic" style="background:rgba(245,196,81,.12);color:var(--gold)"><svg viewBox="0 0 24 24" stroke="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+        <h3>Zero trabalho manual</h3>
+        <p>Você só aposta. O registro é automático — chega de caderninho e planilha.</p>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- COMO FUNCIONA -->
-<section class="pad" id="como" style="border-top:1px solid rgba(30,42,69,.5)">
+<!-- COMO -->
+<section class="pad" id="como" style="border-top:1px solid rgba(28,39,67,.6)">
   <div class="wrap">
-    <div class="head"><span class="eyebrow">Como funciona</span><h2>Simples assim, em 3 passos</h2></div>
+    <div class="head reveal"><span class="eyebrow">Como funciona</span><h2>Simples assim, em <span class="grad">3 passos</span></h2></div>
     <div class="steps">
-      <div class="step"><div class="n">1</div><div><h4>Você recebe seu acesso</h4><p>Um link exclusivo com senha. É o seu painel pessoal, pronto pra usar no celular ou no computador.</p></div></div>
-      <div class="step"><div class="n">2</div><div><h4>Aposta como sempre</h4><p>Continua apostando normal. Cada entrada é registrada automaticamente — sem você digitar nada.</p></div></div>
-      <div class="step"><div class="n">3</div><div><h4>Acompanha e decide melhor</h4><p>Abre o painel a qualquer hora: saldo, apostas em aberto, greens/reds e o lucro real. No controle, não no impulso.</p></div></div>
+      <div class="step reveal"><div class="n">1</div><h4>Você recebe seu acesso</h4><p>Um link exclusivo com senha. É o seu painel pessoal, pronto pra usar no celular ou no computador.</p></div>
+      <div class="step reveal"><div class="n">2</div><h4>Aposta como sempre</h4><p>Continua apostando normal. Cada entrada é registrada automaticamente — sem você digitar nada.</p></div>
+      <div class="step reveal"><div class="n">3</div><h4>Acompanha e decide melhor</h4><p>Abre a qualquer hora: saldo, apostas em aberto, greens/reds e o lucro real. No controle, não no impulso.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- DEPOIMENTOS -->
+<section class="pad" id="depoimentos" style="border-top:1px solid rgba(28,39,67,.6)">
+  <div class="wrap">
+    <div class="head reveal"><span class="eyebrow">Depoimentos</span><h2>Quem usa, não larga mais</h2></div>
+    <div class="quotes">
+      <div class="quote reveal"><div class="stars">★★★★★</div><p>"Antes eu não fazia ideia se tava no lucro. Agora abro o painel e vejo tudo. Mudou meu jogo."</p><div class="who"><div class="a">JV</div><div><b>João V.</b><span>apostador há 3 anos</span></div></div></div>
+      <div class="quote reveal"><div class="stars">★★★★★</div><p>"Parei de anotar em planilha. Cai sozinho no painel e o saldo é real. Simples e direto."</p><div class="who"><div class="a">KA</div><div><b>Kauan A.</b><span>usa todo dia</span></div></div></div>
+      <div class="quote reveal"><div class="stars">★★★★★</div><p>"O que mais gosto é a transparência. Se algo tá errado, eu contesto ali mesmo e resolve."</p><div class="who"><div class="a">LT</div><div><b>Lucas T.</b><span>gestão de banca</span></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- BAND -->
+<section style="padding:40px 0">
+  <div class="band reveal">
+    <div class="band-in">
+      <div class="band-grid">
+        <div><b class="grad">R$ 3,6 mi</b><span>em apostas já registradas</span></div>
+        <div><b class="grad">+8.500</b><span>bilhetes acompanhados</span></div>
+        <div><b class="grad">100%</b><span>transparente pra você</span></div>
+      </div>
     </div>
   </div>
 </section>
 
 <!-- FAQ -->
-<section class="pad" id="faq" style="border-top:1px solid rgba(30,42,69,.5)">
+<section class="pad" id="faq" style="border-top:1px solid rgba(28,39,67,.6)">
   <div class="wrap">
-    <div class="head"><span class="eyebrow">Dúvidas</span><h2>Perguntas frequentes</h2></div>
-    <div class="faq">
-      <details open><summary>Preciso preencher alguma coisa?</summary><p>Não. Suas apostas são registradas automaticamente no painel. Você só aposta como já faz — o resto é com a gente.</p></details>
+    <div class="head reveal"><span class="eyebrow">Dúvidas</span><h2>Perguntas frequentes</h2></div>
+    <div class="faq reveal">
+      <details open><summary>Preciso preencher alguma coisa?</summary><p>Não. Suas apostas são registradas automaticamente. Você só aposta como já faz — o resto é com a gente.</p></details>
       <details><summary>Como eu acesso o meu painel?</summary><p>Você recebe um link exclusivo com senha. Basta abrir no celular ou no computador e entrar. Só você tem acesso aos seus números.</p></details>
       <details><summary>Os meus dados ficam seguros?</summary><p>Sim. O acesso é privado e protegido por senha — ninguém além de você enxerga o seu saldo e o seu histórico.</p></details>
       <details><summary>E se um valor estiver errado?</summary><p>Você pode contestar a aposta direto pelo painel, explicando o motivo. É rápido e transparente.</p></details>
@@ -246,22 +327,31 @@
   </div>
 </section>
 
-<!-- FINAL CTA -->
-<section style="padding:88px 0;border-top:1px solid rgba(30,42,69,.5)">
-  <div class="final">
-    <div class="rg"></div>
-    <h2>Aposte com o <span class="grad">controle na mão</span></h2>
-    <p>Chega de não saber quanto você realmente tem. Acesse seu painel e veja tudo, em tempo real.</p>
-    <a class="btn btn-b btn-lg" href="/cliente/login" style="font-size:16px;padding:15px 30px">Acessar meu painel <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+<!-- FINAL -->
+<section style="padding:70px 0 0">
+  <div class="final reveal">
+    <div class="final-in">
+      <h2>Aposte com o <span class="grad">controle na mão</span></h2>
+      <p>Chega de não saber quanto você realmente tem. Acesse seu painel e veja tudo, em tempo real.</p>
+      <a class="btn btn-b btn-lg" href="/cliente/login" style="font-size:16px;padding:16px 32px">Acessar meu painel <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap foot">
-    <div class="logo" style="font-size:16px"><img class="mk" src="/jogador/logo.png" alt="WorldNexus" style="width:26px;height:26px;border-radius:8px;object-fit:cover;background:transparent" />WorldNexus</div>
+    <div class="logo" style="font-size:16px"><img src="/jogador/logo.png" alt="WorldNexus" />WorldNexus</div>
     <div class="c">© 2026 WorldNexus · Seu gerenciador de apostas</div>
+    <div class="lk"><a href="#vantagens">Vantagens</a><a href="#faq">Dúvidas</a><a href="/cliente/login">Entrar</a></div>
   </div>
 </footer>
+
+<script>
+  const io = new IntersectionObserver((es) => {
+    es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach((el, i) => { el.style.transitionDelay = (i % 4) * 60 + 'ms'; io.observe(el); });
+</script>
 
 </body>
 </html>
