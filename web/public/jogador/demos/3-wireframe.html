@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Terra 3D · Opção 3 — Wireframe</title>
+<style>
+  *{margin:0;box-sizing:border-box}
+  body{font-family:Inter,system-ui,sans-serif;background:#080512;color:#f1edff;overflow:hidden;height:100vh}
+  body::before{content:'';position:fixed;inset:0;z-index:0;background:
+    radial-gradient(38% 34% at 52% 22%,rgba(217,70,239,.22),transparent 60%),
+    radial-gradient(52% 46% at 26% 40%,rgba(139,92,246,.22),transparent 62%),
+    radial-gradient(48% 44% at 76% 32%,rgba(99,102,241,.18),transparent 62%),
+    radial-gradient(70% 55% at 50% 118%,rgba(91,33,182,.32),transparent 60%)}
+  #stars{position:fixed;inset:0;z-index:1;pointer-events:none}
+  .star{position:absolute;border-radius:50%;background:#fff;animation:tw 4s ease-in-out infinite}
+  @keyframes tw{0%,100%{opacity:.25}50%{opacity:1}}
+  #halo{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:60vmin;height:60vmin;z-index:2;border-radius:50%;background:radial-gradient(closest-side,rgba(124,92,255,.35),transparent 72%);filter:blur(30px)}
+  #globe{position:fixed;inset:0;z-index:3}
+  .cap{position:fixed;top:22px;left:0;right:0;z-index:5;text-align:center;pointer-events:none}
+  .cap b{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#bcaaff}
+  .cap h1{font-size:26px;font-weight:800;margin-top:6px;letter-spacing:-.5px}
+  .opts{position:fixed;bottom:22px;left:0;right:0;z-index:5;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .opts a{font-size:13px;font-weight:600;color:#c3badf;background:rgba(124,92,255,.12);border:1px solid #3d3470;padding:9px 15px;border-radius:11px;text-decoration:none;backdrop-filter:blur(8px)}
+  .opts a.on{background:#7c5cff;color:#fff;border-color:#7c5cff}
+  .opts a:hover{color:#fff}
+</style>
+</head>
+<body>
+<div id="stars"></div>
+<div id="halo"></div>
+<div id="globe"></div>
+<div class="cap"><b>Opção 3</b><h1>🕸️ Wireframe 3D girando</h1></div>
+<div class="opts">
+  <a href="1-pontilhado.html">1 · Pontilhada</a>
+  <a href="2-realista.html">2 · Realista</a>
+  <a class="on" href="3-wireframe.html">3 · Wireframe</a>
+  <a href="/jogador">← Landing</a>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+  for(let i=0,h='';i<160;i++){const s=(Math.random()*2+.6).toFixed(1);h+=`<span class="star" style="width:${s}px;height:${s}px;left:${(Math.random()*100).toFixed(2)}%;top:${(Math.random()*100).toFixed(2)}%;opacity:${(Math.random()*.6+.2).toFixed(2)};animation-delay:${(Math.random()*4).toFixed(2)}s;${Math.random()>.94?'box-shadow:0 0 8px 1px rgba(200,180,255,.9)':''}"></span>`;stars.innerHTML=h;}
+  const el=document.getElementById('globe');
+  const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  el.appendChild(renderer.domElement);
+  const scene=new THREE.Scene();
+  const cam=new THREE.PerspectiveCamera(45,1,0.1,100); cam.position.z=3.2;
+  const g=new THREE.Group(); g.rotation.z=0.35; scene.add(g);
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(0.985,48,48), new THREE.MeshBasicMaterial({color:0x160c30,transparent:true,opacity:.82})));
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(1,42,28), new THREE.MeshBasicMaterial({color:0x9d86ff,wireframe:true,transparent:true,opacity:.35})));
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(1.16,48,48), new THREE.MeshBasicMaterial({color:0x9d86ff,transparent:true,opacity:.1,side:THREE.BackSide})));
+  function size(){const w=innerWidth,hh=innerHeight;renderer.setSize(w,hh);cam.aspect=w/hh;cam.updateProjectionMatrix();}
+  size(); addEventListener('resize',size);
+  (function loop(){requestAnimationFrame(loop);g.rotation.y+=0.0018;renderer.render(scene,cam);})();
+</script>
+</body>
+</html>
