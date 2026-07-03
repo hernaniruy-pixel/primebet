@@ -17,7 +17,6 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#080512;color:var(--txt);line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;position:relative}
-  /* NEBULA */
   body::before{content:'';position:fixed;inset:0;z-index:-2;background:
     radial-gradient(38% 34% at 52% 22%,rgba(217,70,239,.22),transparent 60%),
     radial-gradient(52% 46% at 26% 40%,rgba(139,92,246,.22),transparent 62%),
@@ -59,13 +58,11 @@
   .btn-lg{padding:16px 30px;font-size:16px;border-radius:14px}
   .cta-note{color:var(--muted3);font-size:13.5px;margin-top:20px}
 
-  /* GLOBE (max-width) */
-  .stage{position:relative;height:clamp(340px,42vw,560px);margin-top:26px}
-  .globe{position:absolute;left:50%;bottom:-30%;transform:translateX(-50%);width:min(1000px,116vw);height:auto;filter:drop-shadow(0 0 90px rgba(124,92,255,.5))}
-  #meridians{transform-box:view-box;transform-origin:250px 250px;animation:spin 80s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .g-line{fill:none;stroke:#a9b8ff;stroke-width:1}
-  @media(max-width:640px){.globe{bottom:-24%}}
+  /* GLOBO 3D (globe.gl) */
+  .stage{position:relative;height:clamp(380px,46vw,600px);margin-top:18px;overflow:hidden}
+  #globe{position:absolute;left:50%;bottom:-24%;transform:translateX(-50%);width:min(1040px,124vw);height:min(1040px,124vw);filter:drop-shadow(0 0 70px rgba(124,92,255,.4))}
+  #globe canvas{display:block;pointer-events:none}
+  @media(max-width:640px){#globe{bottom:-14%}}
 
   /* SECTIONS */
   section.pad{padding:100px 0}
@@ -140,64 +137,9 @@
     <div class="cta-note reveal">🔒 Acesso privado pelo seu link exclusivo — só você vê os seus números.</div>
   </div>
 
-  <!-- GLOBO TERRESTRE LUMINOSO -->
+  <!-- GLOBO TERRESTRE 3D HOLOGRÁFICO -->
   <div class="stage">
-    <svg class="globe" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs>
-        <radialGradient id="ocean" cx="42%" cy="36%" r="72%">
-          <stop offset="0%" stop-color="#1b3a6b"/>
-          <stop offset="55%" stop-color="#0f2350"/>
-          <stop offset="100%" stop-color="#0a1330"/>
-        </radialGradient>
-        <radialGradient id="atmo" cx="50%" cy="50%" r="50%">
-          <stop offset="62%" stop-color="rgba(124,92,255,0)"/>
-          <stop offset="85%" stop-color="rgba(157,134,255,.35)"/>
-          <stop offset="100%" stop-color="rgba(157,134,255,0)"/>
-        </radialGradient>
-        <clipPath id="sph"><circle cx="250" cy="250" r="228"/></clipPath>
-        <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter>
-      </defs>
-
-      <!-- atmosfera -->
-      <circle cx="250" cy="250" r="250" fill="url(#atmo)"/>
-      <!-- oceano -->
-      <circle cx="250" cy="250" r="228" fill="url(#ocean)"/>
-
-      <!-- continentes (hint luminoso, clipado na esfera) -->
-      <g clip-path="url(#sph)" filter="url(#soft)" fill="#2fe6c0" opacity=".5">
-        <!-- Américas -->
-        <path d="M150 150 q18 20 8 52 q-6 22 12 40 q14 16 4 44 q-8 30 -30 46 q-16 -34 -10 -74 q4 -40 -6 -70 q-6 -26 28 -38z"/>
-        <!-- África / Europa -->
-        <path d="M262 148 q30 -6 40 14 q-6 20 -26 22 q-20 0 -22 -16 q0 -14 8 -20z M250 210 q40 -4 46 34 q6 40 -18 70 q-24 26 -40 -2 q-14 -26 -8 -58 q4 -30 20 -44z"/>
-        <!-- Ásia -->
-        <path d="M312 150 q56 -8 70 20 q10 22 -18 34 q-30 12 -58 2 q-22 -8 -18 -34 q4 -18 24 -22z"/>
-        <!-- Oceania -->
-        <path d="M352 322 q30 -6 34 16 q2 18 -22 22 q-24 2 -26 -18 q0 -16 14 -20z"/>
-      </g>
-
-      <!-- grade holográfica -->
-      <g clip-path="url(#sph)">
-        <g class="g-line" opacity=".28">
-          <ellipse cx="250" cy="52"  rx="96"  ry="18"/>
-          <ellipse cx="250" cy="100" rx="167" ry="31"/>
-          <ellipse cx="250" cy="160" rx="209" ry="39"/>
-          <ellipse cx="250" cy="250" rx="228" ry="44"/>
-          <ellipse cx="250" cy="340" rx="209" ry="39"/>
-          <ellipse cx="250" cy="400" rx="167" ry="31"/>
-          <ellipse cx="250" cy="448" rx="96"  ry="18"/>
-        </g>
-        <g id="meridians" class="g-line" opacity=".26">
-          <ellipse cx="250" cy="250" rx="48"  ry="228"/>
-          <ellipse cx="250" cy="250" rx="105" ry="228"/>
-          <ellipse cx="250" cy="250" rx="158" ry="228"/>
-          <ellipse cx="250" cy="250" rx="200" ry="228"/>
-        </g>
-      </g>
-
-      <!-- borda + brilho glossy -->
-      <circle cx="250" cy="250" r="228" class="g-line" stroke="#bcaaff" stroke-width="1.6" opacity=".7"/>
-      <ellipse cx="188" cy="168" rx="72" ry="48" fill="rgba(190,170,255,.12)"/>
-    </svg>
+    <div id="globe"></div>
   </div>
 </section>
 
@@ -273,20 +215,42 @@
   </div>
 </footer>
 
+<script src="https://unpkg.com/globe.gl"></script>
 <script>
   // Starfield
   (function(){
     const box = document.getElementById('stars'); if(!box) return;
-    let html = '';
+    let html='';
     for(let i=0;i<170;i++){
-      const s = (Math.random()*2+0.6).toFixed(1);
-      const x = (Math.random()*100).toFixed(2), y=(Math.random()*100).toFixed(2);
-      const o = (Math.random()*0.6+0.2).toFixed(2), d=(Math.random()*4).toFixed(2);
-      const big = Math.random()>0.94;
-      html += `<span class="star" style="width:${s}px;height:${s}px;left:${x}%;top:${y}%;opacity:${o};animation-delay:${d}s;${big?'box-shadow:0 0 8px 1px rgba(200,180,255,.9)':''}"></span>`;
+      const s=(Math.random()*2+0.6).toFixed(1);
+      const x=(Math.random()*100).toFixed(2), y=(Math.random()*100).toFixed(2);
+      const o=(Math.random()*0.6+0.2).toFixed(2), d=(Math.random()*4).toFixed(2);
+      const big=Math.random()>0.94;
+      html+=`<span class="star" style="width:${s}px;height:${s}px;left:${x}%;top:${y}%;opacity:${o};animation-delay:${d}s;${big?'box-shadow:0 0 8px 1px rgba(200,180,255,.9)':''}"></span>`;
     }
-    box.innerHTML = html;
+    box.innerHTML=html;
   })();
+
+  // Globo 3D holográfico pontilhado (globe.gl)
+  (function(){
+    const el = document.getElementById('globe');
+    if(!el || !window.Globe) return;
+    const PAL=['#a78bfa','#7c5cff','#c084fc','#8b5cf6','#9d86ff'];
+    const world = Globe()(el)
+      .backgroundColor('rgba(0,0,0,0)')
+      .showAtmosphere(true).atmosphereColor('#9d86ff').atmosphereAltitude(0.28)
+      .hexPolygonResolution(3).hexPolygonMargin(0.3).hexPolygonUseDots(true).hexPolygonAltitude(0.008)
+      .hexPolygonColor(()=>PAL[Math.floor(Math.random()*PAL.length)]);
+    world.globeMaterial().color.set('#160c30');
+    world.globeMaterial().transparent=true; world.globeMaterial().opacity=0.9;
+    const c=world.controls(); c.autoRotate=true; c.autoRotateSpeed=0.8; c.enableZoom=false;
+    const gsize=()=>world.width(el.clientWidth).height(el.clientHeight);
+    gsize(); addEventListener('resize', gsize);
+    world.pointOfView({lat:18,lng:-40,altitude:2.3});
+    fetch('https://cdn.jsdelivr.net/gh/vasturiano/globe.gl/example/datasets/ne_110m_admin_0_countries.geojson')
+      .then(r=>r.json()).then(d=>world.hexPolygonsData(d.features)).catch(()=>{});
+  })();
+
   // Reveal
   const io = new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:.12});
   document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(i%4)*70+'ms';io.observe(el);});
