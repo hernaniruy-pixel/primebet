@@ -17,12 +17,11 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#080512;color:var(--txt);line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;position:relative}
-  body::before{content:'';position:fixed;inset:0;z-index:-2;background:
-    radial-gradient(38% 34% at 52% 22%,rgba(217,70,239,.22),transparent 60%),
-    radial-gradient(52% 46% at 26% 40%,rgba(139,92,246,.22),transparent 62%),
-    radial-gradient(48% 44% at 76% 32%,rgba(99,102,241,.18),transparent 62%),
-    radial-gradient(70% 55% at 50% 118%,rgba(91,33,182,.32),transparent 60%),
-    #080512}
+  body::before{content:'';position:fixed;inset:0;z-index:-3;background:#080512 url('/jogador/galaxy.jpg') center/cover no-repeat;filter:hue-rotate(210deg) saturate(1.25) brightness(.8)}
+  body::after{content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;background:
+    radial-gradient(62% 50% at 50% 24%,rgba(168,139,250,.24),transparent 62%),
+    radial-gradient(50% 44% at 78% 30%,rgba(217,70,239,.14),transparent 62%),
+    linear-gradient(rgba(10,6,26,.42),rgba(8,5,18,.85))}
   #stars{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
   .star{position:absolute;border-radius:50%;background:#fff;animation:tw 4s ease-in-out infinite}
   @keyframes tw{0%,100%{opacity:.25}50%{opacity:1}}
