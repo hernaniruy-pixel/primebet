@@ -17,11 +17,11 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#080512;color:var(--txt);line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;position:relative}
-  body::before{content:'';position:fixed;inset:0;z-index:-3;background:#080512 url('/jogador/galaxy.jpg') center/cover no-repeat;filter:hue-rotate(210deg) saturate(1.25) brightness(.8)}
+  body::before{content:'';position:fixed;inset:0;z-index:-3;background:#080512 url('/jogador/galaxy.jpg') center/cover no-repeat;filter:hue-rotate(210deg) saturate(1.2) brightness(.5)}
   body::after{content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;background:
-    radial-gradient(62% 50% at 50% 24%,rgba(168,139,250,.24),transparent 62%),
-    radial-gradient(50% 44% at 78% 30%,rgba(217,70,239,.14),transparent 62%),
-    linear-gradient(rgba(10,6,26,.42),rgba(8,5,18,.85))}
+    radial-gradient(62% 50% at 50% 24%,rgba(168,139,250,.2),transparent 62%),
+    radial-gradient(50% 44% at 78% 30%,rgba(217,70,239,.12),transparent 62%),
+    linear-gradient(rgba(8,5,18,.58),rgba(8,5,18,.9))}
   #stars{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
   .star{position:absolute;border-radius:50%;background:#fff;animation:tw 4s ease-in-out infinite}
   @keyframes tw{0%,100%{opacity:.25}50%{opacity:1}}
@@ -61,8 +61,8 @@
   #globe{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(1160px,148vw);height:min(1160px,148vw);z-index:0;filter:drop-shadow(0 0 90px rgba(124,92,255,.45))}
   #globe canvas{display:block;pointer-events:none}
   .scrim{position:absolute;inset:0;z-index:1;pointer-events:none;background:
-    linear-gradient(to bottom,rgba(8,5,18,.72),rgba(8,5,18,.3) 24%,transparent 46%),
-    radial-gradient(48% 30% at 50% 15%,rgba(8,5,18,.5),transparent 70%)}
+    linear-gradient(to bottom,rgba(8,5,18,.5),rgba(8,5,18,.18) 24%,transparent 46%),
+    radial-gradient(48% 30% at 50% 15%,rgba(8,5,18,.34),transparent 70%)}
   .hero .wrap{position:relative;z-index:2}
   .hero h1{text-shadow:0 2px 22px rgba(0,0,0,.82),0 1px 4px rgba(0,0,0,.6)}
   .hero .sub,.hero .badge,.hero .cta-note{text-shadow:0 1px 12px rgba(0,0,0,.78)}
