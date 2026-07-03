@@ -48,7 +48,7 @@
   @media(max-width:760px){.nav-links a.t{display:none}}
 
   /* HERO */
-  .hero{position:relative;text-align:center;padding:72px 0 0;overflow:hidden}
+  .hero{position:relative;text-align:center;overflow:hidden;min-height:clamp(660px,96vh,960px);display:flex;flex-direction:column;justify-content:center}
   .badge{display:inline-flex;align-items:center;gap:9px;background:rgba(124,92,255,.12);border:1px solid rgba(157,134,255,.32);border-radius:999px;padding:7px 15px;margin-bottom:26px;color:var(--b3);font-size:13px;font-weight:600}
   .badge .d{width:7px;height:7px;border-radius:50%;background:#9d86ff;box-shadow:0 0 0 0 rgba(157,134,255,.6);animation:pl 2.2s infinite}
   @keyframes pl{70%{box-shadow:0 0 0 8px rgba(157,134,255,0)}100%{box-shadow:0 0 0 0 rgba(157,134,255,0)}}
@@ -58,11 +58,14 @@
   .btn-lg{padding:16px 30px;font-size:16px;border-radius:14px}
   .cta-note{color:var(--muted3);font-size:13.5px;margin-top:20px}
 
-  /* GLOBO 3D (globe.gl) */
-  .stage{position:relative;height:clamp(380px,46vw,600px);margin-top:18px;overflow:hidden}
-  #globe{position:absolute;left:50%;bottom:-24%;transform:translateX(-50%);width:min(1040px,124vw);height:min(1040px,124vw);filter:drop-shadow(0 0 70px rgba(124,92,255,.4))}
+  /* GLOBO 3D de fundo (globe.gl) */
+  #globe{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);width:min(1200px,158vw);height:min(1200px,158vw);z-index:0;filter:drop-shadow(0 0 90px rgba(124,92,255,.45))}
   #globe canvas{display:block;pointer-events:none}
-  @media(max-width:640px){#globe{bottom:-14%}}
+  .scrim{position:absolute;inset:0;z-index:1;pointer-events:none;background:
+    radial-gradient(58% 46% at 50% 42%,rgba(8,5,18,.55),transparent 74%),
+    linear-gradient(to bottom,transparent 58%,#080512 99%)}
+  .hero .wrap{position:relative;z-index:2}
+  .hero h1,.hero .sub{text-shadow:0 2px 34px rgba(8,5,18,.7)}
 
   /* SECTIONS */
   section.pad{padding:100px 0}
@@ -126,6 +129,8 @@
 
 <!-- HERO -->
 <section class="hero">
+  <div id="globe"></div>
+  <div class="scrim"></div>
   <div class="wrap">
     <div class="badge reveal"><span class="d"></span> Seu dinheiro de aposta, no controle</div>
     <h1 class="reveal">Saiba <span class="grad">quanto você tem</span> de verdade.</h1>
@@ -135,11 +140,6 @@
       <a class="btn btn-ghost btn-lg" href="#como">Como funciona</a>
     </div>
     <div class="cta-note reveal">🔒 Acesso privado pelo seu link exclusivo — só você vê os seus números.</div>
-  </div>
-
-  <!-- GLOBO TERRESTRE 3D HOLOGRÁFICO -->
-  <div class="stage">
-    <div id="globe"></div>
   </div>
 </section>
 
@@ -246,7 +246,7 @@
     const c=world.controls(); c.autoRotate=true; c.autoRotateSpeed=0.8; c.enableZoom=false;
     const gsize=()=>world.width(el.clientWidth).height(el.clientHeight);
     gsize(); addEventListener('resize', gsize);
-    world.pointOfView({lat:18,lng:-40,altitude:2.3});
+    world.pointOfView({lat:16,lng:-30,altitude:2.1});
     fetch('https://cdn.jsdelivr.net/gh/vasturiano/globe.gl/example/datasets/ne_110m_admin_0_countries.geojson')
       .then(r=>r.json()).then(d=>world.hexPolygonsData(d.features)).catch(()=>{});
   })();
