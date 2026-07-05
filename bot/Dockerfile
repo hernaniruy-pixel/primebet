@@ -14,9 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 libvulkan1 libgl1 \
   && rm -rf /var/lib/apt/lists/*
 
-# Usa o Chromium do sistema (não baixa o do puppeteer).
-ENV PUPPETEER_SKIP_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+# Deixa o puppeteer baixar o Chrome CASADO com a versão dele (evita descasamento
+# com o chromium do sistema, que quebra o launch — "Failed to launch ... Code: null").
+# As libs do apt acima suprem as dependências desse Chrome.
 ENV NODE_ENV=production
 
 WORKDIR /app
