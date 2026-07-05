@@ -181,6 +181,12 @@ async function exigirSessao() {
   if (!data.user) throw new Error('Não autenticado.');
 }
 
+// id da banca padrão (mono-banca PrimeBet) — obrigatório em clientes/afiliados/apostas.
+async function bancaId(db: ReturnType<typeof createAdminClient>): Promise<number> {
+  const { data } = await db.from('bancas').select('id').eq('slug', 'primebet').maybeSingle();
+  return (data?.id as number) ?? 1;
+}
+
 // mapa id→nome dos afiliados (para devolver clientes na forma do painel)
 async function afNomeMap(db: ReturnType<typeof createAdminClient>): Promise<Record<number, string>> {
   const { data } = await db.from('afiliados').select('id,nome');
@@ -260,6 +266,7 @@ export async function criarCliente(input: NovoClienteInput): Promise<Cliente> {
   }
 
   const { data, error } = await db.from('clientes').insert({
+    banca_id: await bancaId(db),
     nome, senha_hash: input.senha || null,
     calcao: input.calcao ?? 0, desconto: input.desconto ?? 0,
     comissao_pct: input.comissao ?? 0, afiliado_id: afiliadoId,
@@ -321,7 +328,7 @@ export async function atualizarCliente(id: number, patch: PatchCliente): Promise
 export async function criarAfiliado(nome: string, com = 0): Promise<Afiliado> {
   await exigirSessao();
   const db = createAdminClient();
-  const { data, error } = await db.from('afiliados').insert({ nome, comissao_pct: com }).select('*').single();
+  const { data, error } = await db.from('afiliados').insert({ banca_id: await bancaId(db), nome, comissao_pct: com }).select('*').single();
   if (error) throw error;
   return mapAfiliado(data as AfiliadoRow);
 }
