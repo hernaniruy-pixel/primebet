@@ -142,7 +142,11 @@ function iniciarWhatsApp() {
       // No servidor (Docker) usamos o Chromium do sistema via PUPPETEER_EXECUTABLE_PATH.
       // Local (Windows) fica undefined e usa o Chromium que o puppeteer baixou.
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      timeout: 120000, // mais tempo p/ subir sob CPU limitada no container
+      args: [
+        '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+        '--disable-gpu', '--disable-software-rasterizer', '--disable-extensions',
+      ],
     },
   });
 
