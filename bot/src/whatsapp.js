@@ -84,6 +84,8 @@ async function registrarImagemDeMsg(msg, chat, nomeGrupo, { pularSeExiste = fals
 const catchupOpts = (client) => ({
   processarDespesa: (msg, chat, nome) => tratarDespesa(msg, chat, nome),
   processarImagem: (msg, chat, nome) => registrarImagemDeMsg(msg, chat, nome, { pularSeExiste: true }),
+  janelaHoras: 48, // recupera até 48h de histórico ao reconectar (cobre queda de fim de semana)
+  limite: 60,      // varre até 60 msgs por grupo (cobre 48h de grupo movimentado)
 });
 
 let catchupTimer = null;
