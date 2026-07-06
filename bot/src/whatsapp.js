@@ -1,6 +1,6 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
-const { AUTH_PATH, regraPorEmoji, OPERADORES } = require('./config');
+const { AUTH_PATH, regraPorEmoji, OPERADORES, GRUPO_AVISOS_LINK } = require('./config');
 const { transcreverBilhete } = require('./transcrever');
 const { parseValor } = require('./valor');
 const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId } = require('./ingest');
@@ -165,7 +165,7 @@ function iniciarWhatsApp() {
     setPronto();
     iniciarPollerPedidos(client);
     setTeste(() => avisar(client, `🔔 Teste de alerta — ${horaBR()}`)); // habilita /teste
-    aoConectar(client); // aquece o cache do grupo em silêncio; só avisa se for recuperação de queda
+    aoConectar(client, GRUPO_AVISOS_LINK); // entra no grupo de alertas (pelo link) e avisa que está ONLINE
     iniciarCatchup(client); // rede de segurança: recupera o que chegou enquanto a conexão estava caída
   });
   client.on('disconnected', (r) => {

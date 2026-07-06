@@ -37,5 +37,7 @@ module.exports = {
   norm,
   // Lista de números autorizados a reagir (só dígitos, ex.: 5511999999999). Vazio = aceita qualquer reação no grupo.
   OPERADORES: (process.env.OPERADORES || '').split(',').map((s) => s.replace(/\D/g, '')).filter(Boolean),
+  // Grupo de ALERTAS da integração (link do convite). O bot entra e usa como canal de status.
+  GRUPO_AVISOS_LINK: process.env.GRUPO_AVISOS_LINK || '',
   AUTH_PATH: path.join(__dirname, '..', '.wwebjs_auth'),
 };

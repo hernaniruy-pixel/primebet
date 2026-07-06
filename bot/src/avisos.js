@@ -6,6 +6,22 @@ let grupoAvisosId = null;
 // (rápido e direto — evita o getChats() que TRAVA quando há muitos grupos).
 const setGrupoAvisos = (id) => { if (id) grupoAvisosId = id; };
 
+/** Resolve o grupo de ALERTAS pelo LINK do convite (e ENTRA nele se ainda não for membro). */
+async function resolverAvisosPorLink(client, link) {
+  if (!link) return null;
+  const code = String(link).trim().replace(/\?.*$/, '').split('/').filter(Boolean).pop();
+  if (!code) return null;
+  let gid = null;
+  try {
+    gid = await client.acceptInvite(code); // entra no grupo e devolve o id (...@g.us)
+  } catch {
+    try { const info = await client.getInviteInfo(code); gid = info && info.id && (info.id._serialized || info.id); }
+    catch (e) { console.log('   (não resolvi o grupo de alertas pelo link:', e.message, ')'); }
+  }
+  if (gid) { grupoAvisosId = String(gid); console.log('   📣 grupo de alertas definido pelo link →', grupoAvisosId); }
+  return grupoAvisosId;
+}
+
 async function acharGrupo(client) {
   if (grupoAvisosId) return grupoAvisosId;
   try {
@@ -43,18 +59,31 @@ let caiu = false; // houve uma desconexão desde a última conexão?
  * (logo após o ready o getChats vem vazio, por isso tentamos por ~3 min) e
  * só anuncia se estivermos nos RECUPERANDO de uma queda — nunca no boot.
  */
-async function aoConectar(client) {
-  for (let i = 0; i < 18; i++) {              // ~3 min tentando achar/cachear o grupo
+async function aoConectar(client, avisosLink) {
+  // 1) define o grupo de alertas pelo link (entra nele) — método assertivo.
+  if (avisosLink) await resolverAvisosPorLink(client, avisosLink);
+  // 2) fallback: acha por nome (avisos/alerta) se o link não veio/resolveu.
+  for (let i = 0; i < 18 && !grupoAvisosId; i++) {   // ~3 min tentando achar/cachear
     if (await acharGrupo(client)) break;
     await new Promise((r) => setTimeout(r, 10000));
   }
-  if (caiu) { caiu = false; await avisar(client, `✅ PrimeBet bot voltou ONLINE — ${horaBR()}`); }
+  // 3) avisa SEMPRE que conecta (online) — e sinaliza se foi recuperação de queda.
+  const msg = caiu
+    ? `✅ *PrimeBet — integração RECUPERADA*\nO bot voltou ONLINE após uma queda.\n🕒 ${horaBR()}`
+    : `✅ *PrimeBet — integração ONLINE*\nBot conectado, ouvindo os grupos (reações + despesas).\n🕒 ${horaBR()}`;
+  caiu = false;
+  await avisar(client, msg);
 }
 
-/** Chamado no 'disconnected'. Marca a queda e alerta o grupo. */
+/** Chamado no 'disconnected'. Marca a queda e alerta o grupo (melhor esforço). */
 async function aoDesconectar(client, motivo) {
   caiu = true;
-  await avisar(client, `⚠️ PrimeBet bot DESCONECTOU (${motivo}). Pode precisar reescanear o QR.`);
+  await avisar(client, `⚠️ *PrimeBet — integração CAIU*\nMotivo: ${motivo}\nPode ser necessário reescanear o QR. Verifiquem.\n🕒 ${horaBR()}`);
 }
 
-module.exports = { avisar, aoConectar, aoDesconectar, horaBR, setGrupoAvisos };
+/** Alerta de autenticação (útil pra saber que está subindo). */
+async function aoAutenticar(client) {
+  await avisar(client, `🔐 *PrimeBet — autenticado*\nConexão estabelecida, finalizando sincronização…\n🕒 ${horaBR()}`);
+}
+
+module.exports = { avisar, aoConectar, aoDesconectar, aoAutenticar, resolverAvisosPorLink, horaBR, setGrupoAvisos };
