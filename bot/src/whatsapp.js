@@ -138,6 +138,10 @@ async function lancarAposta({ base64, mime, emoji, legenda = '', oddManual = nul
 function iniciarWhatsApp() {
   const client = new Client({
     authStrategy: new LocalAuth({ dataPath: AUTH_PATH }),
+    // Número compartilhado (fica em muitos grupos): se outra sessão/WhatsApp Web
+    // conflitar, o bot REASSUME em vez de ser expulso (evita cair e pedir QR).
+    takeoverOnConflict: true,
+    takeoverTimeoutMs: 10000,
     puppeteer: {
       // No servidor (Docker) usamos o Chromium do sistema via PUPPETEER_EXECUTABLE_PATH.
       // Local (Windows) fica undefined e usa o Chromium que o puppeteer baixou.
@@ -152,17 +156,8 @@ function iniciarWhatsApp() {
 
   client.on('qr', (qr) => {
     console.log('\n📱 Escaneie o QR no WhatsApp do número do BOT (Configurações → Aparelhos conectados → Conectar um aparelho):\n');
-    setQr(qr); // alimenta a página web do QR
+    setQr(qr); // alimenta a página web do QR (é por onde se escaneia no servidor)
     qrcode.generate(qr, { small: true });
-    // Salva também como PNG na Área de Trabalho — fácil de abrir e enviar pro sócio.
-    try {
-      const QRImage = require('qrcode');
-      const out = require('path').join(require('os').homedir(), 'Desktop', 'primebet-qr.png');
-      QRImage.toFile(out, qr, { width: 480, margin: 2 }, (err) => {
-        if (err) console.log('   (não consegui salvar o PNG do QR:', err.message, ')');
-        else console.log('   🖼  QR salvo em:', out, '\n      Abra e mande pro sócio escanear. Expira em ~30s; quando renovar, esse arquivo é atualizado.');
-      });
-    } catch (e) { /* sem o pacote qrcode, segue só com o ASCII acima */ }
   });
   client.on('authenticated', () => console.log('🔐 Autenticado.'));
   client.on('ready', () => {
