@@ -173,6 +173,18 @@ function iniciarWhatsApp() {
     aoDesconectar(client, r);
   });
 
+  // Detecção ANTECIPADA: o estado muda p/ ruim ANTES da queda total — avisa enquanto
+  // ainda consegue mandar mensagem, pra equipe parar de reagir na hora.
+  let ultimoAvisoEstado = 0;
+  client.on('change_state', async (state) => {
+    console.log('🔁 estado da conexão:', state);
+    const RUINS = ['CONFLICT', 'UNPAIRED', 'UNLAUNCHED', 'TIMEOUT', 'PROXYBLOCK', 'TOS_BLOCK', 'SMB_TOS_BLOCK', 'DEPRECATED_VERSION'];
+    if (!RUINS.includes(state)) return;
+    if (Date.now() - ultimoAvisoEstado < 60000) return; // evita spam
+    ultimoAvisoEstado = Date.now();
+    await avisar(client, `⚠️ *PrimeBet — ATENÇÃO: instabilidade na conexão*\nEstado: ${state}\n🚫 *NÃO reajam aos bilhetes até chegar o aviso de "ONLINE"* — reações agora podem se perder.\n🕒 ${horaBR()}`);
+  });
+
   // Mensagens enviadas pelo PRÓPRIO número do bot (o evento 'message' não as cobre).
   // Cobre o caso de lançar despesa pelo número que está conectado.
   client.on('message_create', async (msg) => {
