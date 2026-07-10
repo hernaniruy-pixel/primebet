@@ -27,6 +27,17 @@ const STPILL: Record<string, string> = {
   REEMBOLSO: 'bg-yellow-400 text-yellow-900',
 };
 
+// Mesmas cores em hex — para o <select>/<option> nativos (que ignoram classes Tailwind).
+const STCOLOR: Record<string, { bg: string; fg: string }> = {
+  'EM ABERTO': { bg: '#2563eb', fg: '#ffffff' },
+  GREEN: { bg: '#16a34a', fg: '#ffffff' },
+  'MEIO GREEN': { bg: '#86efac', fg: '#14532d' },
+  'MEIO RED': { bg: '#fca5a5', fg: '#7f1d1d' },
+  RED: { bg: '#dc2626', fg: '#ffffff' },
+  REEMBOLSO: { bg: '#facc15', fg: '#713f12' },
+};
+const stStyle = (s: string) => STCOLOR[s] ?? { bg: '#ffffff', fg: '#1e293b' };
+
 const fmt = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (d: Date) => d.toISOString().split('T')[0];
 
@@ -425,8 +436,9 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                             <span className="mb-1 flex flex-wrap items-center gap-1">
                               <span title={r.ctMotivo || 'Contestada pelo cliente'} className="inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⚠️ Contestada</span>
                               {r.ctStatus && (
-                                <span title="Status que o cliente sugere" className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-                                  cliente sugere: <b>{r.ctStatus}</b>
+                                <span title="Status que o cliente sugere" className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold">
+                                  <span className="text-slate-500 dark:text-slate-400">cliente sugere:</span>
+                                  <span className={`rounded-full px-2 py-0.5 ${STPILL[r.ctStatus] ?? 'bg-slate-200 text-slate-700'}`}>{r.ctStatus}</span>
                                 </span>
                               )}
                               {r.ctMotivo && (
@@ -438,7 +450,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         </div></td>
                         <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} /></td>
                         <td className="px-2 py-1.5"><input type="number" className={`${cinp} w-20 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} /></td>
-                        <td className="px-2 py-1.5"><select value={r.st} onChange={(e) => patchReg(r.id, { st: e.target.value })} className={`rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none ${STPILL[r.st] ?? ''}`}>{STS.map((s) => <option key={s} value={s} className="bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100">{s}</option>)}</select></td>
+                        <td className="px-2 py-1.5"><select value={r.st} onChange={(e) => patchReg(r.id, { st: e.target.value })} style={{ backgroundColor: stStyle(r.st).bg, color: stStyle(r.st).fg }} className="rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer">{STS.map((s) => <option key={s} value={s} style={{ backgroundColor: stStyle(s).bg, color: stStyle(s).fg }}>{s}</option>)}</select></td>
                         <td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td>
                         <td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td>
                         <td className="px-2 py-1.5 text-center"><select value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} className={`${cinp} w-16`}><option>Não</option><option>Sim</option></select></td>
