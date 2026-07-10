@@ -133,7 +133,7 @@ export default function LoginPage() {
           </form>
 
           <div style={{ fontSize: 11, textAlign: 'center', marginTop: 20, lineHeight: 1.7 }}>
-            <div style={{ color: '#5a7020' }}>© 2026 PrimeBet · desenvolvido por WorldNexus</div>
+            <div style={{ color: '#5a7020' }}>© 2026 WorldNexus · desenvolvedora de softwares e automações</div>
             <a
               href="https://wa.me/5567991995885"
               target="_blank"
