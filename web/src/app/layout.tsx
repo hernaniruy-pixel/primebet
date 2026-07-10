@@ -13,9 +13,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://primefisica.site"),
   title: "PrimeBet",
   description: "Sistema de gestão.",
   robots: { index: false, follow: false },
+  openGraph: {
+    title: "PrimeBet",
+    description: "Sistema de gestão.",
+    url: "https://primefisica.site",
+    siteName: "PrimeBet",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
