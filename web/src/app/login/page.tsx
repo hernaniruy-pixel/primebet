@@ -13,12 +13,26 @@ export default function LoginPage() {
   return (
     <>
       <style>{`
-        .pb-login{min-height:100vh;background:linear-gradient(135deg,#0d1508 0%,#1a2210 50%,#0d1508 100%);display:flex;align-items:center;justify-content:center;padding:24px}
-        .lg-box{width:100%;max-width:360px;background:#1e2a0e;border:1px solid #3a5015;border-radius:16px;padding:28px 24px}
-        .lg-inp{width:100%;background:#111a08;border:1px solid #3a5015;border-radius:8px;padding:12px 14px;color:#e2e8f0;font-size:15px;outline:none;display:block;margin-bottom:12px;box-sizing:border-box;font-family:inherit}
-        .lg-inp:focus{border-color:#B8860B}
-        .lg-lbl{color:#9aaa7a;font-size:11px;font-weight:700;display:block;margin-bottom:5px;letter-spacing:.05em}
-        .lg-btn{width:100%;background:linear-gradient(135deg,#B8860B,#DAA520);color:#1a1a00;border:none;border-radius:8px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.03em;font-family:inherit}
+        .pb-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden;
+          background:
+            radial-gradient(55% 45% at 50% -5%,rgba(139,92,246,.28),transparent 60%),
+            radial-gradient(45% 40% at 88% 92%,rgba(168,85,247,.20),transparent 60%),
+            radial-gradient(45% 45% at 8% 82%,rgba(99,102,241,.18),transparent 60%),
+            linear-gradient(160deg,#160c2e 0%,#0c0718 55%,#070310 100%)}
+        .pb-login::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
+          background-image:linear-gradient(rgba(168,139,250,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(168,139,250,.07) 1px,transparent 1px);
+          background-size:46px 46px;
+          -webkit-mask-image:radial-gradient(circle at 50% 38%,#000 0%,transparent 72%);mask-image:radial-gradient(circle at 50% 38%,#000 0%,transparent 72%)}
+        .lg-box{position:relative;z-index:1;width:100%;max-width:360px;
+          background:linear-gradient(180deg,rgba(30,21,56,.80),rgba(16,10,32,.70));
+          border:1px solid rgba(139,92,246,.30);border-radius:18px;padding:30px 26px;
+          backdrop-filter:blur(16px);box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 60px rgba(139,92,246,.22)}
+        .lg-inp{width:100%;background:rgba(10,6,22,.62);border:1px solid rgba(139,92,246,.26);border-radius:10px;padding:12px 14px;color:#ece7fb;font-size:15px;outline:none;display:block;margin-bottom:12px;box-sizing:border-box;font-family:inherit;transition:.15s}
+        .lg-inp::placeholder{color:#6f6494}
+        .lg-inp:focus{border-color:#DAA520;box-shadow:0 0 0 3px rgba(218,165,32,.16)}
+        .lg-lbl{color:#b3a4d6;font-size:11px;font-weight:700;display:block;margin-bottom:5px;letter-spacing:.05em}
+        .lg-btn{width:100%;background:linear-gradient(135deg,#B8860B,#DAA520);color:#1a1a00;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.03em;font-family:inherit;box-shadow:0 12px 30px rgba(184,134,11,.35);transition:.15s}
+        .lg-btn:hover{filter:brightness(1.05)}
         .lg-btn:disabled{opacity:.6;cursor:default}
       `}</style>
 
@@ -46,7 +60,7 @@ export default function LoginPage() {
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ color: '#DAA520', fontSize: 22, fontWeight: 700, letterSpacing: '.02em' }}>PrimeBet</div>
-              <div style={{ color: '#7a8c5a', fontSize: 12 }}>Acesso ao sistema</div>
+              <div style={{ color: '#9a8cc4', fontSize: 12 }}>Acesso ao sistema</div>
             </div>
           </div>
 
@@ -82,7 +96,7 @@ export default function LoginPage() {
                   background: 'none',
                   border: 'none',
                   padding: 4,
-                  color: '#7a8c5a',
+                  color: '#9a8cc4',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -115,7 +129,7 @@ export default function LoginPage() {
                 marginBottom: 18,
               }}
             >
-              <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', color: '#9aaa7a', fontSize: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', color: '#b3a4d6', fontSize: 12 }}>
                 <input type="checkbox" defaultChecked style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#B8860B' }} />
                 Lembrar acesso
               </label>
@@ -132,13 +146,14 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div style={{ fontSize: 11, textAlign: 'center', marginTop: 20, lineHeight: 1.7 }}>
-            <div style={{ color: '#5a7020' }}>© 2026 WorldNexus · desenvolvedora de softwares e automações</div>
+          <div style={{ fontSize: 11.5, textAlign: 'center', marginTop: 22, lineHeight: 1.75 }}>
+            <div style={{ color: '#c8b6ff', fontWeight: 700 }}>© 2026 WorldNexus</div>
+            <div style={{ color: '#8a7db0' }}>Desenvolvedora de Softwares e Automações</div>
             <a
               href="https://wa.me/5567991995885"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ color: '#9aaa7a', textDecoration: 'none' }}
+              style={{ color: '#b3a4d6', textDecoration: 'none', display: 'inline-block', marginTop: 3 }}
             >
               Contato: (67) 99199-5885
             </a>
