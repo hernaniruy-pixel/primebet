@@ -25,14 +25,25 @@ export default function LoginPage() {
       <main className="pb-login">
         <div className="lg-box">
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-            <Image
-              src="/logo.jpg"
-              alt="PrimeBet"
-              width={100}
-              height={100}
-              priority
-              style={{ borderRadius: 22, objectFit: 'cover' }}
-            />
+            <div
+              style={{
+                width: 106,
+                height: 106,
+                borderRadius: 26,
+                padding: 3,
+                background: 'linear-gradient(145deg,#3a5015 0%,#DAA520 100%)',
+                boxShadow: '0 14px 34px rgba(184,134,11,.30)',
+              }}
+            >
+              <Image
+                src="/logo.jpg"
+                alt="PrimeBet"
+                width={100}
+                height={100}
+                priority
+                style={{ borderRadius: 23, objectFit: 'cover', display: 'block', width: '100%', height: '100%' }}
+              />
+            </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ color: '#DAA520', fontSize: 22, fontWeight: 700, letterSpacing: '.02em' }}>PrimeBet</div>
               <div style={{ color: '#7a8c5a', fontSize: 12 }}>Acesso ao sistema</div>
@@ -59,20 +70,36 @@ export default function LoginPage() {
                 placeholder="••••••"
                 style={{ marginBottom: 0, paddingRight: 44 }}
               />
-              <span
+              <button
+                type="button"
                 onClick={() => setVerSenha((v) => !v)}
+                aria-label={verSenha ? 'Ocultar senha' : 'Mostrar senha'}
                 style={{
                   position: 'absolute',
-                  right: 13,
+                  right: 10,
                   top: '50%',
                   transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 4,
                   color: '#7a8c5a',
                   cursor: 'pointer',
-                  fontSize: 18,
+                  display: 'flex',
+                  alignItems: 'center',
                 }}
               >
-                {verSenha ? '🙈' : '👁️'}
-              </span>
+                {verSenha ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
             </div>
 
             {estado.erro && (
@@ -105,8 +132,16 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div style={{ color: '#2d4010', fontSize: 11, textAlign: 'center', marginTop: 20 }}>
-            © 2026 PrimeBet Fechamentos
+          <div style={{ fontSize: 11, textAlign: 'center', marginTop: 20, lineHeight: 1.7 }}>
+            <div style={{ color: '#5a7020' }}>© 2026 PrimeBet Fechamentos</div>
+            <a
+              href="https://wa.me/5567991995885"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#9aaa7a', textDecoration: 'none' }}
+            >
+              Contato: (67) 99199-5885
+            </a>
           </div>
         </div>
       </main>
