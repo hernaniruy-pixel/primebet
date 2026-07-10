@@ -226,7 +226,7 @@ export async function atualizarAposta(id: number, patch: PatchAposta): Promise<R
   if (patch.st !== undefined) {
     upd.status = patch.st;
     // Ao resolver (sair de EM ABERTO), encerra eventual contestação -> sai da fila do admin.
-    if (patch.st !== 'EM ABERTO') { upd.contestada = false; upd.contestada_em = null; upd.contestacao = null; }
+    if (patch.st !== 'EM ABERTO') { upd.contestada = false; upd.contestada_em = null; upd.contestacao = null; upd.contestacao_status = null; }
   }
   if (patch.dc !== undefined) upd.casa = patch.dc;
   if (patch.bl !== undefined) upd.baixa_liquidez = patch.bl;

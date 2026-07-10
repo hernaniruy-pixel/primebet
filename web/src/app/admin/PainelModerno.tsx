@@ -317,10 +317,15 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                 }`}
               >
                 {label}
+                {k === 'pend' && (totals.contestadas_qtd ?? 0) > 0 && (
+                  <span className="ml-1.5 inline-flex items-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white align-middle">
+                    ⚠️ {totals.contestadas_qtd}
+                  </span>
+                )}
               </button>
             ))}
             <span className="ml-2 pr-2 text-[11px] text-slate-400">
-              {filtros.aba === 'pend' ? 'EM ABERTO + contestadas (todas as datas)' : 'histórico completo'}
+              {filtros.aba === 'pend' ? 'contestadas no topo · EM ABERTO + contestadas (todas as datas)' : 'histórico completo'}
             </span>
           </div>
 
@@ -397,7 +402,19 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                           {inc && <span className="ml-1 inline-block rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">preencher</span>}
                         </td>
                         <td className="px-2 py-1.5"><div className="max-w-[340px] text-xs leading-snug">
-                          {r.ct && <span title={r.ctMotivo || 'Contestada pelo cliente'} className="mr-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⚠️ Contestada</span>}
+                          {r.ct && (
+                            <span className="mb-1 flex flex-wrap items-center gap-1">
+                              <span title={r.ctMotivo || 'Contestada pelo cliente'} className="inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⚠️ Contestada</span>
+                              {r.ctStatus && (
+                                <span title="Status que o cliente sugere" className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                                  cliente sugere: <b>{r.ctStatus}</b>
+                                </span>
+                              )}
+                              {r.ctMotivo && (
+                                <span title={r.ctMotivo} className="inline-block max-w-[220px] truncate rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-200">💬 {r.ctMotivo}</span>
+                              )}
+                            </span>
+                          )}
                           {renderJogo(r.jogo)}
                         </div></td>
                         <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} /></td>

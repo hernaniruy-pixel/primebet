@@ -1,7 +1,7 @@
 // ═══════════ TIPOS DO PAINEL (forma compacta usada na UI) ═══════════
 export interface Afiliado { id: number; nome: string; com: number }
 export interface Cliente { id: number; nome: string; s: string; on: boolean; cal: number; desc: number; com: number; sup: string | null; af: number; link: string | null; grupoLink: string | null; grupoId: string | null }
-export interface Reg { id: number; dt: string; cId: number; jogo: string; odd: number; val: number; st: string; dc: string; sb: number; cm: number; caf: number; sl: number; bl: boolean; adv: boolean; irr: boolean; obs: string; ct: boolean; ctMotivo: string }
+export interface Reg { id: number; dt: string; cId: number; jogo: string; odd: number; val: number; st: string; dc: string; sb: number; cm: number; caf: number; sl: number; bl: boolean; adv: boolean; irr: boolean; obs: string; ct: boolean; ctMotivo: string; ctStatus: string }
 
 export interface PanelData { afiliados: Afiliado[]; clientes: Cliente[]; regs: Reg[] }
 
@@ -9,6 +9,7 @@ export interface PanelData { afiliados: Afiliado[]; clientes: Cliente[]; regs: R
 export interface Totals {
   entradas: number; em_aberto_total: number; em_aberto_qtd: number;
   saldo_bruto: number; comissao: number; comissao_afiliado: number; saldo_liquido: number;
+  contestadas_qtd?: number;
 }
 export interface ApostasPage { rows: Reg[]; total: number; totals: Totals }
 export interface FiltroApostas {
@@ -45,7 +46,7 @@ export interface ApostaRow {
   status: string; casa: string | null; saldo_bruto: number | string; comissao: number | string;
   comissao_afiliado: number | string; saldo_liquido: number | string;
   baixa_liquidez: boolean; advertido: boolean; irregular: boolean; advertencia: string | null;
-  contestada?: boolean; contestacao?: string | null;
+  contestada?: boolean; contestacao?: string | null; contestacao_status?: string | null;
 }
 
 const num = (v: number | string | null | undefined) => Number(v ?? 0);
@@ -93,5 +94,5 @@ export const mapAposta = (r: ApostaRow): Reg => ({
   st: r.status, dc: r.casa ?? '', sb: num(r.saldo_bruto), cm: num(r.comissao), caf: num(r.comissao_afiliado),
   sl: num(r.saldo_liquido), bl: r.baixa_liquidez, adv: r.advertido, irr: r.irregular,
   obs: r.advertencia ?? '',
-  ct: r.contestada ?? false, ctMotivo: r.contestacao ?? '',
+  ct: r.contestada ?? false, ctMotivo: r.contestacao ?? '', ctStatus: r.contestacao_status ?? '',
 });

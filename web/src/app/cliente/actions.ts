@@ -58,8 +58,12 @@ export async function carregarExtrato(): Promise<ExtratoResp> {
   };
 }
 
-/** O cliente contesta uma aposta JÁ RESOLVIDA dele -> volta para a fila do admin. */
-export async function contestarAposta(id: number, motivo: string): Promise<{ ok: boolean; erro?: string }> {
+// Status que o cliente pode sugerir como correto (nunca "EM ABERTO": só contesta resolvida).
+const STATUS_VALIDOS = ['GREEN', 'MEIO GREEN', 'MEIO RED', 'RED', 'REEMBOLSO'];
+
+/** O cliente contesta uma aposta JÁ RESOLVIDA dele -> volta para a fila do admin.
+ *  statusSugerido = qual status o cliente acha que seria o correto (opcional). */
+export async function contestarAposta(id: number, motivo: string, statusSugerido?: string): Promise<{ ok: boolean; erro?: string }> {
   const ses = await getClienteSessao();
   if (!ses) return { ok: false, erro: 'Sessão expirada. Entre novamente.' };
   const db = createAdminClient();
@@ -70,8 +74,14 @@ export async function contestarAposta(id: number, motivo: string): Promise<{ ok:
   if (ap.status === 'EM ABERTO') return { ok: false, erro: 'Esta aposta ainda não foi resolvida.' };
   if (ap.contestada) return { ok: false, erro: 'Você já contestou esta aposta.' };
 
+  const sug = statusSugerido && STATUS_VALIDOS.includes(statusSugerido) && statusSugerido !== ap.status
+    ? statusSugerido : null;
+
   const { error } = await db.from('apostas')
-    .update({ contestada: true, contestada_em: new Date().toISOString(), contestacao: (motivo || '').slice(0, 500) })
+    .update({
+      contestada: true, contestada_em: new Date().toISOString(),
+      contestacao: (motivo || '').slice(0, 500), contestacao_status: sug,
+    })
     .eq('id', id);
   if (error) return { ok: false, erro: 'Não foi possível registrar. Tente de novo.' };
   return { ok: true };

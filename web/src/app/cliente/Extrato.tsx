@@ -20,6 +20,16 @@ const STPILL: Record<string, string> = {
 const brl = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const clr = (n: number) => (n > 0 ? 'text-green-600' : n < 0 ? 'text-red-600' : 'text-slate-500');
 
+// Status que o cliente pode apontar como correto ao contestar (sem "EM ABERTO").
+const STATUS_OPCOES = ['GREEN', 'MEIO GREEN', 'MEIO RED', 'RED', 'REEMBOLSO'];
+const STBTN: Record<string, string> = {
+  'GREEN': 'border-green-300 text-green-700',
+  'MEIO GREEN': 'border-green-200 text-green-600',
+  'MEIO RED': 'border-red-200 text-red-600',
+  'RED': 'border-red-300 text-red-700',
+  'REEMBOLSO': 'border-yellow-300 text-yellow-700',
+};
+
 export default function Extrato({ dados }: { dados: ExtratoResp }) {
   const [aba, setAba] = useState<'atual' | 'passada'>('atual');
   const sem: SemanaExtrato = aba === 'atual' ? dados.atual : dados.passada;
@@ -27,14 +37,15 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
   const [pend, startTransition] = useTransition();
   const [contestando, setContestando] = useState<Reg | null>(null);
   const [motivo, setMotivo] = useState('');
+  const [stSugerido, setStSugerido] = useState('');
   const [msg, setMsg] = useState('');
 
-  function abrirContestacao(r: Reg) { setContestando(r); setMotivo(''); setMsg(''); }
+  function abrirContestacao(r: Reg) { setContestando(r); setMotivo(''); setStSugerido(''); setMsg(''); }
 
   function enviarContestacao() {
     if (!contestando) return;
     startTransition(async () => {
-      const r = await contestarAposta(contestando.id, motivo);
+      const r = await contestarAposta(contestando.id, motivo, stSugerido || undefined);
       if (r.ok) { setContestando(null); router.refresh(); }
       else setMsg(r.erro || 'Erro.');
     });
@@ -101,7 +112,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
             </thead>
             <tbody>
               {sem.rows.map((r) => (
-                <tr key={r.id} className="border-b border-slate-100 align-top">
+                <tr key={r.id} className="border-b-2 border-slate-200 align-top">
                   <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500">{r.dt}</td>
                   <td className="px-3 py-2">
                     <div className="max-w-[300px] text-xs leading-snug">
@@ -143,17 +154,42 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="mb-1 text-base font-semibold text-slate-800">Contestar aposta #{contestando.id}</h3>
             <p className="mb-3 text-xs text-slate-500">{renderJogoLinhas(contestando.jogo)}</p>
+
+            <div className="mb-3 rounded-lg bg-slate-50 p-3">
+              <div className="mb-1 text-xs text-slate-500">
+                Status lançado: <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STPILL[contestando.st] ?? 'bg-slate-100 text-slate-600'}`}>{contestando.st}</span>
+              </div>
+              <div className="mb-1.5 text-xs font-medium text-slate-600">Qual seria o status correto?</div>
+              <div className="flex flex-wrap gap-1.5">
+                {STATUS_OPCOES.filter((s) => s !== contestando.st).map((s) => {
+                  const on = stSugerido === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setStSugerido(on ? '' : s)}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                        on ? `${STBTN[s]} bg-white ring-2 ring-amber-400` : `${STBTN[s]} bg-white hover:bg-slate-50`
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <textarea
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
               rows={3}
-              placeholder="Descreva o motivo da contestação (ex.: valor errado, resultado incorreto)…"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500"
+              placeholder="Descreva o motivo (opcional)…"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-500"
             />
             {msg && <div className="mt-2 text-xs text-rose-600">{msg}</div>}
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setContestando(null)} className="rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100">Cancelar</button>
-              <button onClick={enviarContestacao} disabled={pend || !motivo.trim()} className="rounded-lg bg-rose-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50">
+              <button onClick={enviarContestacao} disabled={pend || (!stSugerido && !motivo.trim())} className="rounded-lg bg-rose-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50">
                 {pend ? 'Enviando…' : 'Enviar contestação'}
               </button>
             </div>
