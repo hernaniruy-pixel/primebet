@@ -213,12 +213,14 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   }
   async function saveReg(id: number) {
     const d = drafts[id] || {};
-    await patchReg(id, {
+    const patch = {
       ...(d.dt !== undefined ? { dt: d.dt } : {}),
       ...(d.odd !== undefined ? { odd: Number(d.odd) } : {}),
       ...(d.val !== undefined ? { val: Number(d.val) } : {}),
       ...(d.jogo !== undefined ? { jogo: d.jogo } : {}),
-    });
+    };
+    if (Object.keys(patch).length === 0) { toast('Nada para salvar — edite odd, valor, data ou o jogo primeiro.'); return; }
+    await patchReg(id, patch);
     setDrafts((dr) => ({ ...dr, [id]: { _saved: true } }));
     setTimeout(() => setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; }), 1500);
   }

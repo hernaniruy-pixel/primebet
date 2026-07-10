@@ -235,8 +235,19 @@ export async function atualizarAposta(id: number, patch: PatchAposta): Promise<R
   if (patch.obs !== undefined) upd.advertencia = patch.obs || null;
   if (patch.cId !== undefined) upd.cliente_id = patch.cId;
   if (patch.jogo !== undefined) upd.jogo = patch.jogo;
-  const { data, error } = await db.from('apostas').update(upd).eq('id', id).select('*').single();
+
+  // Nada mudou (ex.: clicou "Salvar" sem editar nada). Um UPDATE vazio no PostgREST
+  // afeta 0 linhas e quebraria o .single(); então só devolvemos a aposta atual.
+  if (Object.keys(upd).length === 0) {
+    const { data, error } = await db.from('apostas').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error(`Aposta #${id} não encontrada.`);
+    return mapAposta(data as ApostaRow);
+  }
+
+  const { data, error } = await db.from('apostas').update(upd).eq('id', id).select('*').maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error(`Aposta #${id} não encontrada para atualizar.`);
   return mapAposta(data as ApostaRow);
 }
 
