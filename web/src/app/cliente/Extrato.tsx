@@ -87,7 +87,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
 
         {/* Tabela */}
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[640px] text-sm text-slate-800">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-400">
                 <th className="px-3 py-2">Data</th>
