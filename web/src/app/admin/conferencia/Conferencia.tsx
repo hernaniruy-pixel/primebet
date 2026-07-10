@@ -74,7 +74,7 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
       <header className="bg-gradient-to-r from-[#13200a] to-[#1e2f10] text-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <a href="/admin/moderno" className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">← Painel</a>
+            <a href="/admin" className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">← Painel</a>
             <div>
               <div className="text-sm font-semibold text-[#DAA520]">Conferência de grupos</div>
               <div className="text-[11px] text-slate-300">Imagens recebidas × transcritas</div>

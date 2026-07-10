@@ -1,6 +1,30 @@
 import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { loadBase } from './data';
+import { listarApostas } from './actions';
+import { weekRange } from './types';
+import PainelModerno from './PainelModerno';
 
-// Versão clássica aposentada: /admin sempre leva para a versão moderna.
-export default function AdminPage() {
-  redirect('/admin/moderno');
+export const dynamic = 'force-dynamic';
+
+export default async function AdminPage() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) redirect('/login');
+
+  const semana = weekRange();
+  const [base, apostas] = await Promise.all([
+    loadBase(),
+    listarApostas({ ord: 'data_desc', page: 1, pend: true }),  // fila pendente (default da UI)
+  ]);
+
+  return (
+    <PainelModerno
+      email={data.user.email ?? ''}
+      clientesIni={base.clientes}
+      afiliadosIni={base.afiliados}
+      apostasIni={apostas}
+      semana={semana}
+    />
+  );
 }
