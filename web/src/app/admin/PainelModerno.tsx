@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow } from './types';
 import {
-  criarAposta, atualizarAposta, excluirAposta, listarApostas,
+  criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao,
   criarCliente, atualizarCliente, criarAfiliado, atualizarAfiliado,
   fechamentoClientes, fechamentoAfiliados, bilhetesCliente,
 } from './actions';
@@ -167,19 +167,38 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   function updDraft(id: number, f: 'dt' | 'odd' | 'val' | 'jogo', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
 
   async function patchReg(id: number, patch: Parameters<typeof atualizarAposta>[1]) {
+    const prev = regs.find((r) => r.id === id);
     try {
       const reg = await atualizarAposta(id, patch);
-      setRegs((rs) => rs.map((r) => (r.id === id ? reg : r)));
-      // Confirmação visual (flash verde). NÃO recarrega: a linha permanece — mesmo já
-      // resolvida — até o operador clicar em "Atualizar". Evita perder de vista um status errado.
-      setFlashId(null);
-      requestAnimationFrame(() => setFlashId(id));
-      setTimeout(() => setFlashId((cur) => (cur === id ? null : cur)), 1600);
+      // Mudar o status encerra a contestação no banco. Na fila pendente, se a aposta
+      // deixou de ser pendente (resolvida e sem contestação), tira ela da lista na hora.
+      const encerrouCt = !!prev?.ct && !reg.ct;
+      if (filtros.aba === 'pend' && encerrouCt && reg.st !== 'EM ABERTO') {
+        setRegs((rs) => rs.filter((r) => r.id !== id));
+        setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) }));
+      } else {
+        setRegs((rs) => rs.map((r) => (r.id === id ? reg : r)));
+        // Confirmação visual (flash verde). NÃO recarrega: a linha permanece — mesmo já
+        // resolvida — até o operador clicar em "Atualizar". Evita perder de vista um status errado.
+        setFlashId(null);
+        requestAnimationFrame(() => setFlashId(id));
+        setTimeout(() => setFlashId((cur) => (cur === id ? null : cur)), 1600);
+      }
       if (patch.st !== undefined) {
         const nome = clientes.find((c) => c.id === reg.cId)?.nome ?? `#${id}`;
         toast(`Status de ${nome} atualizado para ${reg.st}.`);
       }
     } catch { toast('Erro ao salvar aposta.'); }
+  }
+  async function resolverCt(id: number) {
+    try {
+      await resolverContestacao(id);
+      // Sai da fila de pendentes (mantém o status atual); na aba "Todas" apenas limpa os selos.
+      if (filtros.aba === 'pend') setRegs((rs) => rs.filter((r) => r.id !== id));
+      else setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ct: false, ctStatus: '', ctMotivo: '' } : r)));
+      setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) }));
+      toast('Contestação resolvida.');
+    } catch { toast('Erro ao resolver contestação.'); }
   }
   async function saveReg(id: number) {
     const d = drafts[id] || {};
@@ -427,6 +446,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         <td className="px-2 py-1.5">
                           <div className="flex justify-center gap-1.5">
                             {r.adv && <button onClick={() => setObsModal({ id: r.id, text: r.obs })} title={`Advertência: ${r.obs}`} className="rounded-lg bg-rose-600 px-2 py-1 text-xs text-white transition hover:bg-rose-700">⚠</button>}
+                            {r.ct && <button onClick={() => resolverCt(r.id)} title="Encerrar contestação mantendo o status atual" className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-emerald-700">✓ Resolver</button>}
                             <button onClick={() => saveReg(r.id)} className={`rounded-lg px-2.5 py-1 text-xs font-medium text-white transition ${drafts[r.id]?._saved ? 'bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'}`}>{drafts[r.id]?._saved ? '✓' : 'Salvar'}</button>
                             <button onClick={() => delReg(r.id)} className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-50 dark:border-rose-500/30 dark:hover:bg-rose-500/10">Excluir</button>
                           </div>

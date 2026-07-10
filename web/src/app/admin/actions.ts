@@ -247,6 +247,17 @@ export async function excluirAposta(id: number): Promise<void> {
   if (error) throw error;
 }
 
+/** Encerra a contestação de uma aposta SEM mudar o status (cliente estava errado / já
+ *  revisado). Tira a aposta da fila de pendentes. */
+export async function resolverContestacao(id: number): Promise<void> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { error } = await db.from('apostas')
+    .update({ contestada: false, contestada_em: null, contestacao: null, contestacao_status: null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 // ═══════════════════ CLIENTES ═══════════════════
 export interface NovoClienteInput {
   nome: string; senha?: string; calcao?: number; desconto?: number;
