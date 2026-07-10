@@ -13,19 +13,19 @@ export default function LoginPage() {
   return (
     <>
       <style>{`
-        .pb-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden;background:#080512}
+        .pb-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden;background:#08120a}
         .pb-login::before{content:'';position:absolute;inset:0;z-index:0;
-          background:#080512 url('/galaxy.jpg') center/cover no-repeat;filter:hue-rotate(210deg) saturate(1.2) brightness(.5)}
+          background:#08120a url('/galaxy.jpg') center/cover no-repeat;filter:brightness(.42) saturate(.55) hue-rotate(65deg)}
         .pb-login::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
-          background:radial-gradient(62% 50% at 50% 24%,rgba(168,139,250,.2),transparent 62%),radial-gradient(50% 44% at 78% 30%,rgba(217,70,239,.12),transparent 62%),linear-gradient(rgba(8,5,18,.58),rgba(8,5,18,.9))}
+          background:radial-gradient(60% 48% at 50% 20%,rgba(84,168,84,.20),transparent 62%),radial-gradient(48% 42% at 80% 30%,rgba(218,165,32,.10),transparent 62%),linear-gradient(rgba(6,14,8,.6),rgba(5,11,6,.92))}
         .lg-box{position:relative;z-index:2;width:100%;max-width:360px;
-          background:linear-gradient(180deg,rgba(30,21,56,.80),rgba(16,10,32,.70));
-          border:1px solid rgba(139,92,246,.30);border-radius:18px;padding:30px 26px;
-          backdrop-filter:blur(16px);box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 60px rgba(139,92,246,.22)}
-        .lg-inp{width:100%;background:rgba(10,6,22,.62);border:1px solid rgba(139,92,246,.26);border-radius:10px;padding:12px 14px;color:#ece7fb;font-size:15px;outline:none;display:block;margin-bottom:12px;box-sizing:border-box;font-family:inherit;transition:.15s}
-        .lg-inp::placeholder{color:#6f6494}
+          background:linear-gradient(180deg,rgba(26,40,15,.84),rgba(13,21,8,.76));
+          border:1px solid rgba(120,160,50,.34);border-radius:18px;padding:30px 26px;
+          backdrop-filter:blur(14px);box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 55px rgba(90,140,40,.2)}
+        .lg-inp{width:100%;background:rgba(9,16,6,.6);border:1px solid rgba(120,160,50,.28);border-radius:10px;padding:12px 14px;color:#eaf0dc;font-size:15px;outline:none;display:block;margin-bottom:12px;box-sizing:border-box;font-family:inherit;transition:.15s}
+        .lg-inp::placeholder{color:#7d8a63}
         .lg-inp:focus{border-color:#DAA520;box-shadow:0 0 0 3px rgba(218,165,32,.16)}
-        .lg-lbl{color:#b3a4d6;font-size:11px;font-weight:700;display:block;margin-bottom:5px;letter-spacing:.05em}
+        .lg-lbl{color:#a9bd82;font-size:11px;font-weight:700;display:block;margin-bottom:5px;letter-spacing:.05em}
         .lg-btn{width:100%;background:linear-gradient(135deg,#B8860B,#DAA520);color:#1a1a00;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.03em;font-family:inherit;box-shadow:0 12px 30px rgba(184,134,11,.35);transition:.15s}
         .lg-btn:hover{filter:brightness(1.05)}
         .lg-btn:disabled{opacity:.6;cursor:default}
@@ -40,8 +40,8 @@ export default function LoginPage() {
                 height: 106,
                 borderRadius: 26,
                 padding: 3,
-                background: 'linear-gradient(145deg,#3a5015 0%,#DAA520 100%)',
-                boxShadow: '0 14px 34px rgba(184,134,11,.30)',
+                background: 'linear-gradient(135deg,#F2D064 0%,#E1B32E 45%,#D2A21C 100%)',
+                boxShadow: '0 0 22px rgba(226,179,46,.55), 0 0 9px rgba(242,208,100,.5), 0 10px 26px rgba(0,0,0,.4)',
               }}
             >
               <Image
@@ -54,8 +54,21 @@ export default function LoginPage() {
               />
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ color: '#DAA520', fontSize: 22, fontWeight: 700, letterSpacing: '.02em' }}>PrimeBet</div>
-              <div style={{ color: '#9a8cc4', fontSize: 12 }}>Acesso ao sistema</div>
+              <div
+                style={{
+                  backgroundImage: 'linear-gradient(180deg,#F6DA82 0%,#DAA520 100%)',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  color: 'transparent',
+                  fontSize: 28,
+                  fontWeight: 800,
+                  letterSpacing: '.6px',
+                  lineHeight: 1.1,
+                }}
+              >
+                PrimeBet
+              </div>
+              <div style={{ color: '#8ba468', fontSize: 12, marginTop: 2, letterSpacing: '.02em' }}>Acesso ao sistema</div>
             </div>
           </div>
 
@@ -91,7 +104,7 @@ export default function LoginPage() {
                   background: 'none',
                   border: 'none',
                   padding: 4,
-                  color: '#9a8cc4',
+                  color: '#8ba468',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -124,7 +137,7 @@ export default function LoginPage() {
                 marginBottom: 18,
               }}
             >
-              <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', color: '#b3a4d6', fontSize: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', color: '#a9bd82', fontSize: 12 }}>
                 <input type="checkbox" defaultChecked style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#B8860B' }} />
                 Lembrar acesso
               </label>
@@ -142,13 +155,13 @@ export default function LoginPage() {
           </form>
 
           <div style={{ fontSize: 11.5, textAlign: 'center', marginTop: 22, lineHeight: 1.75 }}>
-            <div style={{ color: '#c8b6ff', fontWeight: 700 }}>© 2026 WorldNexus</div>
-            <div style={{ color: '#8a7db0' }}>Desenvolvedora de Softwares e Automações</div>
+            <div style={{ color: '#cdb15f', fontWeight: 700 }}>© 2026 WorldNexus</div>
+            <div style={{ color: '#8ba468' }}>Desenvolvedora de Softwares e Automações</div>
             <a
               href="https://wa.me/5567991995885"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ color: '#b3a4d6', textDecoration: 'none', display: 'inline-block', marginTop: 3 }}
+              style={{ color: '#a9bd82', textDecoration: 'none', display: 'inline-block', marginTop: 3 }}
             >
               Contato: (67) 99199-5885
             </a>
