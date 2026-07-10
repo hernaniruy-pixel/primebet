@@ -13,17 +13,12 @@ export default function LoginPage() {
   return (
     <>
       <style>{`
-        .pb-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden;
-          background:
-            radial-gradient(55% 45% at 50% -5%,rgba(139,92,246,.28),transparent 60%),
-            radial-gradient(45% 40% at 88% 92%,rgba(168,85,247,.20),transparent 60%),
-            radial-gradient(45% 45% at 8% 82%,rgba(99,102,241,.18),transparent 60%),
-            linear-gradient(160deg,#160c2e 0%,#0c0718 55%,#070310 100%)}
-        .pb-login::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
-          background-image:linear-gradient(rgba(168,139,250,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(168,139,250,.07) 1px,transparent 1px);
-          background-size:46px 46px;
-          -webkit-mask-image:radial-gradient(circle at 50% 38%,#000 0%,transparent 72%);mask-image:radial-gradient(circle at 50% 38%,#000 0%,transparent 72%)}
-        .lg-box{position:relative;z-index:1;width:100%;max-width:360px;
+        .pb-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden;background:#080512}
+        .pb-login::before{content:'';position:absolute;inset:0;z-index:0;
+          background:#080512 url('/galaxy.jpg') center/cover no-repeat;filter:hue-rotate(210deg) saturate(1.2) brightness(.5)}
+        .pb-login::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
+          background:radial-gradient(62% 50% at 50% 24%,rgba(168,139,250,.2),transparent 62%),radial-gradient(50% 44% at 78% 30%,rgba(217,70,239,.12),transparent 62%),linear-gradient(rgba(8,5,18,.58),rgba(8,5,18,.9))}
+        .lg-box{position:relative;z-index:2;width:100%;max-width:360px;
           background:linear-gradient(180deg,rgba(30,21,56,.80),rgba(16,10,32,.70));
           border:1px solid rgba(139,92,246,.30);border-radius:18px;padding:30px 26px;
           backdrop-filter:blur(16px);box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 60px rgba(139,92,246,.22)}
