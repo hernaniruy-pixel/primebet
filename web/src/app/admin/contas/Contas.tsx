@@ -19,6 +19,8 @@ const CASA_COR: Record<string, string> = {
   BETANO: 'bg-amber-100 text-amber-800 border-amber-300',
 };
 const corCasa = (c: string) => CASA_COR[c.toUpperCase()] ?? 'bg-slate-100 text-slate-700 border-slate-300';
+// cor padrão para números: escuro normal, vermelho só quando negativo
+const corNum = (n: number) => (n < 0 ? 'text-rose-600' : 'text-slate-800');
 
 type Campo = 'login' | 'nome' | 'cpf' | 'saldo' | 'emAberto' | 'deposito' | 'retirada';
 type Draft = Partial<Record<Campo, string>>;
@@ -58,8 +60,8 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
       retirada: d.retirada !== undefined ? toNum(d.retirada) : c.retirada,
     };
   };
-  // Resumo = total depositado + apostas em aberto − retiradas.
-  const resumoDe = (e: { emAberto: number; deposito: number; retirada: number }) => e.deposito + e.emAberto - e.retirada;
+  // Resumo (balanço da conta) = saldo + em aberto + depósitos − saques.
+  const resumoDe = (e: { saldo: number; emAberto: number; deposito: number; retirada: number }) => e.saldo + e.emAberto + e.deposito - e.retirada;
 
   // agrupa por casa, na ordem preferida e depois alfabética
   const grupos = useMemo(() => {
@@ -78,11 +80,12 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contas, drafts]);
 
-  const resumoGeral = grupos.reduce((s, g) => s + g.resumo, 0);
   const totalDeposito = grupos.reduce((s, g) => s + g.deposito, 0);
   const totalSaque = grupos.reduce((s, g) => s + g.retirada, 0);
   const totalEmAberto = contas.reduce((s, c) => s + ef(c).emAberto, 0);
   const saldoAtual = contas.reduce((s, c) => s + ef(c).saldo, 0);
+  // Balanço geral = (depósitos − saques) + em aberto + saldo
+  const balancoGeral = totalDeposito - totalSaque + totalEmAberto + saldoAtual;
 
   function upd(id: number, campo: Campo, v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [campo]: v } })); }
   const dv = (c: Conta, campo: Campo) => { const d = drafts[c.id]?.[campo]; if (d !== undefined) return d; const raw = c[campo]; return typeof raw === 'number' ? String(raw) : raw; };
@@ -157,24 +160,24 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
         <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="text-[11px] uppercase tracking-wide text-slate-400">Total depósitos</div>
-            <div className="mt-1 text-xl font-bold tabular-nums text-sky-600">R$ {brl(totalDeposito)}</div>
+            <div className={`mt-1 text-xl font-bold tabular-nums ${corNum(totalDeposito)}`}>R$ {brl(totalDeposito)}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="text-[11px] uppercase tracking-wide text-slate-400">Total saques</div>
-            <div className="mt-1 text-xl font-bold tabular-nums text-slate-700">R$ {brl(totalSaque)}</div>
+            <div className={`mt-1 text-xl font-bold tabular-nums ${corNum(totalSaque)}`}>R$ {brl(totalSaque)}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="text-[11px] uppercase tracking-wide text-slate-400">Total em aberto</div>
-            <div className="mt-1 text-xl font-bold tabular-nums text-indigo-600">R$ {brl(totalEmAberto)}</div>
+            <div className={`mt-1 text-xl font-bold tabular-nums ${corNum(totalEmAberto)}`}>R$ {brl(totalEmAberto)}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="text-[11px] uppercase tracking-wide text-slate-400">Total saldo</div>
-            <div className={`mt-1 text-xl font-bold tabular-nums ${saldoAtual < 0 ? 'text-rose-600' : 'text-slate-800'}`}>R$ {brl(saldoAtual)}</div>
+            <div className={`mt-1 text-xl font-bold tabular-nums ${corNum(saldoAtual)}`}>R$ {brl(saldoAtual)}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="text-[11px] uppercase tracking-wide text-slate-400">Balanço geral das contas</div>
-            <div className={`mt-1 text-xl font-bold tabular-nums ${resumoGeral < 0 ? 'text-rose-600' : 'text-amber-600'}`}>R$ {brl(resumoGeral)}</div>
-            <div className="text-[10px] text-slate-400">depósitos + em aberto − saques</div>
+            <div className={`mt-1 text-xl font-bold tabular-nums ${corNum(balancoGeral)}`}>R$ {brl(balancoGeral)}</div>
+            <div className="text-[10px] text-slate-400">depósitos − saques + em aberto + saldo</div>
           </div>
         </div>
         <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
@@ -261,13 +264,13 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                           <td className="px-2 py-1.5 font-medium">{c.login || '—'}</td>
                           <td className="px-2 py-1.5">{c.nome || '—'}</td>
                           <td className="px-2 py-1.5 text-slate-500">{c.cpf || '—'}</td>
-                          <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${e.saldo < 0 ? 'text-rose-600' : 'text-slate-800'}`}>{brl(e.saldo)}</td>
-                          <td className="px-2 py-1.5 text-right tabular-nums text-slate-700">{brl(e.emAberto)}</td>
-                          <td className="px-2 py-1.5 text-right tabular-nums text-sky-600">{brl(e.deposito)}</td>
-                          <td className="px-2 py-1.5 text-right tabular-nums text-slate-600">{brl(e.retirada)}</td>
+                          <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${corNum(e.saldo)}`}>{brl(e.saldo)}</td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums ${corNum(e.emAberto)}`}>{brl(e.emAberto)}</td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums ${corNum(e.deposito)}`}>{brl(e.deposito)}</td>
+                          <td className={`px-2 py-1.5 text-right tabular-nums ${corNum(e.retirada)}`}>{brl(e.retirada)}</td>
                         </>
                       )}
-                      <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${resumo < 0 ? 'text-rose-600' : 'text-amber-600'}`}>{brl(resumo)}</td>
+                      <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${corNum(resumo)}`}>{brl(resumo)}</td>
                       <td className="px-2 py-1.5">
                         <div className="flex justify-center gap-1.5">
                           {emEdicao ? (
@@ -290,9 +293,11 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
               <tfoot>
                 <tr className="bg-slate-50 text-[13px] font-semibold">
                   <td colSpan={7} className="px-2 py-2 text-right text-slate-500">Total {g.casa}</td>
-                  <td className="px-2 py-2 text-right tabular-nums text-sky-600">{brl(g.deposito)}</td>
-                  <td className="px-2 py-2 text-right tabular-nums text-slate-600">{brl(g.retirada)}</td>
-                  <td className={`px-2 py-2 text-right tabular-nums ${g.resumo < 0 ? 'text-rose-600' : 'text-amber-600'}`}>{brl(g.resumo)}</td>
+                  <td className={`px-2 py-2 text-right tabular-nums ${corNum(g.deposito)}`}>{brl(g.deposito)}</td>
+                  <td className={`px-2 py-2 text-right tabular-nums ${corNum(g.retirada)}`}>{brl(g.retirada)}</td>
+                  <td className="px-2 py-2 text-right">
+                    <span className={`inline-block rounded-md border px-2 py-0.5 tabular-nums ${corCasa(g.casa)}`}>{brl(g.resumo)}</span>
+                  </td>
                   <td></td>
                 </tr>
               </tfoot>
@@ -307,7 +312,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
         )}
 
         <p className="mt-2 text-center text-[11px] text-slate-400">
-          {busy ? 'carregando…' : 'Resumo = depósitos + em aberto − retiradas. O saldo fica vermelho quando negativo. A data/hora é atualizada a cada "Salvar".'}
+          {busy ? 'carregando…' : 'Resumo (balanço) = saldo + em aberto + depósitos − saques. Vermelho só quando negativo. A data/hora é atualizada a cada "Salvar".'}
         </p>
       </div>
 
