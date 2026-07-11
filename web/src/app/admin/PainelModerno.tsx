@@ -11,7 +11,7 @@ import {
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 
-interface Draft { dt?: string; odd?: string; val?: string; jogo?: string; _saved?: boolean }
+interface Draft { dt?: string; odd?: string; val?: string; jogo?: string; st?: string; _saved?: boolean }
 
 const STS = ['EM ABERTO', 'GREEN', 'MEIO GREEN', 'MEIO RED', 'RED', 'REEMBOLSO'];
 const DCS = ['', 'BETANO', 'BET365', 'SPORTINGBET', 'SUPERBET', 'PIXBET'];
@@ -167,15 +167,16 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debFiltros, page, reloadKey]);
 
-  const reload = () => setReloadKey((k) => k + 1);
+  // Atualizar/recarregar DESCARTA rascunhos não salvos (status pendente volta ao real).
+  const reload = () => { setDrafts({}); setReloadKey((k) => k + 1); };
   const navBtn = 'rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/15';
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageSafe = Math.min(Math.max(1, page), totalPages);
   const start = (pageSafe - 1) * PAGE_SIZE;
 
-  const dV = (r: Reg, f: 'dt' | 'odd' | 'val' | 'jogo') => { const d = drafts[r.id]; return d && d[f] !== undefined ? d[f]! : String(r[f]); };
-  const edited = (r: Reg, f: 'dt' | 'odd' | 'val' | 'jogo') => drafts[r.id]?.[f] !== undefined;
-  function updDraft(id: number, f: 'dt' | 'odd' | 'val' | 'jogo', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
+  const dV = (r: Reg, f: 'dt' | 'odd' | 'val' | 'jogo' | 'st') => { const d = drafts[r.id]; return d && d[f] !== undefined ? d[f]! : String(r[f]); };
+  const edited = (r: Reg, f: 'dt' | 'odd' | 'val' | 'jogo' | 'st') => drafts[r.id]?.[f] !== undefined;
+  function updDraft(id: number, f: 'dt' | 'odd' | 'val' | 'jogo' | 'st', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
 
   // Converte um patch (campos do banco) para os campos da linha, p/ atualização otimista.
   function patchParaReg(patch: Parameters<typeof atualizarAposta>[1]): Partial<Reg> {
@@ -226,25 +227,23 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   // O status em si já é gravado ao ser escolhido no seletor; aqui garantimos a baixa.
   async function saveReg(id: number) {
     const d = drafts[id] || {};
+    const reg = regs.find((r) => r.id === id);
+    // Status efetivo = rascunho (se o operador selecionou) ou o status atual do banco.
+    const statusEfetivo = d.st ?? reg?.st;
     const patch = {
       ...(d.dt !== undefined ? { dt: d.dt } : {}),
       ...(d.odd !== undefined ? { odd: Number(d.odd) } : {}),
       ...(d.val !== undefined ? { val: Number(d.val) } : {}),
       ...(d.jogo !== undefined ? { jogo: d.jogo } : {}),
+      ...(d.st !== undefined ? { st: d.st } : {}),
     };
     const temEdicao = Object.keys(patch).length > 0;
-    const reg = regs.find((r) => r.id === id);
-    const resolvida = !!reg && reg.st !== 'EM ABERTO';
+    const resolvida = !!statusEfetivo && statusEfetivo !== 'EM ABERTO';
 
     if (filtros.aba === 'pend' && !resolvida) {
-      // Ainda EM ABERTO: não há o que concluir; apenas confirma edições (se houve).
-      toast(temEdicao ? 'Edição salva. Defina o status para concluir.' : 'Defina o status (GREEN, RED…) para concluir a aposta.');
-      if (temEdicao) {
-        setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ...(d.odd !== undefined ? { odd: Number(d.odd) } : {}), ...(d.val !== undefined ? { val: Number(d.val) } : {}) } : r)));
-        atualizarAposta(id, patch).catch(() => toast('Erro ao salvar edição.'));
-      }
-      setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; });
-      return;
+      // Ainda EM ABERTO (nenhum status resolvedor escolhido): não há o que concluir.
+      toast('Selecione um status (GREEN, RED…) e clique em Salvar para concluir a aposta.');
+      return; // mantém eventuais rascunhos visíveis
     }
 
     // OTIMISTA: dá baixa na fila na hora; persiste (edição + encerrar contestação) em background.
@@ -255,7 +254,10 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     toast('Aposta salva e concluída ✓');
     (async () => {
       try {
-        if (temEdicao) await atualizarAposta(id, patch);
+        if (temEdicao) {
+          const rr = await atualizarAposta(id, patch);
+          if (filtros.aba !== 'pend') setRegs((rs) => rs.map((r) => (r.id === id ? rr : r)));
+        }
         if (reg?.ct) await resolverContestacao(id);
       } catch { toast('Erro ao salvar no servidor — clique em Atualizar.'); }
     })();
@@ -488,7 +490,11 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         </div></td>
                         <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} /></td>
                         <td className="px-2 py-1.5"><input type="number" className={`${cinp} w-20 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} /></td>
-                        <td className="px-2 py-1.5"><select value={r.st} onChange={(e) => patchReg(r.id, { st: e.target.value })} style={{ backgroundColor: stStyle(r.st).bg, color: stStyle(r.st).fg }} className="rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer">{STS.map((s) => <option key={s} value={s} style={{ backgroundColor: stStyle(s).bg, color: stStyle(s).fg }}>{s}</option>)}</select></td>
+                        <td className="px-2 py-1.5">
+                          {(() => { const stv = dV(r, 'st'); const pend = edited(r, 'st'); return (
+                            <select value={stv} onChange={(e) => updDraft(r.id, 'st', e.target.value)} title={pend ? 'Status não salvo — clique em Salvar para confirmar' : undefined} style={{ backgroundColor: stStyle(stv).bg, color: stStyle(stv).fg, boxShadow: pend ? '0 0 0 2px #f59e0b' : undefined }} className="rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer">{STS.map((s) => <option key={s} value={s} style={{ backgroundColor: stStyle(s).bg, color: stStyle(s).fg }}>{s}</option>)}</select>
+                          ); })()}
+                        </td>
                         <td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td>
                         <td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td>
                         <td className="px-2 py-1.5 text-center"><select value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} className={`${cinp} w-16`}><option>Não</option><option>Sim</option></select></td>
