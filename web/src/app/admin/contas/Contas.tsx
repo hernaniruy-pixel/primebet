@@ -21,6 +21,8 @@ const CASA_COR: Record<string, string> = {
 const corCasa = (c: string) => CASA_COR[c.toUpperCase()] ?? 'bg-slate-100 text-slate-700 border-slate-300';
 // cor padrão para números: escuro normal, vermelho só quando negativo
 const corNum = (n: number) => (n < 0 ? 'text-rose-600' : 'text-slate-800');
+// cor por sinal (para totais/saldos): verde positivo, vermelho negativo
+const corSaldo = (n: number) => (n > 0 ? 'text-emerald-600' : n < 0 ? 'text-rose-600' : 'text-slate-700');
 
 type Campo = 'login' | 'nome' | 'cpf' | 'saldo' | 'emAberto' | 'deposito' | 'retirada';
 type Draft = Partial<Record<Campo, string>>;
@@ -158,26 +160,27 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
       <div className="mx-auto max-w-7xl px-4 py-5">
         {/* Resumo geral */}
         <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-slate-400">Total depósitos</div>
-            <div className={`mt-1 text-xl font-bold tabular-nums ${corNum(totalDeposito)}`}>R$ {brl(totalDeposito)}</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-slate-400">Total saques</div>
-            <div className={`mt-1 text-xl font-bold tabular-nums ${corNum(totalSaque)}`}>R$ {brl(totalSaque)}</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-slate-400">Total em aberto</div>
-            <div className={`mt-1 text-xl font-bold tabular-nums ${corNum(totalEmAberto)}`}>R$ {brl(totalEmAberto)}</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-slate-400">Total saldo</div>
-            <div className={`mt-1 text-xl font-bold tabular-nums ${corNum(saldoAtual)}`}>R$ {brl(saldoAtual)}</div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-slate-400">Balanço geral das contas</div>
-            <div className={`mt-1 text-xl font-bold tabular-nums ${corNum(balancoGeral)}`}>R$ {brl(balancoGeral)}</div>
-            <div className="text-[10px] text-slate-400">depósitos − saques + em aberto + saldo</div>
+          {([
+            { l: 'Total depósitos', v: totalDeposito, icon: '💰', from: 'from-emerald-50', ring: 'border-emerald-100', chip: 'bg-emerald-100', num: 'text-emerald-700' },
+            { l: 'Total saques', v: totalSaque, icon: '💸', from: 'from-rose-50', ring: 'border-rose-100', chip: 'bg-rose-100', num: 'text-rose-700' },
+            { l: 'Total em aberto', v: totalEmAberto, icon: '⏳', from: 'from-indigo-50', ring: 'border-indigo-100', chip: 'bg-indigo-100', num: 'text-indigo-700' },
+            { l: 'Total saldo', v: saldoAtual, icon: '🏦', from: 'from-sky-50', ring: 'border-sky-100', chip: 'bg-sky-100', num: corSaldo(saldoAtual) },
+          ] as const).map((m) => (
+            <div key={m.l} className={`rounded-2xl border ${m.ring} bg-gradient-to-br ${m.from} to-white p-4 shadow-sm`}>
+              <div className="flex items-center gap-2">
+                <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${m.chip} text-lg`}>{m.icon}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{m.l}</span>
+              </div>
+              <div className={`mt-2 text-2xl font-extrabold tabular-nums ${m.num}`}>R$ {brl(m.v)}</div>
+            </div>
+          ))}
+          <div className="rounded-2xl border border-amber-400/40 bg-gradient-to-br from-[#13200a] via-[#1a2b0f] to-[#241f0a] p-4 shadow-md">
+            <div className="flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/20 text-lg">⚖️</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-200/80">Balanço geral</span>
+            </div>
+            <div className={`mt-2 text-2xl font-extrabold tabular-nums ${balancoGeral < 0 ? 'text-rose-400' : 'text-[#DAA520]'}`}>R$ {brl(balancoGeral)}</div>
+            <div className="mt-0.5 text-[10px] text-amber-100/50">depósitos − saques + em aberto + saldo</div>
           </div>
         </div>
         <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
@@ -264,13 +267,13 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                           <td className="px-2 py-1.5 font-medium">{c.login || '—'}</td>
                           <td className="px-2 py-1.5">{c.nome || '—'}</td>
                           <td className="px-2 py-1.5 text-slate-500">{c.cpf || '—'}</td>
-                          <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${corNum(e.saldo)}`}>{brl(e.saldo)}</td>
-                          <td className={`px-2 py-1.5 text-right tabular-nums ${corNum(e.emAberto)}`}>{brl(e.emAberto)}</td>
-                          <td className={`px-2 py-1.5 text-right tabular-nums ${corNum(e.deposito)}`}>{brl(e.deposito)}</td>
-                          <td className={`px-2 py-1.5 text-right tabular-nums ${corNum(e.retirada)}`}>{brl(e.retirada)}</td>
+                          <td className={`px-2 py-1.5 text-right font-bold tabular-nums ${corSaldo(e.saldo)}`}>{brl(e.saldo)}</td>
+                          <td className={`px-2 py-1.5 text-right font-bold tabular-nums ${corNum(e.emAberto)}`}>{brl(e.emAberto)}</td>
+                          <td className={`px-2 py-1.5 text-right font-bold tabular-nums ${corNum(e.deposito)}`}>{brl(e.deposito)}</td>
+                          <td className={`px-2 py-1.5 text-right font-bold tabular-nums ${corNum(e.retirada)}`}>{brl(e.retirada)}</td>
                         </>
                       )}
-                      <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${corNum(resumo)}`}>{brl(resumo)}</td>
+                      <td className={`px-2 py-1.5 text-right font-bold tabular-nums ${corSaldo(resumo)}`}>{brl(resumo)}</td>
                       <td className="px-2 py-1.5">
                         <div className="flex justify-center gap-1.5">
                           {emEdicao ? (
@@ -293,11 +296,9 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
               <tfoot>
                 <tr className="bg-slate-50 text-[13px] font-semibold">
                   <td colSpan={7} className="px-2 py-2 text-right text-slate-500">Total {g.casa}</td>
-                  <td className={`px-2 py-2 text-right tabular-nums ${corNum(g.deposito)}`}>{brl(g.deposito)}</td>
-                  <td className={`px-2 py-2 text-right tabular-nums ${corNum(g.retirada)}`}>{brl(g.retirada)}</td>
-                  <td className="px-2 py-2 text-right">
-                    <span className={`inline-block rounded-md border px-2 py-0.5 tabular-nums ${corCasa(g.casa)}`}>{brl(g.resumo)}</span>
-                  </td>
+                  <td className={`px-2 py-2 text-right font-bold tabular-nums ${corNum(g.deposito)}`}>{brl(g.deposito)}</td>
+                  <td className={`px-2 py-2 text-right font-bold tabular-nums ${corNum(g.retirada)}`}>{brl(g.retirada)}</td>
+                  <td className={`px-2 py-2 text-right font-bold tabular-nums ${corSaldo(g.resumo)}`}>{brl(g.resumo)}</td>
                   <td></td>
                 </tr>
               </tfoot>
