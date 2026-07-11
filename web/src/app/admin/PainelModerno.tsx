@@ -177,30 +177,49 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const edited = (r: Reg, f: 'dt' | 'odd' | 'val' | 'jogo') => drafts[r.id]?.[f] !== undefined;
   function updDraft(id: number, f: 'dt' | 'odd' | 'val' | 'jogo', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
 
+  // Converte um patch (campos do banco) para os campos da linha, p/ atualização otimista.
+  function patchParaReg(patch: Parameters<typeof atualizarAposta>[1]): Partial<Reg> {
+    const p: Partial<Reg> = {};
+    if (patch.st !== undefined) p.st = patch.st;
+    if (patch.bl !== undefined) p.bl = patch.bl;
+    if (patch.adv !== undefined) p.adv = patch.adv;
+    if (patch.irr !== undefined) p.irr = patch.irr;
+    if (patch.cId !== undefined) p.cId = patch.cId;
+    if (patch.obs !== undefined) p.obs = patch.obs;
+    if (patch.odd !== undefined) p.odd = patch.odd;
+    if (patch.val !== undefined) p.val = patch.val;
+    if (patch.dc !== undefined) p.dc = patch.dc;
+    if (patch.jogo !== undefined) p.jogo = patch.jogo;
+    return p;
+  }
+
   async function patchReg(id: number, patch: Parameters<typeof atualizarAposta>[1]) {
+    const prev = regs.find((r) => r.id === id);
+    // OTIMISTA: aplica na tela imediatamente (sem esperar o servidor) — sensação de fluidez.
+    setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ...patchParaReg(patch) } : r)));
+    setFlashId(null);
+    requestAnimationFrame(() => setFlashId(id));
+    setTimeout(() => setFlashId((cur) => (cur === id ? null : cur)), 1600);
+    if (patch.st !== undefined) {
+      const nome = clientes.find((c) => c.id === (patch.cId ?? prev?.cId))?.nome ?? `#${id}`;
+      toast(`Status de ${nome} → ${patch.st}.`);
+    }
+    // Salva em segundo plano; reconcilia saldos com a resposta ou reverte se falhar.
     try {
       const reg = await atualizarAposta(id, patch);
-      // Grava e mantém a linha visível (flash verde). A BAIXA da fila acontece só no
-      // "Salvar" (concluir) ou no "✓ Resolver" — evita a linha sumir antes da conferência.
       setRegs((rs) => rs.map((r) => (r.id === id ? reg : r)));
-      setFlashId(null);
-      requestAnimationFrame(() => setFlashId(id));
-      setTimeout(() => setFlashId((cur) => (cur === id ? null : cur)), 1600);
-      if (patch.st !== undefined) {
-        const nome = clientes.find((c) => c.id === reg.cId)?.nome ?? `#${id}`;
-        toast(`Status de ${nome} atualizado para ${reg.st}.`);
-      }
-    } catch { toast('Erro ao salvar aposta.'); }
+    } catch {
+      if (prev) setRegs((rs) => rs.map((r) => (r.id === id ? prev : r)));
+      toast('Erro ao salvar — alteração desfeita.');
+    }
   }
-  async function resolverCt(id: number) {
-    try {
-      await resolverContestacao(id);
-      // Sai da fila de pendentes (mantém o status atual); na aba "Todas" apenas limpa os selos.
-      if (filtros.aba === 'pend') setRegs((rs) => rs.filter((r) => r.id !== id));
-      else setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ct: false, ctStatus: '', ctMotivo: '' } : r)));
-      setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) }));
-      toast('Contestação resolvida.');
-    } catch { toast('Erro ao resolver contestação.'); }
+  function resolverCt(id: number) {
+    // OTIMISTA: some da fila na hora; resolve no servidor em segundo plano.
+    if (filtros.aba === 'pend') setRegs((rs) => rs.filter((r) => r.id !== id));
+    else setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ct: false, ctStatus: '', ctMotivo: '' } : r)));
+    setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) }));
+    toast('Contestação resolvida.');
+    resolverContestacao(id).catch(() => toast('Erro ao resolver — clique em Atualizar.'));
   }
   // "Salvar" = concluir a aposta: grava as edições pendentes, encerra contestação e,
   // se a aposta já está resolvida (fora de EM ABERTO), tira ela da fila do dashboard.
@@ -213,26 +232,33 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       ...(d.val !== undefined ? { val: Number(d.val) } : {}),
       ...(d.jogo !== undefined ? { jogo: d.jogo } : {}),
     };
-    try {
-      if (Object.keys(patch).length > 0) await atualizarAposta(id, patch);
-      const reg = regs.find((r) => r.id === id);
-      const resolvida = !!reg && reg.st !== 'EM ABERTO';
+    const temEdicao = Object.keys(patch).length > 0;
+    const reg = regs.find((r) => r.id === id);
+    const resolvida = !!reg && reg.st !== 'EM ABERTO';
 
-      if (filtros.aba === 'pend' && !resolvida) {
-        // Ainda EM ABERTO: não há o que concluir; apenas confirma edições (se houve).
-        toast(Object.keys(patch).length > 0 ? 'Edição salva. Defina o status para concluir.' : 'Defina o status (GREEN, RED…) para concluir a aposta.');
+    if (filtros.aba === 'pend' && !resolvida) {
+      // Ainda EM ABERTO: não há o que concluir; apenas confirma edições (se houve).
+      toast(temEdicao ? 'Edição salva. Defina o status para concluir.' : 'Defina o status (GREEN, RED…) para concluir a aposta.');
+      if (temEdicao) {
         setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ...(d.odd !== undefined ? { odd: Number(d.odd) } : {}), ...(d.val !== undefined ? { val: Number(d.val) } : {}) } : r)));
-        setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; });
-        return;
+        atualizarAposta(id, patch).catch(() => toast('Erro ao salvar edição.'));
       }
-
-      // Resolvida: encerra contestação (se houver) e dá baixa na fila.
-      if (reg?.ct) { await resolverContestacao(id); setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) })); }
-      if (filtros.aba === 'pend') setRegs((rs) => rs.filter((r) => r.id !== id));
-      else setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ct: false, ctStatus: '', ctMotivo: '' } : r)));
       setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; });
-      toast('Aposta salva e concluída ✓');
-    } catch { toast('Erro ao salvar aposta.'); }
+      return;
+    }
+
+    // OTIMISTA: dá baixa na fila na hora; persiste (edição + encerrar contestação) em background.
+    if (filtros.aba === 'pend') setRegs((rs) => rs.filter((r) => r.id !== id));
+    else setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ct: false, ctStatus: '', ctMotivo: '' } : r)));
+    if (reg?.ct) setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) }));
+    setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; });
+    toast('Aposta salva e concluída ✓');
+    (async () => {
+      try {
+        if (temEdicao) await atualizarAposta(id, patch);
+        if (reg?.ct) await resolverContestacao(id);
+      } catch { toast('Erro ao salvar no servidor — clique em Atualizar.'); }
+    })();
   }
   async function delReg(id: number) { if (!confirm('Excluir este registro?')) return; try { await excluirAposta(id); setRegs((rs) => rs.filter((r) => r.id !== id)); reload(); } catch { toast('Erro ao excluir.'); } }
   async function salvarNovo() {
