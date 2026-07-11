@@ -81,6 +81,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
   const resumoGeral = grupos.reduce((s, g) => s + g.resumo, 0);
   const totalDeposito = grupos.reduce((s, g) => s + g.deposito, 0);
   const totalSaque = grupos.reduce((s, g) => s + g.retirada, 0);
+  const totalEmAberto = contas.reduce((s, c) => s + ef(c).emAberto, 0);
   const saldoAtual = contas.reduce((s, c) => s + ef(c).saldo, 0);
 
   function upd(id: number, campo: Campo, v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [campo]: v } })); }
@@ -153,12 +154,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
 
       <div className="mx-auto max-w-7xl px-4 py-5">
         {/* Resumo geral */}
-        <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-slate-400">Saldo atual</div>
-            <div className={`mt-1 text-xl font-bold tabular-nums ${saldoAtual < 0 ? 'text-rose-600' : 'text-slate-800'}`}>R$ {brl(saldoAtual)}</div>
-            <div className="text-[10px] text-slate-400">soma dos saldos agora</div>
-          </div>
+        <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="text-[11px] uppercase tracking-wide text-slate-400">Total depósitos</div>
             <div className="mt-1 text-xl font-bold tabular-nums text-sky-600">R$ {brl(totalDeposito)}</div>
@@ -168,7 +164,15 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
             <div className="mt-1 text-xl font-bold tabular-nums text-slate-700">R$ {brl(totalSaque)}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-slate-400">Resumo geral</div>
+            <div className="text-[11px] uppercase tracking-wide text-slate-400">Total em aberto</div>
+            <div className="mt-1 text-xl font-bold tabular-nums text-indigo-600">R$ {brl(totalEmAberto)}</div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <div className="text-[11px] uppercase tracking-wide text-slate-400">Total saldo</div>
+            <div className={`mt-1 text-xl font-bold tabular-nums ${saldoAtual < 0 ? 'text-rose-600' : 'text-slate-800'}`}>R$ {brl(saldoAtual)}</div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <div className="text-[11px] uppercase tracking-wide text-slate-400">Balanço geral das contas</div>
             <div className={`mt-1 text-xl font-bold tabular-nums ${resumoGeral < 0 ? 'text-rose-600' : 'text-amber-600'}`}>R$ {brl(resumoGeral)}</div>
             <div className="text-[10px] text-slate-400">depósitos + em aberto − saques</div>
           </div>
