@@ -178,23 +178,14 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   function updDraft(id: number, f: 'dt' | 'odd' | 'val' | 'jogo', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
 
   async function patchReg(id: number, patch: Parameters<typeof atualizarAposta>[1]) {
-    const prev = regs.find((r) => r.id === id);
     try {
       const reg = await atualizarAposta(id, patch);
-      // Mudar o status encerra a contestação no banco. Na fila pendente, se a aposta
-      // deixou de ser pendente (resolvida e sem contestação), tira ela da lista na hora.
-      const encerrouCt = !!prev?.ct && !reg.ct;
-      if (filtros.aba === 'pend' && encerrouCt && reg.st !== 'EM ABERTO') {
-        setRegs((rs) => rs.filter((r) => r.id !== id));
-        setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) }));
-      } else {
-        setRegs((rs) => rs.map((r) => (r.id === id ? reg : r)));
-        // Confirmação visual (flash verde). NÃO recarrega: a linha permanece — mesmo já
-        // resolvida — até o operador clicar em "Atualizar". Evita perder de vista um status errado.
-        setFlashId(null);
-        requestAnimationFrame(() => setFlashId(id));
-        setTimeout(() => setFlashId((cur) => (cur === id ? null : cur)), 1600);
-      }
+      // Grava e mantém a linha visível (flash verde). A BAIXA da fila acontece só no
+      // "Salvar" (concluir) ou no "✓ Resolver" — evita a linha sumir antes da conferência.
+      setRegs((rs) => rs.map((r) => (r.id === id ? reg : r)));
+      setFlashId(null);
+      requestAnimationFrame(() => setFlashId(id));
+      setTimeout(() => setFlashId((cur) => (cur === id ? null : cur)), 1600);
       if (patch.st !== undefined) {
         const nome = clientes.find((c) => c.id === reg.cId)?.nome ?? `#${id}`;
         toast(`Status de ${nome} atualizado para ${reg.st}.`);
@@ -211,6 +202,9 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       toast('Contestação resolvida.');
     } catch { toast('Erro ao resolver contestação.'); }
   }
+  // "Salvar" = concluir a aposta: grava as edições pendentes, encerra contestação e,
+  // se a aposta já está resolvida (fora de EM ABERTO), tira ela da fila do dashboard.
+  // O status em si já é gravado ao ser escolhido no seletor; aqui garantimos a baixa.
   async function saveReg(id: number) {
     const d = drafts[id] || {};
     const patch = {
@@ -219,10 +213,26 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       ...(d.val !== undefined ? { val: Number(d.val) } : {}),
       ...(d.jogo !== undefined ? { jogo: d.jogo } : {}),
     };
-    if (Object.keys(patch).length === 0) { toast('Nada para salvar — edite odd, valor, data ou o jogo primeiro.'); return; }
-    await patchReg(id, patch);
-    setDrafts((dr) => ({ ...dr, [id]: { _saved: true } }));
-    setTimeout(() => setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; }), 1500);
+    try {
+      if (Object.keys(patch).length > 0) await atualizarAposta(id, patch);
+      const reg = regs.find((r) => r.id === id);
+      const resolvida = !!reg && reg.st !== 'EM ABERTO';
+
+      if (filtros.aba === 'pend' && !resolvida) {
+        // Ainda EM ABERTO: não há o que concluir; apenas confirma edições (se houve).
+        toast(Object.keys(patch).length > 0 ? 'Edição salva. Defina o status para concluir.' : 'Defina o status (GREEN, RED…) para concluir a aposta.');
+        setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ...(d.odd !== undefined ? { odd: Number(d.odd) } : {}), ...(d.val !== undefined ? { val: Number(d.val) } : {}) } : r)));
+        setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; });
+        return;
+      }
+
+      // Resolvida: encerra contestação (se houver) e dá baixa na fila.
+      if (reg?.ct) { await resolverContestacao(id); setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) })); }
+      if (filtros.aba === 'pend') setRegs((rs) => rs.filter((r) => r.id !== id));
+      else setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ct: false, ctStatus: '', ctMotivo: '' } : r)));
+      setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; });
+      toast('Aposta salva e concluída ✓');
+    } catch { toast('Erro ao salvar aposta.'); }
   }
   async function delReg(id: number) { if (!confirm('Excluir este registro?')) return; try { await excluirAposta(id); setRegs((rs) => rs.filter((r) => r.id !== id)); reload(); } catch { toast('Erro ao excluir.'); } }
   async function salvarNovo() {
