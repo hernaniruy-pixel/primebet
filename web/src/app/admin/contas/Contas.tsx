@@ -19,7 +19,6 @@ const CASA_COR: Record<string, string> = {
   BETANO: 'bg-amber-100 text-amber-800 border-amber-300',
 };
 const corCasa = (c: string) => CASA_COR[c.toUpperCase()] ?? 'bg-slate-100 text-slate-700 border-slate-300';
-const clr = (n: number) => (n > 0 ? 'text-emerald-600' : n < 0 ? 'text-rose-600' : 'text-slate-500');
 
 type Campo = 'login' | 'nome' | 'cpf' | 'saldo' | 'emAberto' | 'deposito' | 'retirada';
 type Draft = Partial<Record<Campo, string>>;
@@ -59,8 +58,8 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
       retirada: d.retirada !== undefined ? toNum(d.retirada) : c.retirada,
     };
   };
-  const totalDe = (e: { saldo: number; emAberto: number }) => e.saldo + e.emAberto;
-  const resultadoDe = (e: { saldo: number; emAberto: number; deposito: number; retirada: number }) => e.saldo + e.emAberto + e.retirada - e.deposito;
+  // Resumo = total depositado + apostas em aberto − retiradas.
+  const resumoDe = (e: { emAberto: number; deposito: number; retirada: number }) => e.deposito + e.emAberto - e.retirada;
 
   // agrupa por casa, na ordem preferida e depois alfabética
   const grupos = useMemo(() => {
@@ -73,14 +72,13 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
     });
     return chaves.map((casa) => {
       const rows = map.get(casa)!;
-      const g = rows.reduce((acc, c) => { const e = ef(c); acc.total += totalDe(e); acc.deposito += e.deposito; acc.retirada += e.retirada; acc.resultado += resultadoDe(e); return acc; }, { total: 0, deposito: 0, retirada: 0, resultado: 0 });
+      const g = rows.reduce((acc, c) => { const e = ef(c); acc.resumo += resumoDe(e); acc.deposito += e.deposito; acc.retirada += e.retirada; return acc; }, { resumo: 0, deposito: 0, retirada: 0 });
       return { casa, rows, ...g };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contas, drafts]);
 
-  const totalGeral = grupos.reduce((s, g) => s + g.total, 0);
-  const resultadoGeral = grupos.reduce((s, g) => s + g.resultado, 0);
+  const resumoGeral = grupos.reduce((s, g) => s + g.resumo, 0);
   const totalDeposito = grupos.reduce((s, g) => s + g.deposito, 0);
   const totalSaque = grupos.reduce((s, g) => s + g.retirada, 0);
   const saldoAtual = contas.reduce((s, c) => s + ef(c).saldo, 0);
@@ -155,15 +153,10 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
 
       <div className="mx-auto max-w-7xl px-4 py-5">
         {/* Resumo geral */}
-        <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-slate-400">Total contas</div>
-            <div className="mt-1 text-xl font-bold tabular-nums text-amber-600">R$ {brl(totalGeral)}</div>
-            <div className="text-[10px] text-slate-400">saldo + em aberto</div>
-          </div>
+        <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="text-[11px] uppercase tracking-wide text-slate-400">Saldo atual</div>
-            <div className={`mt-1 text-xl font-bold tabular-nums ${clr(saldoAtual)}`}>R$ {brl(saldoAtual)}</div>
+            <div className={`mt-1 text-xl font-bold tabular-nums ${saldoAtual < 0 ? 'text-rose-600' : 'text-slate-800'}`}>R$ {brl(saldoAtual)}</div>
             <div className="text-[10px] text-slate-400">soma dos saldos agora</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-3">
@@ -175,18 +168,18 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
             <div className="mt-1 text-xl font-bold tabular-nums text-slate-700">R$ {brl(totalSaque)}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <div className="text-[11px] uppercase tracking-wide text-slate-400">Resultado geral</div>
-            <div className={`mt-1 text-xl font-bold tabular-nums ${clr(resultadoGeral)}`}>R$ {brl(resultadoGeral)}</div>
-            <div className="text-[10px] text-slate-400">{resultadoGeral >= 0 ? 'lucro' : 'prejuízo'}</div>
+            <div className="text-[11px] uppercase tracking-wide text-slate-400">Resumo geral</div>
+            <div className={`mt-1 text-xl font-bold tabular-nums ${resumoGeral < 0 ? 'text-rose-600' : 'text-amber-600'}`}>R$ {brl(resumoGeral)}</div>
+            <div className="text-[10px] text-slate-400">depósitos + em aberto − saques</div>
           </div>
         </div>
         <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
-          <div className="mb-1 text-[11px] uppercase tracking-wide text-slate-400">Total por casa</div>
+          <div className="mb-1 text-[11px] uppercase tracking-wide text-slate-400">Resumo por casa</div>
           <div className="flex flex-wrap gap-2">
             {grupos.length === 0 && <span className="text-xs text-slate-400">Nenhuma conta ainda.</span>}
             {grupos.map((g) => (
               <span key={g.casa} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${corCasa(g.casa)}`}>
-                {g.casa}: R$ {brl(g.total)}
+                {g.casa}: R$ {brl(g.resumo)}
               </span>
             ))}
           </div>
@@ -237,13 +230,13 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                   <th className="px-2 py-2">Login</th><th className="px-2 py-2">Nome</th><th className="px-2 py-2">CPF</th>
                   <th className="px-2 py-2 text-right">Saldo</th><th className="px-2 py-2 text-right">Em aberto</th>
                   <th className="px-2 py-2 text-right">Depósito</th><th className="px-2 py-2 text-right">Retirada</th>
-                  <th className="px-2 py-2 text-right">Total</th><th className="px-2 py-2 text-right">Resultado</th>
+                  <th className="px-2 py-2 text-right">Resumo</th>
                   <th className="px-2 py-2 text-center">Ação</th>
                 </tr>
               </thead>
               <tbody>
                 {g.rows.map((c) => {
-                  const e = ef(c); const total = totalDe(e); const resultado = resultadoDe(e);
+                  const e = ef(c); const resumo = resumoDe(e);
                   const emEdicao = isEdit(c.id);
                   return (
                     <tr key={c.id} className={`border-b border-slate-100 align-middle ${emEdicao ? 'bg-amber-50/60' : ''}`}>
@@ -270,8 +263,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                           <td className="px-2 py-1.5 text-right tabular-nums text-slate-600">{brl(e.retirada)}</td>
                         </>
                       )}
-                      <td className="px-2 py-1.5 text-right font-semibold tabular-nums text-amber-600">{brl(total)}</td>
-                      <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${clr(resultado)}`}>{brl(resultado)}</td>
+                      <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${resumo < 0 ? 'text-rose-600' : 'text-amber-600'}`}>{brl(resumo)}</td>
                       <td className="px-2 py-1.5">
                         <div className="flex justify-center gap-1.5">
                           {emEdicao ? (
@@ -294,10 +286,9 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
               <tfoot>
                 <tr className="bg-slate-50 text-[13px] font-semibold">
                   <td colSpan={7} className="px-2 py-2 text-right text-slate-500">Total {g.casa}</td>
-                  <td className="px-2 py-2 text-right tabular-nums">{brl(g.deposito)}</td>
-                  <td className="px-2 py-2 text-right tabular-nums">{brl(g.retirada)}</td>
-                  <td className="px-2 py-2 text-right tabular-nums text-amber-600">{brl(g.total)}</td>
-                  <td className={`px-2 py-2 text-right tabular-nums ${clr(g.resultado)}`}>{brl(g.resultado)}</td>
+                  <td className="px-2 py-2 text-right tabular-nums text-sky-600">{brl(g.deposito)}</td>
+                  <td className="px-2 py-2 text-right tabular-nums text-slate-600">{brl(g.retirada)}</td>
+                  <td className={`px-2 py-2 text-right tabular-nums ${g.resumo < 0 ? 'text-rose-600' : 'text-amber-600'}`}>{brl(g.resumo)}</td>
                   <td></td>
                 </tr>
               </tfoot>
@@ -312,7 +303,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
         )}
 
         <p className="mt-2 text-center text-[11px] text-slate-400">
-          {busy ? 'carregando…' : 'Total = saldo + em aberto. Resultado = saldo + em aberto + retiradas − depósitos (positivo = lucro). A data/hora é atualizada a cada "Salvar".'}
+          {busy ? 'carregando…' : 'Resumo = depósitos + em aberto − retiradas. O saldo fica vermelho quando negativo. A data/hora é atualizada a cada "Salvar".'}
         </p>
       </div>
 
