@@ -10,6 +10,7 @@ import {
 } from './types';
 import type { ConfGrupo, ConfImagensResp, ConfFiltro } from './conferencia/types';
 import type { DespesasResp, SemanaDespesas, Despesa } from './despesas/types';
+import type { Conta, NovaConta, PatchConta } from './contas/types';
 import { semanasBR, janelaSemana } from '@/lib/semana';
 
 // ═══════════════════ LISTAGEM / FECHAMENTO (paginação no servidor) ═══════════════════
@@ -171,6 +172,67 @@ export async function excluirDespesa(id: number): Promise<void> {
   await exigirSessao();
   const db = createAdminClient();
   const { error } = await db.from('despesas').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ═══════════════════ CONTAS (controle dos donos) ═══════════════════
+interface ContaRow {
+  id: number; casa: string | null; login: string | null; nome: string | null; cpf: string | null;
+  saldo: number | string; em_aberto: number | string; deposito: number | string; retirada: number | string;
+  atualizado_em: string;
+}
+function mapConta(r: ContaRow): Conta {
+  return {
+    id: r.id, casa: r.casa ?? '', login: r.login ?? '', nome: r.nome ?? '', cpf: r.cpf ?? '',
+    saldo: Number(r.saldo ?? 0), emAberto: Number(r.em_aberto ?? 0),
+    deposito: Number(r.deposito ?? 0), retirada: Number(r.retirada ?? 0),
+    atualizadoEm: r.atualizado_em,
+  };
+}
+
+export async function listarContas(): Promise<Conta[]> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { data, error } = await db.from('contas').select('*').order('casa', { ascending: true }).order('id', { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as ContaRow[]).map(mapConta);
+}
+
+export async function criarConta(input: NovaConta): Promise<Conta> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { data, error } = await db.from('contas').insert({
+    banca_id: await bancaId(db),
+    casa: input.casa, login: input.login, nome: input.nome, cpf: input.cpf,
+    saldo: input.saldo, em_aberto: input.emAberto, deposito: input.deposito, retirada: input.retirada,
+    atualizado_em: new Date().toISOString(),
+  }).select('*').single();
+  if (error) throw error;
+  return mapConta(data as ContaRow);
+}
+
+export async function atualizarConta(id: number, patch: PatchConta): Promise<Conta> {
+  await exigirSessao();
+  const db = createAdminClient();
+  // Toda atualização carimba a data/hora (é o "atualizei o saldo hoje").
+  const upd: Record<string, unknown> = { atualizado_em: new Date().toISOString() };
+  if (patch.casa !== undefined) upd.casa = patch.casa;
+  if (patch.login !== undefined) upd.login = patch.login;
+  if (patch.nome !== undefined) upd.nome = patch.nome;
+  if (patch.cpf !== undefined) upd.cpf = patch.cpf;
+  if (patch.saldo !== undefined) upd.saldo = patch.saldo;
+  if (patch.emAberto !== undefined) upd.em_aberto = patch.emAberto;
+  if (patch.deposito !== undefined) upd.deposito = patch.deposito;
+  if (patch.retirada !== undefined) upd.retirada = patch.retirada;
+  const { data, error } = await db.from('contas').update(upd).eq('id', id).select('*').single();
+  if (error) throw error;
+  return mapConta(data as ContaRow);
+}
+
+export async function excluirConta(id: number): Promise<void> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { error } = await db.from('contas').delete().eq('id', id);
   if (error) throw error;
 }
 
