@@ -264,7 +264,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                           <td className="px-2 py-1.5 font-medium">{c.login || '—'}</td>
                           <td className="px-2 py-1.5">{c.nome || '—'}</td>
                           <td className="px-2 py-1.5 text-slate-500">{c.cpf || '—'}</td>
-                          <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${e.saldo < 0 ? 'text-rose-600' : 'text-rose-500'}`}>{brl(e.saldo)}</td>
+                          <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${e.saldo < 0 ? 'text-rose-600' : 'text-slate-800'}`}>{brl(e.saldo)}</td>
                           <td className="px-2 py-1.5 text-right tabular-nums text-slate-700">{brl(e.emAberto)}</td>
                           <td className="px-2 py-1.5 text-right tabular-nums text-sky-600">{brl(e.deposito)}</td>
                           <td className="px-2 py-1.5 text-right tabular-nums text-slate-600">{brl(e.retirada)}</td>
