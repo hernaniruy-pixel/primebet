@@ -11,14 +11,12 @@ const toNum = (s: string | number | undefined) => { const v = Number(String(s ??
 const fmtData = (iso: string) => new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }).format(new Date(iso));
 const fmtHora = (iso: string) => new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
 
-const CASAS = ['BET365', 'BETANO', 'SUPERBET', 'SPORTINGBET', 'PIXBET', 'BETNACIONAL', 'ESTRELABET'];
+const CASAS = ['BET365', 'SUPERBET', 'BETANO'];
 const ORDEM = CASAS;
 const CASA_COR: Record<string, string> = {
   BET365: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-  BETANO: 'bg-amber-100 text-amber-800 border-amber-300',
   SUPERBET: 'bg-pink-100 text-pink-800 border-pink-300',
-  SPORTINGBET: 'bg-sky-100 text-sky-800 border-sky-300',
-  PIXBET: 'bg-violet-100 text-violet-800 border-violet-300',
+  BETANO: 'bg-amber-100 text-amber-800 border-amber-300',
 };
 const corCasa = (c: string) => CASA_COR[c.toUpperCase()] ?? 'bg-slate-100 text-slate-700 border-slate-300';
 const clr = (n: number) => (n > 0 ? 'text-emerald-600' : n < 0 ? 'text-rose-600' : 'text-slate-500');
@@ -30,7 +28,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
   const [contas, setContas] = useState<Conta[]>(contasIni);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [busy, setBusy] = useState(false);
-  const [novo, setNovo] = useState({ open: false, casa: 'BET365', login: '', nome: '', cpf: '', saldo: '', emAberto: '', deposito: '', retirada: '' });
+  const [novo, setNovo] = useState({ open: false, casa: 'BET365', novaCasa: false, login: '', nome: '', cpf: '', saldo: '', emAberto: '', deposito: '', retirada: '' });
   const [msg, setMsg] = useState('');
 
   function toast(m: string) { setMsg(m); window.setTimeout(() => setMsg(''), 2500); }
@@ -102,7 +100,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
         saldo: toNum(novo.saldo), emAberto: toNum(novo.emAberto), deposito: toNum(novo.deposito), retirada: toNum(novo.retirada),
       });
       setContas((cs) => [...cs, r]);
-      setNovo({ open: false, casa: 'BET365', login: '', nome: '', cpf: '', saldo: '', emAberto: '', deposito: '', retirada: '' });
+      setNovo({ open: true, casa: 'BET365', novaCasa: false, login: '', nome: '', cpf: '', saldo: '', emAberto: '', deposito: '', retirada: '' });
       toast('Conta adicionada ✓');
     } catch { toast('Erro ao adicionar conta.'); }
     setBusy(false);
@@ -169,8 +167,17 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
               <div>
                 <label className="mb-1 block text-[10px] font-medium text-slate-500">CASA</label>
-                <input list="casas-list" value={novo.casa} onChange={(e) => setNovo((n) => ({ ...n, casa: e.target.value }))} className={inp} />
-                <datalist id="casas-list">{CASAS.map((c) => <option key={c} value={c} />)}</datalist>
+                {novo.novaCasa ? (
+                  <div className="flex gap-1">
+                    <input autoFocus placeholder="Nome da casa" value={novo.casa} onChange={(e) => setNovo((n) => ({ ...n, casa: e.target.value.toUpperCase() }))} className={inp} />
+                    <button type="button" onClick={() => setNovo((n) => ({ ...n, novaCasa: false, casa: 'BET365' }))} title="Voltar à lista" className="shrink-0 rounded-md border border-slate-300 px-2 text-slate-500 hover:bg-slate-100">↩</button>
+                  </div>
+                ) : (
+                  <select value={novo.casa} onChange={(e) => { if (e.target.value === '__NOVA__') setNovo((n) => ({ ...n, novaCasa: true, casa: '' })); else setNovo((n) => ({ ...n, casa: e.target.value })); }} className={inp}>
+                    {CASAS.map((c) => <option key={c} value={c}>{c}</option>)}
+                    <option value="__NOVA__">➕ Adicionar nova casa</option>
+                  </select>
+                )}
               </div>
               <div><label className="mb-1 block text-[10px] font-medium text-slate-500">LOGIN</label><input value={novo.login} onChange={(e) => setNovo((n) => ({ ...n, login: e.target.value }))} className={inp} /></div>
               <div><label className="mb-1 block text-[10px] font-medium text-slate-500">NOME</label><input value={novo.nome} onChange={(e) => setNovo((n) => ({ ...n, nome: e.target.value }))} className={inp} /></div>
