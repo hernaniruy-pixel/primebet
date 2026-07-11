@@ -28,10 +28,25 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
   const [contas, setContas] = useState<Conta[]>(contasIni);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [busy, setBusy] = useState(false);
+  const [editIds, setEditIds] = useState<Set<number>>(new Set());
   const [novo, setNovo] = useState({ open: false, casa: 'BET365', novaCasa: false, login: '', nome: '', cpf: '', saldo: '', emAberto: '', deposito: '', retirada: '' });
   const [msg, setMsg] = useState('');
 
   function toast(m: string) { setMsg(m); window.setTimeout(() => setMsg(''), 2500); }
+
+  const isEdit = (id: number) => editIds.has(id);
+  function startEdit(id: number) { setEditIds((s) => new Set(s).add(id)); }
+  function cancelEdit(id: number) {
+    setEditIds((s) => { const n = new Set(s); n.delete(id); return n; });
+    setDrafts((dr) => { const n = { ...dr }; delete n[id]; return n; });
+  }
+
+  // Casas disponíveis no seletor = padrão + as que já existem em contas (casa nova fica salva).
+  const casasDisponiveis = useMemo(() => {
+    const set = new Set(CASAS);
+    contas.forEach((c) => { if (c.casa) set.add(c.casa.toUpperCase()); });
+    return [...set];
+  }, [contas]);
 
   // valores efetivos (considerando rascunho em edição) — Total/Resultado atualizam ao digitar
   const ef = (c: Conta) => {
@@ -66,13 +81,15 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
 
   const totalGeral = grupos.reduce((s, g) => s + g.total, 0);
   const resultadoGeral = grupos.reduce((s, g) => s + g.resultado, 0);
+  const totalDeposito = grupos.reduce((s, g) => s + g.deposito, 0);
+  const totalSaque = grupos.reduce((s, g) => s + g.retirada, 0);
+  const saldoAtual = contas.reduce((s, c) => s + ef(c).saldo, 0);
 
   function upd(id: number, campo: Campo, v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [campo]: v } })); }
-  const editando = (id: number) => Object.keys(drafts[id] || {}).length > 0;
   const dv = (c: Conta, campo: Campo) => { const d = drafts[c.id]?.[campo]; if (d !== undefined) return d; const raw = c[campo]; return typeof raw === 'number' ? String(raw) : raw; };
 
   async function salvar(c: Conta) {
-    const d = drafts[c.id]; if (!d) return;
+    const d = drafts[c.id] || {};
     const patch = {
       ...(d.login !== undefined ? { login: d.login } : {}),
       ...(d.nome !== undefined ? { nome: d.nome } : {}),
@@ -86,6 +103,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
     const agora = new Date().toISOString();
     setContas((cs) => cs.map((x) => (x.id === c.id ? { ...x, ...patch, atualizadoEm: agora } : x)));
     setDrafts((dr) => { const n = { ...dr }; delete n[c.id]; return n; });
+    setEditIds((s) => { const n = new Set(s); n.delete(c.id); return n; }); // trava a linha de novo
     toast('Conta atualizada ✓');
     try { const r = await atualizarConta(c.id, patch); setContas((cs) => cs.map((x) => (x.id === c.id ? r : x))); }
     catch { toast('Erro ao salvar — clique em Atualizar.'); }
@@ -137,26 +155,40 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
 
       <div className="mx-auto max-w-7xl px-4 py-5">
         {/* Resumo geral */}
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="text-[11px] uppercase tracking-wide text-slate-400">Total contas</div>
-            <div className="mt-1 text-2xl font-bold tabular-nums text-amber-600">R$ {brl(totalGeral)}</div>
+            <div className="mt-1 text-xl font-bold tabular-nums text-amber-600">R$ {brl(totalGeral)}</div>
+            <div className="text-[10px] text-slate-400">saldo + em aberto</div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <div className="text-[11px] uppercase tracking-wide text-slate-400">Saldo atual</div>
+            <div className={`mt-1 text-xl font-bold tabular-nums ${clr(saldoAtual)}`}>R$ {brl(saldoAtual)}</div>
+            <div className="text-[10px] text-slate-400">soma dos saldos agora</div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <div className="text-[11px] uppercase tracking-wide text-slate-400">Total depósitos</div>
+            <div className="mt-1 text-xl font-bold tabular-nums text-sky-600">R$ {brl(totalDeposito)}</div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <div className="text-[11px] uppercase tracking-wide text-slate-400">Total saques</div>
+            <div className="mt-1 text-xl font-bold tabular-nums text-slate-700">R$ {brl(totalSaque)}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="text-[11px] uppercase tracking-wide text-slate-400">Resultado geral</div>
-            <div className={`mt-1 text-2xl font-bold tabular-nums ${clr(resultadoGeral)}`}>R$ {brl(resultadoGeral)}</div>
-            <div className="text-[10px] text-slate-400">{resultadoGeral >= 0 ? 'lucro' : 'prejuízo'} (saldo+aberto+saques−depósitos)</div>
+            <div className={`mt-1 text-xl font-bold tabular-nums ${clr(resultadoGeral)}`}>R$ {brl(resultadoGeral)}</div>
+            <div className="text-[10px] text-slate-400">{resultadoGeral >= 0 ? 'lucro' : 'prejuízo'}</div>
           </div>
-          <div className="col-span-2 rounded-xl border border-slate-200 bg-white p-3">
-            <div className="mb-1 text-[11px] uppercase tracking-wide text-slate-400">Por casa</div>
-            <div className="flex flex-wrap gap-2">
-              {grupos.length === 0 && <span className="text-xs text-slate-400">Nenhuma conta ainda.</span>}
-              {grupos.map((g) => (
-                <span key={g.casa} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${corCasa(g.casa)}`}>
-                  {g.casa}: R$ {brl(g.total)}
-                </span>
-              ))}
-            </div>
+        </div>
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
+          <div className="mb-1 text-[11px] uppercase tracking-wide text-slate-400">Total por casa</div>
+          <div className="flex flex-wrap gap-2">
+            {grupos.length === 0 && <span className="text-xs text-slate-400">Nenhuma conta ainda.</span>}
+            {grupos.map((g) => (
+              <span key={g.casa} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${corCasa(g.casa)}`}>
+                {g.casa}: R$ {brl(g.total)}
+              </span>
+            ))}
           </div>
         </div>
 
@@ -174,7 +206,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                   </div>
                 ) : (
                   <select value={novo.casa} onChange={(e) => { if (e.target.value === '__NOVA__') setNovo((n) => ({ ...n, novaCasa: true, casa: '' })); else setNovo((n) => ({ ...n, casa: e.target.value })); }} className={inp}>
-                    {CASAS.map((c) => <option key={c} value={c}>{c}</option>)}
+                    {casasDisponiveis.map((c) => <option key={c} value={c}>{c}</option>)}
                     <option value="__NOVA__">➕ Adicionar nova casa</option>
                   </select>
                 )}
@@ -212,23 +244,47 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
               <tbody>
                 {g.rows.map((c) => {
                   const e = ef(c); const total = totalDe(e); const resultado = resultadoDe(e);
+                  const emEdicao = isEdit(c.id);
                   return (
-                    <tr key={c.id} className="border-b border-slate-100 align-middle">
+                    <tr key={c.id} className={`border-b border-slate-100 align-middle ${emEdicao ? 'bg-amber-50/60' : ''}`}>
                       <td className="whitespace-nowrap px-2 py-1.5 text-xs text-slate-500">{fmtData(c.atualizadoEm)}</td>
                       <td className="whitespace-nowrap px-2 py-1.5 text-xs text-slate-500">{fmtHora(c.atualizadoEm)}</td>
-                      <td className="px-2 py-1.5"><input value={dv(c, 'login')} onChange={(ev) => upd(c.id, 'login', ev.target.value)} className={`${inp} w-28`} /></td>
-                      <td className="px-2 py-1.5"><input value={dv(c, 'nome')} onChange={(ev) => upd(c.id, 'nome', ev.target.value)} className={`${inp} w-28`} /></td>
-                      <td className="px-2 py-1.5"><input value={dv(c, 'cpf')} onChange={(ev) => upd(c.id, 'cpf', ev.target.value)} className={`${inp} w-28`} /></td>
-                      <td className="px-2 py-1.5"><input value={dv(c, 'saldo')} onChange={(ev) => upd(c.id, 'saldo', ev.target.value)} className={numInp} inputMode="decimal" /></td>
-                      <td className="px-2 py-1.5"><input value={dv(c, 'emAberto')} onChange={(ev) => upd(c.id, 'emAberto', ev.target.value)} className={numInp} inputMode="decimal" /></td>
-                      <td className="px-2 py-1.5"><input value={dv(c, 'deposito')} onChange={(ev) => upd(c.id, 'deposito', ev.target.value)} className={numInp} inputMode="decimal" /></td>
-                      <td className="px-2 py-1.5"><input value={dv(c, 'retirada')} onChange={(ev) => upd(c.id, 'retirada', ev.target.value)} className={numInp} inputMode="decimal" /></td>
-                      <td className="px-2 py-1.5 text-right font-semibold tabular-nums">{brl(total)}</td>
+                      {emEdicao ? (
+                        <>
+                          <td className="px-2 py-1.5"><input value={dv(c, 'login')} onChange={(ev) => upd(c.id, 'login', ev.target.value)} className={`${inp} w-28`} /></td>
+                          <td className="px-2 py-1.5"><input value={dv(c, 'nome')} onChange={(ev) => upd(c.id, 'nome', ev.target.value)} className={`${inp} w-28`} /></td>
+                          <td className="px-2 py-1.5"><input value={dv(c, 'cpf')} onChange={(ev) => upd(c.id, 'cpf', ev.target.value)} className={`${inp} w-28`} /></td>
+                          <td className="px-2 py-1.5"><input value={dv(c, 'saldo')} onChange={(ev) => upd(c.id, 'saldo', ev.target.value)} className={numInp} inputMode="decimal" /></td>
+                          <td className="px-2 py-1.5"><input value={dv(c, 'emAberto')} onChange={(ev) => upd(c.id, 'emAberto', ev.target.value)} className={numInp} inputMode="decimal" /></td>
+                          <td className="px-2 py-1.5"><input value={dv(c, 'deposito')} onChange={(ev) => upd(c.id, 'deposito', ev.target.value)} className={numInp} inputMode="decimal" /></td>
+                          <td className="px-2 py-1.5"><input value={dv(c, 'retirada')} onChange={(ev) => upd(c.id, 'retirada', ev.target.value)} className={numInp} inputMode="decimal" /></td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-2 py-1.5 font-medium">{c.login || '—'}</td>
+                          <td className="px-2 py-1.5">{c.nome || '—'}</td>
+                          <td className="px-2 py-1.5 text-slate-500">{c.cpf || '—'}</td>
+                          <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${e.saldo < 0 ? 'text-rose-600' : 'text-rose-500'}`}>{brl(e.saldo)}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-slate-700">{brl(e.emAberto)}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-sky-600">{brl(e.deposito)}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-slate-600">{brl(e.retirada)}</td>
+                        </>
+                      )}
+                      <td className="px-2 py-1.5 text-right font-semibold tabular-nums text-amber-600">{brl(total)}</td>
                       <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${clr(resultado)}`}>{brl(resultado)}</td>
                       <td className="px-2 py-1.5">
                         <div className="flex justify-center gap-1.5">
-                          <button onClick={() => salvar(c)} disabled={!editando(c.id)} className={`rounded-md px-2.5 py-1 text-xs font-medium text-white ${editando(c.id) ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-300'}`}>Salvar</button>
-                          <button onClick={() => excluir(c)} className="rounded-md border border-rose-200 px-2 py-1 text-xs text-rose-500 hover:bg-rose-50">Excluir</button>
+                          {emEdicao ? (
+                            <>
+                              <button onClick={() => salvar(c)} className="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700">Salvar</button>
+                              <button onClick={() => cancelEdit(c.id)} className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-100">Cancelar</button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={() => startEdit(c.id)} className="rounded-md bg-amber-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-600">Editar</button>
+                              <button onClick={() => excluir(c)} className="rounded-md border border-rose-200 px-2 py-1 text-xs text-rose-500 hover:bg-rose-50">Excluir</button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
