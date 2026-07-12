@@ -174,13 +174,13 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
               <div className={`mt-2 text-2xl font-extrabold tabular-nums ${m.num}`}>R$ {brl(m.v)}</div>
             </div>
           ))}
-          <div className="rounded-2xl border border-amber-400/40 bg-gradient-to-br from-[#13200a] via-[#1a2b0f] to-[#241f0a] p-4 shadow-md">
+          <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm">
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/20 text-lg">⚖️</span>
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-200/80">Balanço geral</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-lg">⚖️</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Balanço geral</span>
             </div>
-            <div className={`mt-2 text-2xl font-extrabold tabular-nums ${balancoGeral < 0 ? 'text-rose-400' : 'text-[#DAA520]'}`}>R$ {brl(balancoGeral)}</div>
-            <div className="mt-0.5 text-[10px] text-amber-100/50">depósitos − saques + em aberto + saldo</div>
+            <div className={`mt-2 text-2xl font-extrabold tabular-nums ${corSaldo(balancoGeral)}`}>R$ {brl(balancoGeral)}</div>
+            <div className="mt-0.5 text-[10px] text-slate-400">depósitos − saques + em aberto + saldo</div>
           </div>
         </div>
         <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
