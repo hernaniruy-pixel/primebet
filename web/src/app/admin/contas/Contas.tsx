@@ -62,8 +62,9 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
       retirada: d.retirada !== undefined ? toNum(d.retirada) : c.retirada,
     };
   };
-  // Resumo (balanço da conta) = saldo + em aberto + depósitos − saques.
-  const resumoDe = (e: { saldo: number; emAberto: number; deposito: number; retirada: number }) => e.saldo + e.emAberto + e.deposito - e.retirada;
+  // Resumo (ganhou/perdeu) = saldo + em aberto + saques − depósitos.
+  // Depósito é dinheiro que entrou (subtrai); saque é o que já saiu (soma).
+  const resumoDe = (e: { saldo: number; emAberto: number; deposito: number; retirada: number }) => e.saldo + e.emAberto + e.retirada - e.deposito;
 
   // agrupa por casa, na ordem preferida e depois alfabética
   const grupos = useMemo(() => {
@@ -86,8 +87,8 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
   const totalSaque = grupos.reduce((s, g) => s + g.retirada, 0);
   const totalEmAberto = contas.reduce((s, c) => s + ef(c).emAberto, 0);
   const saldoAtual = contas.reduce((s, c) => s + ef(c).saldo, 0);
-  // Balanço geral = (depósitos − saques) + em aberto + saldo
-  const balancoGeral = totalDeposito - totalSaque + totalEmAberto + saldoAtual;
+  // Balanço geral (ganhou/perdeu) = saldo + em aberto + saques − depósitos
+  const balancoGeral = saldoAtual + totalEmAberto + totalSaque - totalDeposito;
 
   function upd(id: number, campo: Campo, v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [campo]: v } })); }
   const dv = (c: Conta, campo: Campo) => { const d = drafts[c.id]?.[campo]; if (d !== undefined) return d; const raw = c[campo]; return typeof raw === 'number' ? String(raw) : raw; };
@@ -180,7 +181,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
               <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Balanço geral</span>
             </div>
             <div className={`mt-2 text-2xl font-extrabold tabular-nums ${corSaldo(balancoGeral)}`}>R$ {brl(balancoGeral)}</div>
-            <div className="mt-0.5 text-[10px] text-slate-400">depósitos − saques + em aberto + saldo</div>
+            <div className="mt-0.5 text-[10px] text-slate-400">saldo + em aberto + saques − depósitos</div>
           </div>
         </div>
         <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
@@ -313,7 +314,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
         )}
 
         <p className="mt-2 text-center text-[11px] text-slate-400">
-          {busy ? 'carregando…' : 'Resumo (balanço) = saldo + em aberto + depósitos − saques. Vermelho só quando negativo. A data/hora é atualizada a cada "Salvar".'}
+          {busy ? 'carregando…' : 'Resumo (ganhou/perdeu) = saldo + em aberto + saques − depósitos. Verde = lucro, vermelho = prejuízo. A data/hora é atualizada a cada "Salvar".'}
         </p>
       </div>
 
