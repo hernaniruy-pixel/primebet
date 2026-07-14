@@ -8,6 +8,7 @@ import {
   criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao,
   criarCliente, atualizarCliente, criarAfiliado, atualizarAfiliado,
   fechamentoClientes, fechamentoAfiliados, bilhetesCliente,
+  statusBot, type BotStatus,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 
@@ -134,6 +135,16 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [toastMsg, setToastMsg] = useState('');
   const [flashId, setFlashId] = useState<number | null>(null); // linha recém-atualizada (flash verde)
   const [novo, setNovo] = useState({ open: false, cId: '', jogo: '', odd: '', val: '', st: 'EM ABERTO', dc: '' });
+  const [bot, setBot] = useState<BotStatus | null>(null);
+
+  // Status do bot (health da Railway): checa ao abrir e a cada 60s.
+  useEffect(() => {
+    let vivo = true;
+    const checar = () => statusBot().then((s) => { if (vivo) setBot(s); }).catch(() => {});
+    checar();
+    const t = setInterval(checar, 60000);
+    return () => { vivo = false; clearInterval(t); };
+  }, []);
 
   const cliSorted = useMemo(() => [...clientes].sort((a, b) => a.nome.localeCompare(b.nome)), [clientes]);
 
@@ -338,6 +349,14 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               <div className="text-sm font-medium text-amber-400">PrimeBet</div>
               <div className="text-[11px] text-slate-400">Controle</div>
             </div>
+            {(() => {
+              if (!bot) return <span className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-300">🤖 verificando…</span>;
+              if (bot.ok && bot.pronto) return <span title="Bot conectado ao WhatsApp" className="rounded-lg border border-emerald-400/40 bg-emerald-500/15 px-2.5 py-1.5 text-xs font-medium text-emerald-300">🟢 Bot online</span>;
+              const label = bot.ok ? '🟡 Bot sem WhatsApp' : '🔴 Bot offline';
+              const cls = bot.ok ? 'border-amber-400/50 bg-amber-500/15 text-amber-200' : 'border-rose-500/50 bg-rose-500/20 text-rose-200';
+              const tip = bot.ok ? 'WhatsApp desconectado — clique para abrir o QR e reparear o bot' : 'Bot fora do ar — clique para abrir a página de QR/health';
+              return <a href="https://primebet-production.up.railway.app/?t=primebet2026" target="_blank" rel="noopener noreferrer" title={tip} className={`animate-pulse rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${cls}`}>{label} — reconectar →</a>;
+            })()}
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setModal('cli')} className={navBtn}>Clientes</button>

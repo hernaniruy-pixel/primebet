@@ -236,6 +236,21 @@ export async function excluirConta(id: number): Promise<void> {
   if (error) throw error;
 }
 
+// ═══════════════════ STATUS DO BOT (health da Railway) ═══════════════════
+export type BotStatus = { ok: boolean; pronto: boolean; upS: number };
+export async function statusBot(): Promise<BotStatus> {
+  await exigirSessao();
+  const urlBot = process.env.BOT_HEALTH_URL || 'https://primebet-production.up.railway.app/health';
+  try {
+    const r = await fetch(urlBot, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return { ok: false, pronto: false, upS: 0 };
+    const t = await r.text(); // ex.: "ok up=160614s pronto=false"
+    return { ok: true, pronto: /pronto=true/.test(t), upS: Number(t.match(/up=(\d+)/)?.[1] || 0) };
+  } catch {
+    return { ok: false, pronto: false, upS: 0 };
+  }
+}
+
 // ─────────── Auth: só equipe logada pode mutar ───────────
 async function exigirSessao() {
   const supabase = await createClient();
