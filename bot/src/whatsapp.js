@@ -14,6 +14,8 @@ const {
   default: makeWASocket, useMultiFileAuthState, downloadMediaMessage,
   fetchLatestBaileysVersion, DisconnectReason,
 } = require('@whiskeysockets/baileys');
+const fs = require('fs');
+const path = require('path');
 const pino = require('pino');
 const qrcode = require('qrcode-terminal');
 const { AUTH_PATH, regraPorEmoji, OPERADORES, GRUPO_AVISOS_LINK } = require('./config');
@@ -186,7 +188,12 @@ function adaptar(sock) {
 let pollerLigado = false;
 
 async function iniciarWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_PATH);
+  // Subpasta própria dentro do volume já existente (/app/.wwebjs_auth): isola as
+  // credenciais da Baileys do antigo perfil do Chromium, que continua lá intocado
+  // (permite voltar atrás). São poucos KB, contra os ~400 MB do perfil antigo.
+  const authDir = path.join(AUTH_PATH, 'baileys');
+  fs.mkdirSync(authDir, { recursive: true });
+  const { state, saveCreds } = await useMultiFileAuthState(authDir);
   const { version } = await fetchLatestBaileysVersion();
   console.log('🔌 Baileys — versão do protocolo WhatsApp:', version.join('.'));
 
