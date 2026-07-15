@@ -205,7 +205,9 @@ function iniciarWhatsApp() {
       if (/avisos|alerta/i.test(nomeGrupo)) return;
       if (/despesa/i.test(nomeGrupo)) await tratarDespesa(msg, chat, nomeGrupo);
     } catch (e) {
-      console.error('❌ Erro (message_create despesa):', e.message);
+      // Log detalhado: o WhatsApp Web é minificado e e.message vira "r"/"t".
+      // Sem o stack não dá para saber QUAL chamada quebrou.
+      console.error('❌ Erro (message_create despesa):', e && e.message, '\n   stack:', e && e.stack);
     }
   });
 
@@ -229,7 +231,7 @@ function iniciarWhatsApp() {
       // Demais grupos: só imagens, para a conferência.
       await registrarImagemDeMsg(msg, chat, nomeGrupo);
     } catch (e) {
-      console.error('❌ Erro ao registrar imagem (conferência):', e.message);
+      console.error('❌ Erro ao registrar imagem (conferência):', e && e.message, '\n   stack:', e && e.stack);
     }
   });
 
