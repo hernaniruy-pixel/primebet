@@ -28,9 +28,23 @@ function iniciarWebQR() {
     if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
 
     if (url.pathname === '/health') {
+      // SEMPRE 200: é a sonda da Railway. Se devolvesse erro com o WhatsApp caído,
+      // a Railway acharia o container quebrado e entraria em laço de reinício.
       const up = Math.floor((Date.now() - BOOT) / 1000);
       res.writeHead(200, { 'Content-Type': 'text/plain', ...cors });
       return res.end(`ok up=${up}s pronto=${estado.pronto}`);
+    }
+
+    // /ready: para monitor externo (UptimeRobot e afins). 200 = WhatsApp conectado,
+    // 503 = caiu. É o que faz o alerta disparar sozinho, sem depender do WhatsApp
+    // do bot — que é justamente o canal que morre quando o problema acontece.
+    if (url.pathname === '/ready') {
+      const up = Math.floor((Date.now() - BOOT) / 1000);
+      const ok = estado.pronto;
+      res.writeHead(ok ? 200 : 503, { 'Content-Type': 'text/plain', ...cors });
+      return res.end(ok
+        ? `ok whatsapp=conectado up=${up}s`
+        : `FALHA whatsapp=desconectado up=${up}s${estado.qr ? ' (aguardando leitura do QR)' : ''}`);
     }
     if (token && url.searchParams.get('t') !== token) { res.writeHead(401, cors); return res.end('Acesso negado.'); }
 
