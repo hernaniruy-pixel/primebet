@@ -597,6 +597,21 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
         {/* CLIENTES */}
         {modal === 'cli' && (
           <Modal onClose={() => setModal(null)} max="max-w-6xl" title={<div className="flex items-center gap-3"><span>Clientes</span><button onClick={novoCliente} className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700">+ Novo</button></div>}>
+            {(() => {
+              // Quantos o bot está de fato lendo. "Cadastrado" não é "funcionando":
+              // sem grupo vinculado, os bilhetes do cliente não entram.
+              const lendo = clientes.filter((c) => c.grupoId).length;
+              const vinculando = clientes.filter((c) => !c.grupoId && c.grupoLink).length;
+              const fora = clientes.filter((c) => !c.grupoId && !c.grupoLink).length;
+              return (
+                <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px]">
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">✅ {lendo} sendo lidos pelo bot</span>
+                  {vinculando > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">⏳ {vinculando} vinculando</span>}
+                  {fora > 0 && <span className="rounded-full bg-rose-100 px-2.5 py-1 font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⛔ {fora} sem grupo (o bot não lê)</span>}
+                  <span className="text-slate-400">O bot lê apenas os grupos vinculados aqui — cole o link para ativar.</span>
+                </div>
+              );
+            })()}
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead><tr className="text-left text-slate-400">
@@ -613,7 +628,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                     <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-14`} value={c.com} onChange={(e) => updCli(c.id, { com: Number(e.target.value) })} /></td>
                     <td className="px-2 py-1.5"><select className={`${cinp} w-32`} value={c.sup ?? '—'} onChange={(e) => updCli(c.id, { sup: e.target.value === '—' ? null : e.target.value })}><option>—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></td>
                     <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-14`} value={c.af} onChange={(e) => updCli(c.id, { af: Number(e.target.value) })} /></td>
-                    <td className="px-2 py-1.5"><div className="flex items-center gap-1"><input className={`${cinp} w-44`} placeholder="link do grupo" value={c.grupoLink ?? ''} onChange={(e) => updCli(c.id, { grupoLink: e.target.value })} /><span title={c.grupoId ? 'Grupo vinculado: ' + c.grupoId : 'Aguardando o bot resolver o link'}>{c.grupoId ? '✅' : (c.grupoLink ? '⏳' : '')}</span></div></td>
+                    <td className="px-2 py-1.5"><div className="flex items-center gap-1.5"><input className={`${cinp} w-44`} placeholder="link do grupo" value={c.grupoLink ?? ''} onChange={(e) => updCli(c.id, { grupoLink: e.target.value })} /><StatusGrupo link={c.grupoLink} grupoId={c.grupoId} /></div></td>
                     <td className="px-2 py-1.5 sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800">
                       <div className="flex gap-1.5">
                         <button onClick={() => saveCli(c.id)} className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700">Salvar</button>
@@ -785,6 +800,22 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
 }
 
 function tot(n: number) { return `R$ ${fmt(n)}`; }
+
+/**
+ * Diz, sem rodeio, se o bot está lendo o grupo deste cliente.
+ * O bot só lê grupos que têm vínculo resolvido (grupo_id) — sem isso, os bilhetes
+ * do cliente simplesmente não entram. É a diferença entre "cadastrado" e "funcionando",
+ * e ela precisa estar na cara de quem cadastra.
+ */
+function StatusGrupo({ link, grupoId }: { link: string | null; grupoId: string | null }) {
+  if (grupoId) {
+    return <span title={`O bot está lendo este grupo (${grupoId})`} className="shrink-0 whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">✅ Lendo</span>;
+  }
+  if (link) {
+    return <span title="Link colado, mas o bot ainda não vinculou. Costuma levar até 1 minuto. Se ficar assim, o link está inválido ou expirado — gere um novo no WhatsApp e cole aqui." className="shrink-0 whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">⏳ Vinculando…</span>;
+  }
+  return <span title="Sem link do grupo: o bot NÃO lê este cliente. Nenhum bilhete dele entra no sistema." className="shrink-0 whitespace-nowrap rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⛔ Fora</span>;
+}
 
 /**
  * Campo numérico no padrão brasileiro (odd "1,80" / entradas "1.300").
