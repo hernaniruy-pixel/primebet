@@ -598,28 +598,38 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
         {modal === 'cli' && (
           <Modal onClose={() => setModal(null)} max="max-w-6xl" title={<div className="flex items-center gap-3"><span>Clientes</span><button onClick={novoCliente} className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700">+ Novo</button></div>}>
             {(() => {
-              // Quantos o bot está de fato lendo. "Cadastrado" não é "funcionando":
-              // sem grupo vinculado, os bilhetes do cliente não entram.
-              const lendo = clientes.filter((c) => c.grupoId).length;
-              const vinculando = clientes.filter((c) => !c.grupoId && c.grupoLink).length;
-              const fora = clientes.filter((c) => !c.grupoId && !c.grupoLink).length;
+              // "Cadastrado" não é "funcionando": sem grupo vinculado os bilhetes não entram.
+              // Cliente INATIVO sem grupo é esperado — não conta como problema.
+              const ativos = clientes.filter((c) => c.on);
+              const lendo = ativos.filter((c) => c.grupoId).length;
+              const vinculando = ativos.filter((c) => !c.grupoId && c.grupoLink).length;
+              const fora = ativos.filter((c) => !c.grupoId && !c.grupoLink).length;
+              const inativos = clientes.length - ativos.length;
               return (
                 <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px]">
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">✅ {lendo} sendo lidos pelo bot</span>
+                  <span className="rounded-full bg-slate-800 px-2.5 py-1 font-semibold text-[#DAA520]">{ativos.length} clientes ativos</span>
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">🟢 {lendo} sendo lidos</span>
                   {vinculando > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">⏳ {vinculando} vinculando</span>}
-                  {fora > 0 && <span className="rounded-full bg-rose-100 px-2.5 py-1 font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⛔ {fora} sem grupo (o bot não lê)</span>}
-                  <span className="text-slate-400">O bot lê apenas os grupos vinculados aqui — cole o link para ativar.</span>
+                  {fora > 0 && <span className="rounded-full bg-rose-100 px-2.5 py-1 font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">🔴 {fora} ativo(s) sem grupo — o bot não lê</span>}
+                  {inativos > 0 && <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">⚪ {inativos} inativo(s)</span>}
                 </div>
               );
             })()}
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead><tr className="text-left text-slate-400">
-                  <th className="px-2 py-2 font-medium">ID</th><th className="px-2 py-2 font-medium">Nome</th><th className="px-2 py-2 font-medium">Senha</th><th className="px-2 py-2 font-medium">Ativo</th><th className="px-2 py-2 font-medium">Calção</th><th className="px-2 py-2 font-medium">Desc.</th><th className="px-2 py-2 font-medium">Com.%</th><th className="px-2 py-2 font-medium">Supervisor</th><th className="px-2 py-2 font-medium">C.Afil.%</th><th className="px-2 py-2 font-medium">Grupo (link)</th><th className="px-2 py-2 font-medium sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">Ações</th>
+                  <th className="px-2 py-2 font-medium" title="Nº sequencial por ordem alfabética. Passe o mouse para ver o ID interno.">#</th><th className="px-2 py-2 font-medium">Nome</th><th className="px-2 py-2 font-medium">Senha</th><th className="px-2 py-2 font-medium">Ativo</th><th className="px-2 py-2 font-medium">Calção</th><th className="px-2 py-2 font-medium">Desc.</th><th className="px-2 py-2 font-medium">Com.%</th><th className="px-2 py-2 font-medium">Supervisor</th><th className="px-2 py-2 font-medium">C.Afil.%</th><th className="px-2 py-2 font-medium">Grupo (link)</th><th className="px-2 py-2 font-medium sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">Ações</th>
                 </tr></thead>
-                <tbody>{clientes.map((c) => (
+                <tbody>{cliSorted.map((c, i) => (
                   <tr key={c.id} className="border-t border-slate-100 dark:border-slate-800">
-                    <td className="px-2 py-1.5 text-slate-500">{c.id}</td>
+                    <td className="px-2 py-1.5 text-slate-500">
+                      {/* Nº sequencial (1,2,3…) por ordem alfabética — o ID do banco é aleatório
+                          e só atrapalha quem opera. O ID real fica no title, para suporte. */}
+                      <div className="flex items-center gap-1.5 whitespace-nowrap" title={`ID interno: ${c.id}`}>
+                        <PontoGrupo ativo={c.on} link={c.grupoLink} grupoId={c.grupoId} />
+                        <span className="font-medium tabular-nums">{i + 1}</span>
+                      </div>
+                    </td>
                     <td className="px-2 py-1.5"><input className={`${cinp} w-36 font-medium`} value={c.nome} onChange={(e) => updCli(c.id, { nome: e.target.value.toUpperCase() })} /></td>
                     <td className="px-2 py-1.5"><input className={`${cinp} w-24`} value={c.s} onChange={(e) => updCli(c.id, { s: e.target.value })} /></td>
                     <td className="px-2 py-1.5"><select className={cinp} value={c.on ? 'Sim' : 'Não'} onChange={(e) => updCli(c.id, { on: e.target.value === 'Sim' })}><option>Sim</option><option>Não</option></select></td>
@@ -628,7 +638,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                     <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-14`} value={c.com} onChange={(e) => updCli(c.id, { com: Number(e.target.value) })} /></td>
                     <td className="px-2 py-1.5"><select className={`${cinp} w-32`} value={c.sup ?? '—'} onChange={(e) => updCli(c.id, { sup: e.target.value === '—' ? null : e.target.value })}><option>—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></td>
                     <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-14`} value={c.af} onChange={(e) => updCli(c.id, { af: Number(e.target.value) })} /></td>
-                    <td className="px-2 py-1.5"><div className="flex items-center gap-1.5"><input className={`${cinp} w-44`} placeholder="link do grupo" value={c.grupoLink ?? ''} onChange={(e) => updCli(c.id, { grupoLink: e.target.value })} /><StatusGrupo link={c.grupoLink} grupoId={c.grupoId} /></div></td>
+                    <td className="px-2 py-1.5"><div className="flex items-center gap-1.5"><input className={`${cinp} w-44`} placeholder="link do grupo" value={c.grupoLink ?? ''} onChange={(e) => updCli(c.id, { grupoLink: e.target.value })} /><StatusGrupo ativo={c.on} link={c.grupoLink} grupoId={c.grupoId} /></div></td>
                     <td className="px-2 py-1.5 sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800">
                       <div className="flex gap-1.5">
                         <button onClick={() => saveCli(c.id)} className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700">Salvar</button>
@@ -807,14 +817,25 @@ function tot(n: number) { return `R$ ${fmt(n)}`; }
  * do cliente simplesmente não entram. É a diferença entre "cadastrado" e "funcionando",
  * e ela precisa estar na cara de quem cadastra.
  */
-function StatusGrupo({ link, grupoId }: { link: string | null; grupoId: string | null }) {
+/** Bolinha ao lado do nº: verde = o bot lê, vermelho = não lê, cinza = inativo (esperado). */
+function PontoGrupo({ ativo, link, grupoId }: { ativo: boolean; link: string | null; grupoId: string | null }) {
+  if (!ativo) return <span title="Cliente inativo — o bot não lê, e está certo assim.">⚪</span>;
+  if (grupoId) return <span title="O bot está lendo o grupo deste cliente.">🟢</span>;
+  if (link) return <span title="Link colado; o bot ainda está vinculando (~1 min).">⏳</span>;
+  return <span title="Cliente ATIVO sem grupo: o bot não lê nada dele. Cole o link do grupo.">🔴</span>;
+}
+
+function StatusGrupo({ ativo, link, grupoId }: { ativo: boolean; link: string | null; grupoId: string | null }) {
   if (grupoId) {
-    return <span title={`O bot está lendo este grupo (${grupoId})`} className="shrink-0 whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">✅ Lendo</span>;
+    return <span title={`O bot está lendo este grupo (${grupoId})`} className="shrink-0 whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">Lendo</span>;
+  }
+  if (!ativo) {
+    return <span title="Cliente inativo — o bot não lê, e está certo assim." className="shrink-0 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">Inativo</span>;
   }
   if (link) {
-    return <span title="Link colado, mas o bot ainda não vinculou. Costuma levar até 1 minuto. Se ficar assim, o link está inválido ou expirado — gere um novo no WhatsApp e cole aqui." className="shrink-0 whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">⏳ Vinculando…</span>;
+    return <span title="Link colado, mas o bot ainda não vinculou. Costuma levar até 1 minuto. Se ficar assim, o link está inválido ou expirado — gere um novo no WhatsApp e cole aqui." className="shrink-0 whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">Vinculando…</span>;
   }
-  return <span title="Sem link do grupo: o bot NÃO lê este cliente. Nenhum bilhete dele entra no sistema." className="shrink-0 whitespace-nowrap rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⛔ Fora</span>;
+  return <span title="Cliente ATIVO sem link do grupo: o bot NÃO lê este cliente. Nenhum bilhete dele entra no sistema." className="shrink-0 whitespace-nowrap rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">Sem grupo</span>;
 }
 
 /**
