@@ -169,8 +169,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       dt1: f.dt1 || null, dt2: f.dt2 || null, ord: f.ord, page,
       pend: f.aba === 'pend' ? true : null,
     };
-    // Na fila pendente, ignora o período (mostra TODA pendente, mesmo antiga).
-    if (f.aba === 'pend') { params.dt1 = null; params.dt2 = null; }
+    // O período vale também na fila Pendentes: ao entrar, mostra só a SEMANA ATUAL.
+    // Para ver pendentes antigas, limpe as datas no filtro.
     listarApostas(params)
       .then((r) => { if (alive) { setRegs(r.rows); setTotal(r.total); setTotals(r.totals); } })
       .catch(() => { if (alive) toast('Erro ao carregar apostas.'); });
@@ -415,7 +415,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               </button>
             ))}
             <span className="ml-2 pr-2 text-[11px] text-slate-400">
-              {filtros.aba === 'pend' ? 'contestadas no topo · EM ABERTO + contestadas (todas as datas)' : 'histórico completo'}
+              {filtros.aba === 'pend' ? 'contestadas no topo · EM ABERTO + contestadas do período (limpe as datas para ver todas)' : 'histórico do período'}
             </span>
           </div>
 
