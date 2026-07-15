@@ -7,7 +7,7 @@ export interface SemanaExtrato {
 }
 
 export interface ExtratoResp {
-  cliente: { id: number; nome: string; cal: number };
+  cliente: { id: number; nome: string; cal: number; desc: number };
   atual: SemanaExtrato;
   passada: SemanaExtrato;
 }

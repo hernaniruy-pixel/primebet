@@ -43,7 +43,7 @@ export async function carregarExtrato(): Promise<ExtratoResp> {
   if (!ses) redirect('/login');
   const db = createAdminClient();
 
-  const { data: cli } = await db.from('clientes').select('id,nome,calcao').eq('id', ses.cid).single();
+  const { data: cli } = await db.from('clientes').select('id,nome,calcao,desconto').eq('id', ses.cid).single();
   const monAtual = segunda(agoraBR());
   const monPassada = new Date(monAtual); monPassada.setUTCDate(monAtual.getUTCDate() - 7);
 
@@ -53,7 +53,7 @@ export async function carregarExtrato(): Promise<ExtratoResp> {
   ]);
 
   return {
-    cliente: { id: ses.cid, nome: cli?.nome ?? ses.nome, cal: Number(cli?.calcao ?? 0) },
+    cliente: { id: ses.cid, nome: cli?.nome ?? ses.nome, cal: Number(cli?.calcao ?? 0), desc: Number(cli?.desconto ?? 0) },
     atual, passada,
   };
 }

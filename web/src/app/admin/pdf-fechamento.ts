@@ -25,9 +25,10 @@ export interface PdfFechamentoOpts {
   bilhetes: Reg[];
   dt1: string; // YYYY-MM-DD
   dt2: string; // YYYY-MM-DD
+  desc?: number; // desconto do cliente — a odd sai do PDF já descontada
 }
 
-export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2 }: PdfFechamentoOpts) {
+export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0 }: PdfFechamentoOpts) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const M = 40;
@@ -88,10 +89,13 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2 }: PdfFec
   const tableTop = y0 + 2 * (ch + gap) + 6;
 
   // ── Tabela de bilhetes ──
+  // A odd que vale para o cliente é a do bilhete menos o desconto do cadastro dele —
+  // é sobre ela que o saldo foi calculado. O PDF mostra a odd que valeu.
+  const oddCliente = (odd: number) => (odd ? Math.max(odd - desc, 0) : odd);
   const body = bilhetes.map((b) => [
     b.dt,
     (b.jogo || '').replace(/\s+\n/g, '\n').trim(),
-    money(b.odd),
+    money(oddCliente(b.odd)),
     money(b.val),
     b.st,
     money(b.sl),

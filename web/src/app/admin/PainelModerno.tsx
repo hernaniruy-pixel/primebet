@@ -347,7 +347,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     setPdfBusy(row.id);
     try {
       const bilhetes = await bilhetesCliente(row.id, fech.dt1 || null, fech.dt2 || null);
-      gerarPdfFechamento({ banca: 'PrimeBet', resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2 });
+      gerarPdfFechamento({ banca: 'PrimeBet', resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2, desc: cliDesc[row.id] ?? 0 });
     } catch { toast('Erro ao gerar o PDF.'); }
     finally { setPdfBusy(null); }
   }
@@ -532,15 +532,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                           {renderJogo(r.jogo)}
                         </div></td>
                         <td className="px-2 py-1.5">
-                          <NumInput kind="odd" value={dV(r, 'odd')} onChange={(v) => updDraft(r.id, 'odd', v)} cls={`${cinp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} />
-                          {(() => {
-                            // Odd efetiva = odd − desconto do cliente. É ela que o cálculo usa
-                            // (trigger calc_aposta); mostramos para o desconto ficar visível.
-                            const desc = cliDesc[r.cId] ?? 0;
-                            const oddCrua = parseNumBR(dV(r, 'odd'));
-                            if (!desc || !oddCrua) return null;
-                            return <div className="mt-0.5 text-right text-[10px] text-amber-600 dark:text-amber-400" title={`Desconto de ${fmtOdd(desc)} aplicado no cálculo (odd cheia ${fmtOdd(oddCrua)})`}>↳ {fmtOdd(Math.max(oddCrua - desc, 0))}</div>;
-                          })()}
+                          <NumInput kind="odd" desc={cliDesc[r.cId] ?? 0} value={dV(r, 'odd')} onChange={(v) => updDraft(r.id, 'odd', v)} cls={`${cinp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} />
                         </td>
                         <td className="px-2 py-1.5"><NumInput kind="money" value={dV(r, 'val')} onChange={(v) => updDraft(r.id, 'val', v)} cls={`${cinp} w-20 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} /></td>
                         <td className="px-2 py-1.5">
@@ -799,16 +791,25 @@ function tot(n: number) { return `R$ ${fmt(n)}`; }
  * Enquanto está em foco mostra o texto cru — para não brigar com quem digita —
  * e formata assim que sai. O rascunho guarda o que foi digitado; quem converte
  * para número é o parseNumBR na hora de salvar.
+ *
+ * `desc` (só na odd) = desconto do cliente. A odd aparece JÁ DESCONTADA, que é a que
+ * vale para o cliente. O que se GRAVA continua sendo a odd do bilhete: o desconto é
+ * aplicado pelo trigger calc_aposta no banco — gravar já descontado aplicaria duas
+ * vezes. Por isso, ao clicar para editar, o campo volta a mostrar a odd do bilhete.
  */
-function NumInput({ value, onChange, kind, cls }: { value: string; onChange: (v: string) => void; kind: 'odd' | 'money'; cls: string }) {
+function NumInput({ value, onChange, kind, cls, desc = 0 }: { value: string; onChange: (v: string) => void; kind: 'odd' | 'money'; cls: string; desc?: number }) {
   const [foco, setFoco] = useState(false);
   const n = parseNumBR(value);
+  const exibido = kind === 'odd'
+    ? fmtOdd(n && desc ? Math.max(n - desc, 0) : n)
+    : fmtMoney(n);
   return (
     <input
       type="text"
       inputMode="decimal"
       className={cls}
-      value={foco ? value : (kind === 'odd' ? fmtOdd(n) : fmtMoney(n))}
+      title={kind === 'odd' && desc && n ? `Odd do cliente (já com o desconto de ${fmtOdd(desc)}). No bilhete: ${fmtOdd(n)} — é esse valor que fica gravado.` : undefined}
+      value={foco ? value : exibido}
       onFocus={() => setFoco(true)}
       onBlur={() => setFoco(false)}
       onChange={(e) => onChange(e.target.value)}

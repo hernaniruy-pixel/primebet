@@ -33,6 +33,9 @@ const STBTN: Record<string, string> = {
 export default function Extrato({ dados }: { dados: ExtratoResp }) {
   const [aba, setAba] = useState<'atual' | 'passada'>('atual');
   const sem: SemanaExtrato = aba === 'atual' ? dados.atual : dados.passada;
+  // A odd que vale para o cliente já é a do bilhete MENOS o desconto do cadastro dele —
+  // é sobre ela que o saldo é calculado. Mostrar a odd cheia aqui só geraria dúvida.
+  const oddDoCliente = (odd: number) => Math.max(odd - (dados.cliente.desc || 0), 0);
   const router = useRouter();
   const [pend, startTransition] = useTransition();
   const [contestando, setContestando] = useState<Reg | null>(null);
@@ -120,7 +123,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
                       {renderJogoLinhas(r.jogo)}
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{r.odd ? brl(r.odd) : <span className="text-slate-300">—</span>}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{r.odd ? brl(oddDoCliente(r.odd)) : <span className="text-slate-300">—</span>}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{r.val ? brl(r.val) : <span className="text-slate-300">aberto</span>}</td>
                   <td className="px-3 py-2 text-center">
                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STPILL[r.st] ?? 'bg-slate-100 text-slate-600'}`}>{r.st}</span>
