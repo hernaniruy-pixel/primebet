@@ -4,6 +4,13 @@ import { useState, useTransition } from 'react';
 import { listarConfGrupos, listarConfImagens, ignorarImagem, lancarImagem } from '../actions';
 import type { ConfGrupo, ConfImagem, ConfImagensResp } from './types';
 
+// enviadoEm vem como 'HH:mm DD-MM-AAAA' (fmtTs). No cartão o ano só ocupa espaço:
+// mostramos 'DD/MM às HH:mm' — a HORA é o que o operador precisa para achar o print.
+function dataHoraCurta(s: string): string {
+  const m = /^(\d{2}):(\d{2})\s+(\d{2})-(\d{2})-(\d{4})$/.exec(s || '');
+  return m ? `${m[3]}/${m[4]} ${m[1]}:${m[2]}` : s;
+}
+
 const EMOJIS: { e: string; label: string; campos: ('odd' | 'valor')[] }[] = [
   { e: '⚪', label: 'Completo (aposta + valor + odd)', campos: [] },
   { e: '⚫', label: 'Odd em aberto', campos: ['odd'] },
@@ -147,10 +154,15 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
                   </button>
                   <div className="space-y-1 p-2">
                     <div className="truncate text-xs font-medium" title={img.grupoNome || ''}>{img.grupoNome || img.grupoId}</div>
-                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <div className="flex items-center justify-between gap-1 text-[11px] text-slate-400">
                       <span className="truncate">{img.remetente || '—'}</span>
-                      <span>{img.enviadoEm.slice(5)}</span>
+                      <span className="shrink-0 tabular-nums" title={img.enviadoEm}>{dataHoraCurta(img.enviadoEm)}</span>
                     </div>
+                    {img.legenda && (
+                      <div className="truncate rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700" title={`Valor escrito na mensagem: ${img.legenda}`}>
+                        💬 {img.legenda}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between pt-1">
                       {img.reagida
                         ? <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">✅ {img.lancada ? `#${img.apostaId}` : 'transcrita'}</span>

@@ -15,12 +15,13 @@ async function fazerThumb(base64) {
  * Registra TODA imagem recebida num grupo (para a tela de Conferência).
  * Faz upload da miniatura no Storage e insere a linha (ignora duplicado por msg_id).
  */
-async function registrarImagemRecebida({ grupoId, grupoNome, clienteId, msgId, remetente, enviadoEm, base64 }) {
+async function registrarImagemRecebida({ grupoId, grupoNome, clienteId, msgId, remetente, enviadoEm, base64, legenda = '' }) {
   // 1) grava a linha JÁ (rápido) — não bloqueia o processamento de eventos do WhatsApp.
   const { error } = await sb.from('imagens_recebidas').upsert({
     banca_id: await bancaPadrao(),
     grupo_id: grupoId, grupo_nome: grupoNome, cliente_id: clienteId ?? null,
     msg_id: msgId, remetente: remetente || '', enviado_em: enviadoEm, thumb_path: null,
+    legenda: legenda || null,
   }, { onConflict: 'msg_id', ignoreDuplicates: true });
   if (error) { console.error('   conferencia insert:', error.message); return; }
 
@@ -55,7 +56,7 @@ async function marcarReagida(msgId, { apostaId = null, emoji = '', grupoId, grup
 /** Pedidos de "lançar do dashboard" ainda pendentes (o operador clicou Lançar no painel). */
 async function listarPedidosPendentes(limite = 5) {
   const { data, error } = await sb.from('imagens_recebidas')
-    .select('id,msg_id,grupo_id,grupo_nome,cliente_id,pedido_emoji,pedido_odd,pedido_valor,thumb_path')
+    .select('id,msg_id,grupo_id,grupo_nome,cliente_id,pedido_emoji,pedido_odd,pedido_valor,thumb_path,legenda')
     .eq('pedido_status', 'pendente').limit(limite);
   if (error) { console.error('   pedidos:', error.message); return []; }
   return data || [];
@@ -63,6 +64,40 @@ async function listarPedidosPendentes(limite = 5) {
 
 async function marcarPedido(id, status, erro = null) {
   await sb.from('imagens_recebidas').update({ pedido_status: status, pedido_erro: erro }).eq('id', id);
+}
+
+/** Legenda guardada para uma imagem (usada quando a reação chega depois de um restart). */
+async function legendaPorMsg(msgId) {
+  if (!msgId) return '';
+  const { data } = await sb.from('imagens_recebidas').select('legenda').eq('msg_id', msgId).maybeSingle();
+  return (data && data.legenda) || '';
+}
+
+/**
+ * O cliente manda o print e escreve o VALOR na mensagem de baixo. Aqui grudamos esse
+ * texto na última imagem daquele grupo, para que a reação encontre o valor depois.
+ *
+ * Só encosta em imagem que:
+ *   • é do mesmo grupo;
+ *   • chegou há no máximo `janelaMin` minutos (senão o texto é de outro assunto);
+ *   • ainda NÃO foi reagida/lançada (aposta já gravada não muda sozinha);
+ *   • ainda não tem legenda (a legenda colada na própria imagem tem prioridade).
+ * Devolve a linha alterada ou null.
+ */
+async function anexarTextoAUltimaImagem(grupoId, texto, janelaMin = 30) {
+  if (!grupoId || !texto) return null;
+  const desde = new Date(Date.now() - janelaMin * 60 * 1000).toISOString();
+  const { data, error } = await sb.from('imagens_recebidas')
+    .select('id,msg_id,enviado_em,legenda')
+    .eq('grupo_id', grupoId).eq('reagida', false)
+    .is('legenda', null)
+    .gte('enviado_em', desde)
+    .order('enviado_em', { ascending: false }).limit(1);
+  if (error) { console.error('   legenda p/ imagem:', error.message); return null; }
+  const alvo = data && data[0];
+  if (!alvo) return null;
+  await sb.from('imagens_recebidas').update({ legenda: texto }).eq('id', alvo.id);
+  return alvo;
 }
 
 /** Já existe linha para esta mensagem? (usado pelo catch-up p/ não rebaixar imagem já registrada.) */
@@ -118,5 +153,6 @@ async function limparImagensAntigas() {
 module.exports = {
   registrarImagemRecebida, marcarReagida,
   listarPedidosPendentes, marcarPedido, baixarThumbBase64, thumbPathPorMsg,
+  legendaPorMsg, anexarTextoAUltimaImagem,
   limparImagensAntigas, imagemJaRegistrada,
 };

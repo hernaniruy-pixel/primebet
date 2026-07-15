@@ -30,10 +30,39 @@ function parseValor(texto) {
   return Math.round(n * 100) / 100;
 }
 
-module.exports = { parseValor };
+/**
+ * Igual ao parseValor, mas para MENSAGENS DE TEXTO SOLTAS (o cliente manda o print e
+ * escreve o valor na mensagem debaixo). Aqui NÃO dá para ser guloso: "vai dar green no
+ * 2º jogo" não pode virar R$ 2. Só aceita quando a mensagem É um valor — nada além do
+ * número, de um "R$"/"valor"/"entrada" na frente e de um "k"/"mil" no fim.
+ * Ex.: "1300" | "R$ 1.300" | "valor: 2,5k" | "entrada 500" -> valor
+ *      "green no 2 jogo" | "1x2" | "odd 1.83" -> null
+ */
+const RE_SO_VALOR = /^\s*(?:valor|entrada|apostado?|stake)?\s*:?\s*(?:r\$)?\s*(\d[\d.,]*)\s*(k|mil)?\s*$/i;
+
+function parseValorMensagem(texto) {
+  const t = String(texto == null ? '' : texto).trim();
+  if (!t || !RE_SO_VALOR.test(t)) return null;
+  return parseValor(t.replace(/^\s*(?:valor|entrada|apostado?|stake)\s*:?\s*/i, ''));
+}
+
+module.exports = { parseValor, parseValorMensagem };
 
 // Autoteste: node src/valor.js
 if (require.main === module) {
+  const estritos = [
+    ['1300', 1300], ['R$ 1.300', 1300], ['1.300', 1300], ['valor: 2,5k', 2500],
+    ['entrada 500', 500], ['  600  ', 600], ['2 mil', 2000], ['1k', 1000],
+    // devem ser RECUSADOS (não são "só um valor"):
+    ['vai dar green no 2 jogo', null], ['odd 1.83', null], ['bom dia', null],
+    ['', null], ['1 x 2', null], ['500 no time A', null],
+  ];
+  let okE = 0;
+  console.log('— parseValorMensagem (texto solto) —');
+  for (const [inp, esp] of estritos) { const r = parseValorMensagem(inp); const pass = r === esp; if (pass) okE++; console.log(`${pass ? '✓' : '✗'} ${JSON.stringify(inp)} -> ${r}${pass ? '' : ' (esperava ' + esp + ')'}`); }
+  console.log(`${okE}/${estritos.length} OK\n`);
+
+  console.log('— parseValor (legenda da imagem) —');
   const casos = [['600', 600], ['1k', 1000], ['275', 275], ['1000', 1000], ['2,5k', 2500], ['1.500', 1500], ['R$ 1.000', 1000], ['300', 300], ['1.200,00', 1200], ['1.5k', 1500], ['2 mil', 2000], ['', null], ['sem valor', null], ['valor 350', 350], ['1k', 1000]];
   let ok = 0;
   for (const [inp, esp] of casos) { const r = parseValor(inp); const pass = r === esp; if (pass) ok++; console.log(`${pass ? '✓' : '✗'} ${JSON.stringify(inp)} -> ${r}${pass ? '' : ' (esperava ' + esp + ')'}`); }

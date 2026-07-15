@@ -98,7 +98,7 @@ export async function listarConfImagens(f: ConfFiltro): Promise<ConfImagensResp>
 
   const rows = (data ?? []).map((r) => ({
     id: r.id, grupoId: r.grupo_id, grupoNome: r.grupo_nome, clienteId: r.cliente_id,
-    remetente: r.remetente ?? '', enviadoEm: fmtTs(r.enviado_em),
+    remetente: r.remetente ?? '', enviadoEm: fmtTs(r.enviado_em), legenda: r.legenda ?? '',
     thumbUrl: r.thumb_path ? (urlPorPath[r.thumb_path] ?? null) : null,
     reagida: r.reagida, lancada: r.lancada, ignorada: r.ignorada, emoji: r.emoji, apostaId: r.aposta_id,
     pedidoStatus: r.pedido_status ?? null, pedidoErro: r.pedido_erro ?? null,

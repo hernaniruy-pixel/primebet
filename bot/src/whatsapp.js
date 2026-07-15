@@ -20,9 +20,12 @@ const pino = require('pino');
 const qrcode = require('qrcode-terminal');
 const { AUTH_PATH, regraPorEmoji, OPERADORES, GRUPO_AVISOS_LINK } = require('./config');
 const { transcreverBilhete } = require('./transcrever');
-const { parseValor } = require('./valor');
+const { parseValor, parseValorMensagem } = require('./valor');
 const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId } = require('./ingest');
-const { registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido, baixarThumbBase64, thumbPathPorMsg } = require('./conferencia');
+const {
+  registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido,
+  baixarThumbBase64, thumbPathPorMsg, legendaPorMsg, anexarTextoAUltimaImagem,
+} = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto, setTeste } = require('./webqr');
 const { avisar, aoConectar, aoDesconectar, horaBR, setGrupoAvisos } = require('./avisos');
@@ -142,8 +145,25 @@ async function registrarImagemDeMsg(sock, m, jid, nomeGrupo) {
     remetente: m.pushName || (m.key.participant || '').split('@')[0] || '',
     enviadoEm: tsIso(m),
     base64,
+    legenda: textoDaMsg(m) || '',
   });
   console.log(`🗂  imagem registrada p/ conferência | grupo "${nomeGrupo}"${cli ? '' : ' (⚠️ SEM cliente)'}`);
+  return true;
+}
+
+/**
+ * Texto solto num grupo de cliente: se a mensagem for SÓ um valor, ela é o valor do
+ * print que veio logo acima (o cliente manda a foto e escreve o valor embaixo).
+ * Gruda o texto na última imagem pendente do grupo. Devolve true se grudou.
+ */
+async function tratarValorSolto(m, jid, nomeGrupo) {
+  if (ehImagem(m)) return false;
+  const texto = (textoDaMsg(m) || '').trim();
+  const valor = parseValorMensagem(texto);
+  if (valor == null) return false;
+  const alvo = await anexarTextoAUltimaImagem(jid, texto);
+  if (!alvo) { console.log(`💬 "${texto}" no grupo "${nomeGrupo}" | sem print pendente recente p/ grudar`); return false; }
+  console.log(`🔗 valor R$ ${valor} grudado no print de ${alvo.enviado_em} | grupo "${nomeGrupo}"`);
   return true;
 }
 
@@ -254,7 +274,9 @@ async function iniciarWhatsApp() {
 
         if (/despesa/i.test(nomeGrupo)) { await tratarDespesa(m, jid, nomeGrupo); continue; }
 
-        await registrarImagemDeMsg(sock, m, jid, nomeGrupo);
+        if (await registrarImagemDeMsg(sock, m, jid, nomeGrupo)) continue;
+        // Não é imagem: pode ser o valor escrito embaixo do print que acabou de chegar.
+        await tratarValorSolto(m, jid, nomeGrupo);
       } catch (e) {
         console.error('❌ Erro ao processar mensagem:', e && e.message);
       }
@@ -290,17 +312,21 @@ async function iniciarWhatsApp() {
 
         // 1) imagem original (memória). 2) fallback: miniatura do Storage.
         const orig = acharImagem(jid, msgId);
-        let base64 = null, mime = 'image/jpeg', legenda = '';
+        let base64 = null, mime = 'image/jpeg';
         if (orig) {
           base64 = await baixarBase64(sock, orig);
           mime = (orig.message.imageMessage && orig.message.imageMessage.mimetype) || 'image/jpeg';
-          legenda = textoDaMsg(orig) || '';
         }
         if (!base64) {
           console.log('   (imagem não está na memória — usando a miniatura da conferência)');
           base64 = await baixarThumbBase64(await thumbPathPorMsg(msgId));
         }
         if (!base64) { console.log('ℹ️  Sem imagem para transcrever. Ignorado.'); continue; }
+
+        // Legenda: vem do banco — lá está OU a legenda colada na imagem, OU o valor que o
+        // cliente escreveu na mensagem debaixo do print. Cai na memória se a linha sumiu.
+        const legenda = (await legendaPorMsg(msgId)) || (orig ? textoDaMsg(orig) || '' : '');
+        if (legenda) console.log(`   legenda/valor: "${legenda}"`);
 
         console.log(`\n📩 ${regra.emoji} ${regra.label} | grupo "${nomeGrupo}" → cliente ${cli.nome}`);
         const { bruto, aposta } = await lancarAposta({
@@ -353,7 +379,8 @@ async function processarPedido(sock, p) {
     const emoji = p.pedido_emoji || '⚪';
     console.log(`\n🖱  lançar do dashboard | grupo "${p.grupo_nome}" | ${emoji}`);
     const { aposta } = await lancarAposta({
-      sock, base64, mime, emoji, oddManual: p.pedido_odd, valorManual: p.pedido_valor,
+      sock, base64, mime, emoji, legenda: p.legenda || '',
+      oddManual: p.pedido_odd, valorManual: p.pedido_valor,
       clienteId: p.cliente_id, grupoId: p.grupo_id, grupoNome: p.grupo_nome,
       msgId: p.msg_id, keyParaReagir: keyRef,
     });

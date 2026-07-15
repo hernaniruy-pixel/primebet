@@ -11,6 +11,7 @@ import {
   statusBot, type BotStatus,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
+import { fmtOdd, fmtMoney, parseNumBR } from './num';
 
 interface Draft { dt?: string; odd?: string; val?: string; jogo?: string; st?: string; _saved?: boolean }
 
@@ -147,6 +148,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   }, []);
 
   const cliSorted = useMemo(() => [...clientes].sort((a, b) => a.nome.localeCompare(b.nome)), [clientes]);
+  // Desconto por cliente — usado para mostrar a odd efetiva (odd − desconto) na tabela.
+  const cliDesc = useMemo(() => Object.fromEntries(clientes.map((c) => [c.id, c.desc])) as Record<number, number>, [clientes]);
 
   function toast(m: string) { setToastMsg(m); window.clearTimeout((toast as unknown as { _h?: number })._h); (toast as unknown as { _h?: number })._h = window.setTimeout(() => setToastMsg(''), 2600); }
   function setF<K extends keyof typeof filtros>(k: K, v: (typeof filtros)[K]) { setFiltros((f) => ({ ...f, [k]: v })); setPage(1); }
@@ -243,8 +246,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     const statusEfetivo = d.st ?? reg?.st;
     const patch = {
       ...(d.dt !== undefined ? { dt: d.dt } : {}),
-      ...(d.odd !== undefined ? { odd: Number(d.odd) } : {}),
-      ...(d.val !== undefined ? { val: Number(d.val) } : {}),
+      ...(d.odd !== undefined ? { odd: parseNumBR(d.odd) } : {}),
+      ...(d.val !== undefined ? { val: parseNumBR(d.val) } : {}),
       ...(d.jogo !== undefined ? { jogo: d.jogo } : {}),
       ...(d.st !== undefined ? { st: d.st } : {}),
     };
@@ -379,13 +382,13 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             })()}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setModal('cli')} className={navBtn}>Clientes</button>
-            <button onClick={() => setModal('af')} className={navBtn}>Afiliados</button>
-            <button onClick={() => setModal('fech')} className={navBtn}>Fechamento</button>
-            <button onClick={() => setModal('faf')} className={navBtn}>Fech. afiliado</button>
+            <button onClick={() => setModal('cli')} className={navBtn}>👤 Clientes</button>
+            <button onClick={() => setModal('af')} className={navBtn}>🤝 Afiliados</button>
+            <button onClick={() => setModal('fech')} className={navBtn}>📊 Fechamento</button>
+            <button onClick={() => setModal('faf')} className={navBtn}>📈 Fech. afiliado</button>
             <a href="/admin/contas" className={navBtn} title="Contas usadas para replicar as apostas (controle dos donos)">💳 Contas</a>
             <a href="/admin/conferencia" className={navBtn} title="Conferência de grupos (imagens recebidas × transcritas)">🗂 Conferência</a>
-            <a href="/admin/despesas" className={navBtn} title="Despesas (lançadas pelo grupo despesa)">Despesas</a>
+            <a href="/admin/despesas" className={navBtn} title="Despesas (lançadas pelo grupo despesa)">💸 Despesas</a>
             <button onClick={toggleTheme} title="Tema" className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
             <button onClick={sair} className="rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
           </div>
@@ -496,7 +499,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                     <th className="px-2 py-2 text-right font-medium">odd</th><th className="px-2 py-2 text-right font-medium">entradas</th>
                     <th className="px-2 py-2 font-medium">status</th>
                     <th className="px-2 py-2 text-right font-medium">s. bruto</th><th className="px-2 py-2 text-right font-medium">comissão</th>
-                    <th className="px-2 py-2 text-center font-medium">baixa liq.</th><th className="px-2 py-2 text-right font-medium">saldo líq.</th>
+                    <th className="px-2 py-2 text-center font-medium">baixa liq.</th><th className="px-2 py-2 text-center font-medium">saldo líq.</th>
                     <th className="px-2 py-2 text-center font-medium">ações</th>
                   </tr>
                 </thead>
@@ -528,8 +531,18 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                           )}
                           {renderJogo(r.jogo)}
                         </div></td>
-                        <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} value={dV(r, 'odd')} onChange={(e) => updDraft(r.id, 'odd', e.target.value)} /></td>
-                        <td className="px-2 py-1.5"><input type="number" className={`${cinp} w-20 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} value={dV(r, 'val')} onChange={(e) => updDraft(r.id, 'val', e.target.value)} /></td>
+                        <td className="px-2 py-1.5">
+                          <NumInput kind="odd" value={dV(r, 'odd')} onChange={(v) => updDraft(r.id, 'odd', v)} cls={`${cinp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} />
+                          {(() => {
+                            // Odd efetiva = odd − desconto do cliente. É ela que o cálculo usa
+                            // (trigger calc_aposta); mostramos para o desconto ficar visível.
+                            const desc = cliDesc[r.cId] ?? 0;
+                            const oddCrua = parseNumBR(dV(r, 'odd'));
+                            if (!desc || !oddCrua) return null;
+                            return <div className="mt-0.5 text-right text-[10px] text-amber-600 dark:text-amber-400" title={`Desconto de ${fmtOdd(desc)} aplicado no cálculo (odd cheia ${fmtOdd(oddCrua)})`}>↳ {fmtOdd(Math.max(oddCrua - desc, 0))}</div>;
+                          })()}
+                        </td>
+                        <td className="px-2 py-1.5"><NumInput kind="money" value={dV(r, 'val')} onChange={(v) => updDraft(r.id, 'val', v)} cls={`${cinp} w-20 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} /></td>
                         <td className="px-2 py-1.5">
                           {(() => { const stv = dV(r, 'st'); const pend = edited(r, 'st'); return (
                             <select value={stv} onChange={(e) => updDraft(r.id, 'st', e.target.value)} title={pend ? 'Status não salvo — clique em Salvar para confirmar' : undefined} style={{ backgroundColor: stStyle(stv).bg, color: stStyle(stv).fg, boxShadow: pend ? '0 0 0 2px #f59e0b' : undefined }} className="rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer">{STS.map((s) => <option key={s} value={s} style={{ backgroundColor: stStyle(s).bg, color: stStyle(s).fg }}>{s}</option>)}</select>
@@ -538,7 +551,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         <td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td>
                         <td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td>
                         <td className="px-2 py-1.5 text-center"><select value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} className={`${cinp} w-16`}><option>Não</option><option>Sim</option></select></td>
-                        <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${clrCls(r.sl)}`}>{fmt(r.sl)}</td>
+                        <td className={`px-2 py-1.5 text-center font-semibold tabular-nums ${clrCls(r.sl)}`}>{fmt(r.sl)}</td>
                         <td className="px-2 py-1.5">
                           <div className="flex justify-center gap-1.5">
                             {r.adv && <button onClick={() => setObsModal({ id: r.id, text: r.obs })} title={`Advertência: ${r.obs}`} className="rounded-lg bg-rose-600 px-2 py-1 text-xs text-white transition hover:bg-rose-700">⚠</button>}
@@ -780,3 +793,25 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
 }
 
 function tot(n: number) { return `R$ ${fmt(n)}`; }
+
+/**
+ * Campo numérico no padrão brasileiro (odd "1,80" / entradas "1.300").
+ * Enquanto está em foco mostra o texto cru — para não brigar com quem digita —
+ * e formata assim que sai. O rascunho guarda o que foi digitado; quem converte
+ * para número é o parseNumBR na hora de salvar.
+ */
+function NumInput({ value, onChange, kind, cls }: { value: string; onChange: (v: string) => void; kind: 'odd' | 'money'; cls: string }) {
+  const [foco, setFoco] = useState(false);
+  const n = parseNumBR(value);
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      className={cls}
+      value={foco ? value : (kind === 'odd' ? fmtOdd(n) : fmtMoney(n))}
+      onFocus={() => setFoco(true)}
+      onBlur={() => setFoco(false)}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}

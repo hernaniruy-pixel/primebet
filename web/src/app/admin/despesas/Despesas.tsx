@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { listarDespesas, listarDespesasPeriodo, excluirDespesa } from '../actions';
+import { gerarPdfDespesas } from './pdf-despesas';
 import type { DespesasResp, SemanaDespesas } from './types';
 
 const brl = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -16,6 +17,12 @@ export default function Despesas({ dadosIni }: { dadosIni: DespesasResp }) {
   const [carregando, startTransition] = useTransition();
   const sem: SemanaDespesas = aba === 'periodo' ? (periodo ?? { rotulo: 'Período', d1: '', d2: '', rows: [], total: 0 })
     : aba === 'atual' ? dados.atual : dados.passada;
+
+  // Nomenclatura que vai impressa no PDF, conforme o período que está selecionado na tela.
+  const ROTULO = { atual: 'Semana atual', passada: 'Semana passada', periodo: 'Período selecionado' } as const;
+  function exportarPdf() {
+    gerarPdfDespesas({ banca: 'PrimeBet', sem: { ...sem, rotulo: ROTULO[aba] } });
+  }
 
   function buscarPeriodo() {
     startTransition(async () => { setPeriodo(await listarDespesasPeriodo(dt1 || null, dt2 || null)); });
@@ -46,7 +53,10 @@ export default function Despesas({ dadosIni }: { dadosIni: DespesasResp }) {
               <div className="text-[11px] text-slate-300">Lançadas pelo grupo &quot;despesa&quot; (descrição: valor)</div>
             </div>
           </div>
-          <button onClick={recarregar} className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200 hover:bg-amber-500/20">🔄 Atualizar</button>
+          <div className="flex items-center gap-2">
+            <button onClick={exportarPdf} title="Baixar o PDF das despesas do período selecionado" className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs text-white hover:bg-white/15">📄 Exportar PDF</button>
+            <button onClick={recarregar} className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200 hover:bg-amber-500/20">🔄 Atualizar</button>
+          </div>
         </div>
       </header>
 

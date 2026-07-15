@@ -14,6 +14,7 @@ export interface ConfImagem {
   clienteId: number | null;
   remetente: string;
   enviadoEm: string;
+  legenda: string;               // valor escrito na legenda ou na mensagem debaixo do print
   thumbUrl: string | null;
   reagida: boolean;
   lancada: boolean;
