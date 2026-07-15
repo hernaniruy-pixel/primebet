@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow } from './types';
 import {
   criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao,
-  criarCliente, atualizarCliente, criarAfiliado, atualizarAfiliado,
+  criarCliente, atualizarCliente, excluirCliente, criarAfiliado, atualizarAfiliado,
   fechamentoClientes, fechamentoAfiliados, bilhetesCliente,
   statusBot, type BotStatus,
 } from './actions';
@@ -304,6 +304,16 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       setClientes((cs) => cs.map((x) => (x.id === id ? res.cliente : x))); reload(); toast('Cliente salvo!');
     } catch { toast('Erro ao salvar cliente.'); }
   }
+  async function delCli(id: number) {
+    const c = clientes.find((x) => x.id === id); if (!c) return;
+    if (!confirm(`Excluir o cliente ${c.nome}?\n\nSó é possível excluir clientes SEM apostas no sistema. Se ele tiver histórico, desative-o em vez de excluir.`)) return;
+    try {
+      const r = await excluirCliente(id);
+      if (!r.ok) { alert(r.erro || 'Não foi possível excluir.'); return; }
+      setClientes((cs) => cs.filter((x) => x.id !== id));
+      toast('Cliente excluído.');
+    } catch { toast('Erro ao excluir cliente.'); }
+  }
   function novoCliente() { setNovoCli({ open: true, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '', grupoLink: '' }); }
   async function salvarNovoCliente() {
     if (!novoCli.nome.trim()) { alert('Informe o nome.'); return; }
@@ -589,7 +599,12 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                     <td className="px-2 py-1.5"><select className={`${cinp} w-32`} value={c.sup ?? '—'} onChange={(e) => updCli(c.id, { sup: e.target.value === '—' ? null : e.target.value })}><option>—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></td>
                     <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-14`} value={c.af} onChange={(e) => updCli(c.id, { af: Number(e.target.value) })} /></td>
                     <td className="px-2 py-1.5"><div className="flex items-center gap-1"><input className={`${cinp} w-44`} placeholder="link do grupo" value={c.grupoLink ?? ''} onChange={(e) => updCli(c.id, { grupoLink: e.target.value })} /><span title={c.grupoId ? 'Grupo vinculado: ' + c.grupoId : 'Aguardando o bot resolver o link'}>{c.grupoId ? '✅' : (c.grupoLink ? '⏳' : '')}</span></div></td>
-                    <td className="px-2 py-1.5 sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800"><button onClick={() => saveCli(c.id)} className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700">Salvar</button></td>
+                    <td className="px-2 py-1.5 sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800">
+                      <div className="flex gap-1.5">
+                        <button onClick={() => saveCli(c.id)} className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700">Salvar</button>
+                        <button onClick={() => delCli(c.id)} title="Excluir cliente (só sem apostas no sistema)" className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-50 dark:border-rose-500/30 dark:hover:bg-rose-500/10">Excluir</button>
+                      </div>
+                    </td>
                   </tr>
                 ))}</tbody>
               </table>

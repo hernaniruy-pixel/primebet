@@ -423,6 +423,22 @@ export async function atualizarCliente(id: number, patch: PatchCliente): Promise
   };
 }
 
+/**
+ * Exclui um cliente. TRAVA: se ele tiver apostas, recusa — apagar levaria junto o
+ * histórico/fechamento dele. Nesse caso o certo é desativar (campo "Ativo").
+ */
+export async function excluirCliente(id: number): Promise<{ ok: boolean; erro?: string }> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { count } = await db.from('apostas').select('id', { count: 'exact', head: true }).eq('cliente_id', id);
+  if ((count ?? 0) > 0) {
+    return { ok: false, erro: `Este cliente tem ${count} aposta(s) no sistema. Desative-o (coluna "Ativo") em vez de excluir — apagar apagaria o histórico dele.` };
+  }
+  const { error } = await db.from('clientes').delete().eq('id', id);
+  if (error) return { ok: false, erro: 'Não foi possível excluir o cliente.' };
+  return { ok: true };
+}
+
 // ═══════════════════ AFILIADOS ═══════════════════
 export async function criarAfiliado(nome: string, com = 0): Promise<Afiliado> {
   await exigirSessao();
