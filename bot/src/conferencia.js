@@ -83,8 +83,12 @@ async function legendaPorMsg(msgId) {
  *   • ainda NÃO foi reagida/lançada (aposta já gravada não muda sozinha);
  *   • ainda não tem legenda (a legenda colada na própria imagem tem prioridade).
  * Devolve a linha alterada ou null.
+ *
+ * A janela é CURTA de propósito: o valor vem segundos depois do print. Se fosse larga,
+ * um print antigo ainda sem valor roubaria o valor destinado ao print novo — e isso
+ * lançaria dinheiro na aposta errada.
  */
-async function anexarTextoAUltimaImagem(grupoId, texto, janelaMin = 30) {
+async function anexarTextoAUltimaImagem(grupoId, texto, janelaMin = 5) {
   if (!grupoId || !texto) return null;
   const desde = new Date(Date.now() - janelaMin * 60 * 1000).toISOString();
   const { data, error } = await sb.from('imagens_recebidas')

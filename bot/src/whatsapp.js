@@ -132,6 +132,35 @@ async function tratarDespesa(m, jid, nomeGrupo) {
   return inseriu;
 }
 
+// ─────────── valor escrito solto (antes OU depois do print) ───────────
+// Na prática o cliente faz das duas formas: manda o print e escreve o valor embaixo,
+// ou escreve o valor e manda o print em seguida. O caso "texto depois" resolve no banco
+// (gruda na última imagem). O caso "texto antes" fica aqui, esperando o print chegar.
+const valorAguardando = new Map(); // jid -> { texto, ts }
+const ESPERA_VALOR_MS = 10 * 60 * 1000;
+
+function guardarValorParaProximoPrint(jid, texto) {
+  valorAguardando.set(jid, { texto, ts: Date.now() });
+}
+/** Consome o valor que estava esperando um print neste grupo (se ainda válido). */
+function consumirValorAguardando(jid) {
+  const e = valorAguardando.get(jid);
+  if (!e) return '';
+  valorAguardando.delete(jid);
+  return Date.now() - e.ts > ESPERA_VALOR_MS ? '' : e.texto;
+}
+
+/**
+ * Decide a legenda de uma imagem que acabou de chegar: a legenda colada nela manda;
+ * sem ela, aproveita um valor que o cliente escreveu logo ANTES do print.
+ * Devolve { legenda, veioDeAntes }.
+ */
+function escolherLegendaDaImagem(jid, legendaPropria) {
+  if (legendaPropria) return { legenda: legendaPropria, veioDeAntes: false };
+  const anterior = consumirValorAguardando(jid);
+  return { legenda: anterior, veioDeAntes: !!anterior };
+}
+
 // ─────────── conferência (imagens) ───────────
 async function registrarImagemDeMsg(sock, m, jid, nomeGrupo) {
   if (!ehImagem(m)) return false;
@@ -139,22 +168,24 @@ async function registrarImagemDeMsg(sock, m, jid, nomeGrupo) {
   const base64 = await baixarBase64(sock, m);
   if (!base64) return false;
   const cli = await acharCliente(jid, nomeGrupo);
+  const { legenda, veioDeAntes } = escolherLegendaDaImagem(jid, textoDaMsg(m) || '');
   await registrarImagemRecebida({
     grupoId: jid, grupoNome: nomeGrupo,
     clienteId: cli ? cli.id : null, msgId: m.key.id,
     remetente: m.pushName || (m.key.participant || '').split('@')[0] || '',
     enviadoEm: tsIso(m),
     base64,
-    legenda: textoDaMsg(m) || '',
+    legenda,
   });
   console.log(`🗂  imagem registrada p/ conferência | grupo "${nomeGrupo}"${cli ? '' : ' (⚠️ SEM cliente)'}`);
+  if (veioDeAntes) console.log(`   🔗 valor "${legenda}" (escrito antes do print) aplicado a esta imagem`);
   return true;
 }
 
 /**
- * Texto solto num grupo de cliente: se a mensagem for SÓ um valor, ela é o valor do
- * print que veio logo acima (o cliente manda a foto e escreve o valor embaixo).
- * Gruda o texto na última imagem pendente do grupo. Devolve true se grudou.
+ * Texto solto num grupo de cliente: se a mensagem for SÓ um valor, ela é o valor de um
+ * print. Tenta grudar no print que veio ANTES; se ainda não veio print, guarda o valor
+ * para o PRÓXIMO print do grupo (o cliente escreve o valor primeiro com frequência).
  */
 async function tratarValorSolto(m, jid, nomeGrupo) {
   if (ehImagem(m)) return false;
@@ -162,8 +193,12 @@ async function tratarValorSolto(m, jid, nomeGrupo) {
   const valor = parseValorMensagem(texto);
   if (valor == null) return false;
   const alvo = await anexarTextoAUltimaImagem(jid, texto);
-  if (!alvo) { console.log(`💬 "${texto}" no grupo "${nomeGrupo}" | sem print pendente recente p/ grudar`); return false; }
-  console.log(`🔗 valor R$ ${valor} grudado no print de ${alvo.enviado_em} | grupo "${nomeGrupo}"`);
+  if (alvo) {
+    console.log(`🔗 valor R$ ${valor} grudado no print de ${alvo.enviado_em} | grupo "${nomeGrupo}"`);
+    return true;
+  }
+  guardarValorParaProximoPrint(jid, texto);
+  console.log(`💬 valor R$ ${valor} anotado | grupo "${nomeGrupo}" — aguardando o print (até 10min)`);
   return true;
 }
 
@@ -412,3 +447,5 @@ async function resolverVinculos(sock) {
 }
 
 module.exports = { iniciarWhatsApp };
+// Exposto só para os testes (scripts/teste-valor-solto.js) — não usar em produção.
+module.exports._teste = { tratarValorSolto, escolherLegendaDaImagem, consumirValorAguardando, guardarValorParaProximoPrint };
