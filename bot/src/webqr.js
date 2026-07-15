@@ -12,6 +12,13 @@ const setPronto = () => { estado = { qr: null, pronto: true }; };
 let testeFn = null;
 const setTeste = (fn) => { testeFn = fn; };
 
+// Falha FALSA no /ready, para testar o alarme do monitor externo sem derrubar o bot.
+// Um alarme nunca testado não é um alarme — é uma suposição. Ligado/desligado por
+// /simular-queda?t=TOKEN&on=1|0 (protegido pelo QR_TOKEN). Volta ao normal sozinho
+// em 15 min, caso alguém esqueça ligado.
+let falhaSimulada = false;
+let falhaTimer = null;
+
 
 /**
  * Sobe um mini site que mostra o QR como IMAGEM (escaneável) e o status.
@@ -40,6 +47,10 @@ function iniciarWebQR() {
     // do bot — que é justamente o canal que morre quando o problema acontece.
     if (url.pathname === '/ready') {
       const up = Math.floor((Date.now() - BOOT) / 1000);
+      if (falhaSimulada) {
+        res.writeHead(503, { 'Content-Type': 'text/plain', ...cors });
+        return res.end(`FALHA SIMULADA (teste do alarme) up=${up}s`);
+      }
       const ok = estado.pronto;
       res.writeHead(ok ? 200 : 503, { 'Content-Type': 'text/plain', ...cors });
       return res.end(ok
@@ -48,6 +59,16 @@ function iniciarWebQR() {
     }
     if (token && url.searchParams.get('t') !== token) { res.writeHead(401, cors); return res.end('Acesso negado.'); }
 
+
+    // Liga/desliga a falha falsa do /ready (só afeta o monitor; o bot segue intacto).
+    if (url.pathname === '/simular-queda') {
+      falhaSimulada = url.searchParams.get('on') === '1';
+      if (falhaTimer) { clearTimeout(falhaTimer); falhaTimer = null; }
+      if (falhaSimulada) falhaTimer = setTimeout(() => { falhaSimulada = false; console.log('🔕 falha simulada expirou sozinha — /ready normalizado'); }, 15 * 60 * 1000);
+      console.log(falhaSimulada ? '🔔 falha SIMULADA ligada — /ready vai responder 503 (bot continua normal)' : '🔕 falha simulada desligada — /ready normalizado');
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', ...cors });
+      return res.end(falhaSimulada ? 'falha simulada LIGADA (expira em 15min)' : 'falha simulada DESLIGADA');
+    }
 
     // Dispara um aviso de teste no grupo ALERTA/AVISOS (pra validar o canal).
     if (url.pathname === '/teste') {
