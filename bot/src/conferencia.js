@@ -72,6 +72,14 @@ async function imagemJaRegistrada(msgId) {
   return !!data;
 }
 
+/** Caminho da miniatura de uma mensagem já registrada (fallback da reação quando o
+ *  bot reiniciou e a imagem original não está mais na memória). */
+async function thumbPathPorMsg(msgId) {
+  if (!msgId) return null;
+  const { data } = await sb.from('imagens_recebidas').select('thumb_path').eq('msg_id', msgId).maybeSingle();
+  return (data && data.thumb_path) || null;
+}
+
 /** Baixa a miniatura do Storage como base64 (fallback quando a msg original não está mais acessível). */
 async function baixarThumbBase64(thumbPath) {
   if (!thumbPath) return null;
@@ -109,6 +117,6 @@ async function limparImagensAntigas() {
 
 module.exports = {
   registrarImagemRecebida, marcarReagida,
-  listarPedidosPendentes, marcarPedido, baixarThumbBase64,
+  listarPedidosPendentes, marcarPedido, baixarThumbBase64, thumbPathPorMsg,
   limparImagensAntigas, imagemJaRegistrada,
 };
