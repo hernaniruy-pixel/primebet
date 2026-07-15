@@ -84,10 +84,23 @@ async function acharClientePorGrupo(nomeGrupo) {
  */
 async function acharCliente(grupoId, nomeGrupo) {
   if (grupoId) {
-    const { data } = await sb.from('clientes').select('id,nome').eq('grupo_id', grupoId).limit(1);
+    // limit(2) de propósito: se DOIS clientes apontam para o mesmo grupo, o banco
+    // devolve um deles sem critério — as apostas cairiam na conta errada em silêncio.
+    // Melhor gritar no log do que escolher no escuro.
+    const { data } = await sb.from('clientes').select('id,nome').eq('grupo_id', grupoId).order('id').limit(2);
+    if (data && data.length > 1) {
+      console.log(`⚠️  CADASTRO DUPLICADO: o grupo ${grupoId} está em ${data.length} clientes (${data.map((c) => '#' + c.id + ' ' + c.nome).join(', ')}). Usando ${data[0].nome} — corrija no painel, as apostas do outro NÃO estão sendo lançadas.`);
+    }
     if (data && data[0]) return data[0];
   }
   return acharClientePorGrupo(nomeGrupo);
+}
+
+/** IDs dos grupos vinculados a clientes — a lista do que o bot PODE ler. */
+async function gruposDeClientes() {
+  const { data, error } = await sb.from('clientes').select('grupo_id').not('grupo_id', 'is', null).limit(2000);
+  if (error) { console.error('   grupos de clientes:', error.message); return []; }
+  return (data || []).map((c) => c.grupo_id).filter(Boolean);
 }
 
 /** Clientes com link de grupo colado mas ainda NÃO resolvido (grupo_id nulo). */
@@ -102,5 +115,5 @@ async function salvarGrupoId(clienteId, grupoId) {
 
 module.exports = {
   sb, bancaPadrao, buscarClientePorNome, listarClientes, registrarBilhete,
-  acharClientePorGrupo, acharCliente, vinculosPendentes, salvarGrupoId,
+  acharClientePorGrupo, acharCliente, vinculosPendentes, salvarGrupoId, gruposDeClientes,
 };

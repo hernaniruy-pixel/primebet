@@ -5,6 +5,8 @@ let grupoAvisosId = null;
 // Cacheia o ID do grupo de alertas a partir de uma mensagem recebida nele
 // (rápido e direto — evita o getChats() que TRAVA quando há muitos grupos).
 const setGrupoAvisos = (id) => { if (id) grupoAvisosId = id; };
+/** ID do grupo de alertas já resolvido (usado pela lista de grupos permitidos). */
+const getGrupoAvisos = () => grupoAvisosId;
 
 /** Resolve o grupo de ALERTAS pelo LINK do convite (e ENTRA nele se ainda não for membro). */
 async function resolverAvisosPorLink(client, link) {
@@ -86,4 +88,4 @@ async function aoAutenticar(client) {
   await avisar(client, `🔐 *PrimeBet — autenticado*\nConexão estabelecida, finalizando sincronização…\n🕒 ${horaBR()}`);
 }
 
-module.exports = { avisar, aoConectar, aoDesconectar, aoAutenticar, resolverAvisosPorLink, horaBR, setGrupoAvisos };
+module.exports = { avisar, aoConectar, aoDesconectar, aoAutenticar, resolverAvisosPorLink, horaBR, setGrupoAvisos, getGrupoAvisos };

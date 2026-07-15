@@ -21,14 +21,14 @@ const qrcode = require('qrcode-terminal');
 const { AUTH_PATH, regraPorEmoji, OPERADORES, GRUPO_AVISOS_LINK } = require('./config');
 const { transcreverBilhete } = require('./transcrever');
 const { parseValor, parseValorMensagem } = require('./valor');
-const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId } = require('./ingest');
+const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId, gruposDeClientes } = require('./ingest');
 const {
   registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido,
   baixarThumbBase64, thumbPathPorMsg, legendaPorMsg, anexarTextoAUltimaImagem,
 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto, setTeste } = require('./webqr');
-const { avisar, aoConectar, aoDesconectar, horaBR, setGrupoAvisos } = require('./avisos');
+const { avisar, aoConectar, aoDesconectar, horaBR, setGrupoAvisos, getGrupoAvisos } = require('./avisos');
 
 const BOOT = Date.now();
 const log = pino({ level: 'silent' }); // a Baileys é verbosa; nossos logs são os console.log
@@ -69,6 +69,62 @@ async function nomeDoGrupo(sock, jid) {
   }
 }
 
+/**
+ * Carrega o nome de TODOS os grupos numa ÚNICA chamada, no boot.
+ * Sem isto, cada grupo novo custava um groupMetadata — dezenas de chamadas à API do
+ * WhatsApp, que é justamente o que aumenta o risco de banimento do número.
+ */
+async function carregarNomesDeGrupos(sock) {
+  try {
+    const gs = await sock.groupFetchAllParticipating();
+    for (const [jid, g] of Object.entries(gs || {})) nomeCache.set(jid, (g && g.subject) || '');
+    console.log(`📇 ${nomeCache.size} grupos catalogados (1 chamada só)`);
+  } catch (e) {
+    console.log('   (não consegui catalogar os grupos:', e.message, ')');
+  }
+}
+
+// ─────────── LISTA DE GRUPOS QUE O BOT PODE LER ───────────
+// O número participa de dezenas de grupos (equipe, diretoria, pessoal…). O bot só
+// pode encostar nos grupos DOS CLIENTES + despesa + alertas. Todo o resto é ignorado
+// ANTES de qualquer chamada à API ou download de mídia: menos exposição (ban), menos
+// tráfego e nada de lixo no banco/Storage.
+let permitidos = new Set();
+let permitidosEm = 0;
+const PERMITIDOS_TTL = 2 * 60 * 1000; // recarrega do banco a cada 2 min (cliente novo entra sozinho)
+let despesaJid = null;
+
+/** Acha os grupos especiais (despesa/alertas) pelo nome, usando o catálogo já em memória. */
+function acharGruposEspeciais() {
+  for (const [jid, nome] of nomeCache) {
+    if (/despesa/i.test(nome)) despesaJid = jid;
+    if (/avisos|alerta/i.test(nome)) setGrupoAvisos(jid);
+  }
+  console.log(`   grupo de despesas: ${despesaJid ? `"${nomeCache.get(despesaJid)}"` : '⚠️ não encontrado'}`);
+}
+
+async function gruposPermitidos(forcar = false) {
+  if (!forcar && Date.now() - permitidosEm < PERMITIDOS_TTL) return permitidos;
+  const s = new Set(await gruposDeClientes()); // consulta ao BANCO, não ao WhatsApp
+  if (despesaJid) s.add(despesaJid);
+  const av = getGrupoAvisos();
+  if (av) s.add(av);
+  permitidos = s;
+  permitidosEm = Date.now();
+  return permitidos;
+}
+
+// Grupos fora da lista que mandaram mensagem. Não vão para o banco, mas NÃO somem em
+// silêncio: aparecem no log (1x cada) e no /status — se um cliente de verdade estiver
+// sem cadastro, isso precisa ser visível, senão a aposta dele evapora sem ninguém ver.
+const ignorados = new Map(); // jid -> { nome, msgs }
+function registrarIgnorado(jid, nome) {
+  const e = ignorados.get(jid);
+  if (e) { e.msgs++; return; }
+  ignorados.set(jid, { nome: nome || jid, msgs: 1 });
+  console.log(`🚫 grupo fora da lista, ignorado: "${nome || jid}" (cadastre o link no cliente para ativar)`);
+}
+
 // ─────────── store próprio de imagens ───────────
 // A Baileys não guarda histórico nem tem getMessageById. Para a REAÇÃO funcionar
 // (operador reage numa imagem -> precisamos da imagem original) guardamos em
@@ -106,14 +162,24 @@ async function montarStatus(conectado, nomeGrupo = '') {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const ehAlertas = /avisos|alerta/i.test(nomeGrupo);
-  return [
+  const perm = await gruposPermitidos();
+  const linhas = [
     '🤖 *PrimeBet bot — status*',
     `• conexão: ${conectado ? '✅ CONNECTED' : '⚠️ conectando…'} (Baileys)`,
     `• no ar há: ${h}h ${m}min`,
     `• pedidos na fila (dashboard): ${pend}`,
+    `• grupos lidos: ${perm.size} de ${nomeCache.size} (só clientes + despesa + alertas)`,
     `• grupo de alertas reconhecido: ${ehAlertas ? '✅ sim (avisos/ONLINE saem aqui)' : '⚠️ NÃO — renomeie o grupo p/ conter "avisos" ou "alerta"'}`,
-    `• hora: ${horaBR()}`,
-  ].join('\n');
+  ];
+  // Grupo sem cadastro que está mandando print = aposta que ninguém está vendo.
+  if (ignorados.size) {
+    const top = [...ignorados.values()].sort((a, b) => b.msgs - a.msgs).slice(0, 5);
+    linhas.push(`• ⚠️ ${ignorados.size} grupo(s) SEM cadastro sendo ignorados:`);
+    top.forEach((g) => linhas.push(`    – ${g.nome} (${g.msgs} msg)`));
+    linhas.push('    Cadastre o link do grupo no cliente para o bot passar a ler.');
+  }
+  linhas.push(`• hora: ${horaBR()}`);
+  return linhas.join('\n');
 }
 
 // ─────────── despesa ───────────
@@ -275,6 +341,12 @@ async function iniciarWhatsApp() {
     if (connection === 'open') {
       console.log('✅ Bot conectado (Baileys) e ouvindo reações nos grupos.');
       setPronto();
+      // Catálogo de grupos (1 chamada) -> nomes p/ achar despesa/alertas e p/ os logs,
+      // sem precisar de um groupMetadata por grupo.
+      await carregarNomesDeGrupos(sock);
+      acharGruposEspeciais();
+      const perm = await gruposPermitidos(true);
+      console.log(`🔒 lendo apenas ${perm.size} grupos (clientes + despesa + alertas) de ${nomeCache.size} em que o número está`);
       setTeste(() => avisar(cliente, `🔔 Teste de alerta — ${horaBR()}`));
       if (!pollerLigado) { pollerLigado = true; iniciarPollerPedidos(sock); }
       aoConectar(cliente, GRUPO_AVISOS_LINK).catch((e) => console.log('   (aoConectar:', e.message, ')'));
@@ -296,18 +368,21 @@ async function iniciarWhatsApp() {
       try {
         const jid = m.key && m.key.remoteJid;
         if (!ehGrupo(jid)) continue;
-        const nomeGrupo = await nomeDoGrupo(sock, jid);
-        if (/avisos|alerta/i.test(nomeGrupo)) setGrupoAvisos(jid);
 
-        // /status responde em QUALQUER grupo (inclusive enviado pelo próprio nº do bot)
+        // PORTEIRO: fora da lista, nada acontece — sem API, sem download, sem banco.
+        if (!(await gruposPermitidos()).has(jid)) { registrarIgnorado(jid, nomeCache.get(jid)); continue; }
+
+        const nomeGrupo = await nomeDoGrupo(sock, jid);
+
+        // /status responde nos grupos da lista (inclusive enviado pelo próprio nº do bot)
         if (ehComandoStatus(textoDaMsg(m))) {
           console.log(`🔧 /status no grupo "${nomeGrupo}"`);
           await sock.sendMessage(jid, { text: await montarStatus(true, nomeGrupo) });
           continue;
         }
-        if (/avisos|alerta/i.test(nomeGrupo)) continue; // grupo de alerta não entra na conferência
+        if (jid === getGrupoAvisos()) continue; // grupo de alerta não entra na conferência
 
-        if (/despesa/i.test(nomeGrupo)) { await tratarDespesa(m, jid, nomeGrupo); continue; }
+        if (jid === despesaJid) { await tratarDespesa(m, jid, nomeGrupo); continue; }
 
         if (await registrarImagemDeMsg(sock, m, jid, nomeGrupo)) continue;
         // Não é imagem: pode ser o valor escrito embaixo do print que acabou de chegar.
@@ -331,6 +406,7 @@ async function iniciarWhatsApp() {
         const regra = regraPorEmoji(emoji);
         if (!regra) { console.log(`   ↳ ignorada: "${emoji}" não é gatilho (use ⚪ ⚫ 🔵 ⚠️)`); continue; }
         if (!ehGrupo(jid)) { console.log('   ↳ ignorada: não é grupo'); continue; }
+        if (!(await gruposPermitidos()).has(jid)) { console.log('   ↳ ignorada: grupo fora da lista'); continue; }
 
         const reactor = String(quem).replace(/\D/g, '');
         if (OPERADORES.length && reactor && !OPERADORES.includes(reactor)) {
@@ -381,14 +457,22 @@ async function iniciarWhatsApp() {
 
 // ─────────── dashboard: pedidos enfileirados pelo painel ───────────
 let pollAtivo = false;
+let ultimoVinculo = 0;
+const VINCULO_INTERVALO = 60 * 1000; // 1x por minuto — não precisa ser a cada 5s
+
 function iniciarPollerPedidos(sock) {
   setInterval(async () => {
     if (pollAtivo) return;
     pollAtivo = true;
     try {
+      // A fila do dashboard é local (banco) — pode ser rápida, não fala com o WhatsApp.
       const pendentes = await listarPedidosPendentes();
       for (const p of pendentes) await processarPedido(sock, p);
-      await resolverVinculos(sock);
+      // Já o vínculo consulta a API do WhatsApp: vai devagar.
+      if (Date.now() - ultimoVinculo >= VINCULO_INTERVALO) {
+        ultimoVinculo = Date.now();
+        await resolverVinculos(sock);
+      }
     } catch (e) {
       console.error('poller pedidos:', e.message);
     } finally {
@@ -427,21 +511,37 @@ async function processarPedido(sock, p) {
   }
 }
 
+// Tentativas por cliente. Um link inválido/expirado NUNCA resolve: sem este teto, o
+// laço reconsultava a API do WhatsApp a cada 5s, para sempre, em todos os pendentes
+// (chegou a ~50 chamadas a cada 5s em 15/07). É o comportamento que mais aproxima o
+// número de um banimento — e ele voltaria sozinho no próximo link ruim.
+const tentativasVinculo = new Map(); // clienteId -> nº de falhas
+const MAX_TENTATIVAS = 3;
+
 /** Resolve o LINK do grupo (colado no cadastro) para o ID interno (...@g.us). */
 async function resolverVinculos(sock) {
   const pend = await vinculosPendentes();
   for (const c of pend) {
+    const falhas = tentativasVinculo.get(c.id) || 0;
+    if (falhas >= MAX_TENTATIVAS) continue; // desistiu: não insiste na API
     try {
       const code = String(c.grupo_link).trim().replace(/\?.*$/, '').split('/').filter(Boolean).pop();
-      if (!code) continue;
+      if (!code) { tentativasVinculo.set(c.id, MAX_TENTATIVAS); continue; }
       const info = await sock.groupGetInviteInfo(code);
       const gid = info && info.id;
       if (gid) {
         await salvarGrupoId(c.id, String(gid));
+        tentativasVinculo.delete(c.id);
+        await gruposPermitidos(true); // cliente novo passa a ser lido na hora
         console.log(`🔗 grupo vinculado | cliente #${c.id} -> ${gid}`);
+      } else {
+        tentativasVinculo.set(c.id, falhas + 1);
       }
     } catch (e) {
-      console.log(`   (não resolvi o link do grupo do cliente #${c.id}:`, e.message, ')');
+      const n = falhas + 1;
+      tentativasVinculo.set(c.id, n);
+      console.log(`   (não resolvi o link do cliente #${c.id}: ${e.message} — tentativa ${n}/${MAX_TENTATIVAS})`);
+      if (n >= MAX_TENTATIVAS) console.log(`   ⛔ desisti do link do cliente #${c.id}. Corrija o link no painel (o bot tenta de novo no próximo reinício).`);
     }
   }
 }
