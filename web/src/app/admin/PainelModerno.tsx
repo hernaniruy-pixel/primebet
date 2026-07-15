@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow } from './types';
 import {
   criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao,
-  criarCliente, atualizarCliente, excluirCliente, criarAfiliado, atualizarAfiliado,
+  criarCliente, atualizarCliente, excluirCliente, criarAfiliado, atualizarAfiliado, excluirAfiliado,
   fechamentoClientes, fechamentoAfiliados, bilhetesCliente,
   statusBot, type BotStatus,
 } from './actions';
@@ -325,6 +325,16 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   // afiliados
   function updAf(id: number, patch: Partial<Afiliado>) { setAfiliados((as) => as.map((a) => (a.id === id ? { ...a, ...patch } : a))); }
   async function saveAf(id: number) { const a = afiliados.find((x) => x.id === id); if (!a) return; try { const res = await atualizarAfiliado(id, { nome: a.nome, com: a.com }); setAfiliados((as) => as.map((x) => (x.id === id ? res : x))); toast('Afiliado salvo!'); } catch { toast('Erro ao salvar afiliado.'); } }
+  async function delAf(id: number) {
+    const a = afiliados.find((x) => x.id === id); if (!a) return;
+    if (!confirm(`Excluir o supervisor ${a.nome}?\n\nSó é possível excluir supervisor SEM clientes vinculados.`)) return;
+    try {
+      const r = await excluirAfiliado(id);
+      if (!r.ok) { alert(r.erro || 'Não foi possível excluir.'); return; }
+      setAfiliados((as) => as.filter((x) => x.id !== id));
+      toast('Supervisor excluído.');
+    } catch { toast('Erro ao excluir supervisor.'); }
+  }
   function novoAfiliado() { setNovoAf({ open: true, nome: '', com: '0' }); }
   async function salvarNovoAfiliado() { if (!novoAf.nome.trim()) { alert('Informe o nome.'); return; } try { const a = await criarAfiliado(novoAf.nome, Number(novoAf.com) || 0); setAfiliados((as) => [...as, a].sort((x, y) => x.nome.localeCompare(y.nome))); setNovoAf((s) => ({ ...s, open: false })); toast('Afiliado criado!'); } catch { toast('Erro ao criar afiliado.'); } }
   // fechamento
@@ -622,7 +632,12 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                   <td className="px-2 py-1.5 text-slate-500">{a.id}</td>
                   <td className="px-2 py-1.5"><input className={`${cinp} w-full`} value={a.nome} onChange={(e) => updAf(a.id, { nome: e.target.value })} /></td>
                   <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-24`} value={a.com} onChange={(e) => updAf(a.id, { com: Number(e.target.value) })} /></td>
-                  <td className="px-2 py-1.5"><button onClick={() => saveAf(a.id)} className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700">Salvar</button></td>
+                  <td className="px-2 py-1.5">
+                    <div className="flex gap-1.5">
+                      <button onClick={() => saveAf(a.id)} className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700">Salvar</button>
+                      <button onClick={() => delAf(a.id)} title="Excluir supervisor (só sem clientes vinculados)" className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-50 dark:border-rose-500/30 dark:hover:bg-rose-500/10">Excluir</button>
+                    </div>
+                  </td>
                 </tr>
               ))}</tbody>
             </table>

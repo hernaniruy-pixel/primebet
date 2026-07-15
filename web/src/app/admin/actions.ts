@@ -448,6 +448,22 @@ export async function criarAfiliado(nome: string, com = 0): Promise<Afiliado> {
   return mapAfiliado(data as AfiliadoRow);
 }
 
+/**
+ * Exclui um afiliado/supervisor. TRAVA: se houver clientes vinculados a ele, recusa —
+ * apagar deixaria esses clientes órfãos e bagunçaria o fechamento de afiliado.
+ */
+export async function excluirAfiliado(id: number): Promise<{ ok: boolean; erro?: string }> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { count } = await db.from('clientes').select('id', { count: 'exact', head: true }).eq('afiliado_id', id);
+  if ((count ?? 0) > 0) {
+    return { ok: false, erro: `Este supervisor tem ${count} cliente(s) vinculado(s). Troque o supervisor desses clientes antes de excluir.` };
+  }
+  const { error } = await db.from('afiliados').delete().eq('id', id);
+  if (error) return { ok: false, erro: 'Não foi possível excluir o supervisor.' };
+  return { ok: true };
+}
+
 export async function atualizarAfiliado(id: number, patch: { nome?: string; com?: number }): Promise<Afiliado> {
   await exigirSessao();
   const db = createAdminClient();
