@@ -152,6 +152,11 @@ function iniciarWhatsApp() {
       args: [
         '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
         '--disable-gpu', '--disable-software-rasterizer', '--disable-extensions',
+        // TETO do cache em disco: sem isso o perfil do Chromium cresce sem limite
+        // dentro do volume da sessão (500 MB) até lotar e travar o boot do WhatsApp.
+        '--disk-cache-size=33554432',   // 32 MB
+        '--media-cache-size=33554432',  // 32 MB
+        '--aggressive-cache-discard',
       ],
     },
   });

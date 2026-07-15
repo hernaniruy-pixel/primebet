@@ -26,8 +26,39 @@ function limparLocksChromium(dir) {
   }
 }
 
-console.log('🤖 PrimeBet bot — iniciando... (build com /status + lock-fix)');
+/**
+ * Pastas de CACHE do Chromium: são descartáveis (o navegador recria) e crescem sem
+ * limite dentro do volume da sessão (500 MB). Quando o volume lota, o WhatsApp Web
+ * não termina de carregar -> o bot autentica mas nunca fica "pronto" -> o watchdog
+ * mata o processo -> loop de reinício. Limpamos no boot, com o Chromium fechado.
+ *
+ * NÃO inclui IndexedDB / Local Storage / Session Storage: é onde mora o login.
+ */
+const CACHE_DIRS = new Set([
+  'Cache', 'Code Cache', 'GPUCache', 'DawnCache', 'DawnGraphiteCache', 'DawnWebGPUCache',
+  'GrShaderCache', 'ShaderCache', 'GraphiteDawnCache', 'component_crx_cache',
+  'blob_storage', 'CacheStorage', 'ScriptCache', 'Crashpad',
+]);
+function limparCacheChromium(dir) {
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return 0; }
+  let n = 0;
+  for (const e of entries) {
+    if (!e.isDirectory()) continue;
+    const p = path.join(dir, e.name);
+    if (CACHE_DIRS.has(e.name)) {
+      try { fs.rmSync(p, { recursive: true, force: true }); n++; } catch {}
+    } else {
+      n += limparCacheChromium(p);
+    }
+  }
+  return n;
+}
+
+console.log('🤖 PrimeBet bot — iniciando... (build com /status + lock-fix + cache-fix)');
 limparLocksChromium(AUTH_PATH);  // limpa travas antes de abrir o Chromium
+const cachesLimpos = limparCacheChromium(AUTH_PATH);
+if (cachesLimpos) console.log(`🧹 ${cachesLimpos} pasta(s) de cache do Chromium removida(s) — libera espaço no volume.`);
 iniciarWebQR();                  // página web do QR (escanear no servidor)
 iniciarWhatsApp();
 
