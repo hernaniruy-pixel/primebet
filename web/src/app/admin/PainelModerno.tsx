@@ -99,7 +99,7 @@ const filtrosVazios = {
 };
 
 const inp = 'w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-sm text-slate-800 dark:text-slate-100 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20';
-const lbl = 'mb-1 block text-[11px] font-medium text-slate-400 dark:text-slate-500';
+const lbl = 'pb-lbl mb-1 block text-[11px] font-medium text-slate-400 dark:text-slate-500';
 const cinp = 'rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-amber-500';
 
 function Modal({ title, onClose, max = 'max-w-3xl', children }: { title: ReactNode; onClose: () => void; max?: string; children: ReactNode }) {
@@ -431,7 +431,38 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
 
   return (
     <div className={dark ? 'dark' : ''}>
-      <style>{`@keyframes pbAlertPulse{0%,100%{border-color:#ef4444}50%{border-color:#fecaca}} tr.pb-alert>td{border-width:2px;animation:pbAlertPulse 1.1s ease-in-out infinite} @keyframes pbFlash{0%{background-color:rgba(34,197,94,.45)}100%{background-color:transparent}} tr.pb-flash>td{animation:pbFlash 1.6s ease-out}`}</style>
+      <style>{`@keyframes pbAlertPulse{0%,100%{border-color:#ef4444}50%{border-color:#fecaca}} tr.pb-alert>td{border-width:2px;animation:pbAlertPulse 1.1s ease-in-out infinite} @keyframes pbFlash{0%{background-color:rgba(34,197,94,.45)}100%{background-color:transparent}} tr.pb-flash>td{animation:pbFlash 1.6s ease-out}
+
+/* ── Faixa cósmica do topo — MESMO vocabulário do login (galaxy + verde + dourado).
+   Cobre resumo + abas + filtros num bloco só: o erro da vez passada foi um cartão
+   escuro isolado no meio dos brancos. Aqui a área inteira tem a mesma tonalidade,
+   e a TABELA continua clara — quem confere bilhete o dia todo precisa disso. */
+.pb-cosmic{position:relative;overflow:hidden;border-radius:18px;background:#08120a;border:1px solid rgba(120,160,50,.34);box-shadow:0 20px 60px rgba(0,0,0,.35),0 0 45px rgba(90,140,40,.14)}
+.pb-cosmic::before{content:'';position:absolute;inset:0;z-index:0;background:#08120a url('/galaxy.jpg') center/cover no-repeat;filter:brightness(.42) saturate(.55) hue-rotate(65deg)}
+.pb-cosmic::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(60% 60% at 50% 0%,rgba(84,168,84,.22),transparent 62%),radial-gradient(48% 60% at 88% 10%,rgba(218,165,32,.12),transparent 62%),linear-gradient(rgba(6,14,8,.62),rgba(5,11,6,.9))}
+.pb-cosmic>*{position:relative;z-index:2}
+
+/* Vidro esverdeado dos cartões/caixas dentro da faixa (igual à caixa do login). */
+.pb-cosmic .pb-glass{background:linear-gradient(180deg,rgba(26,40,15,.84),rgba(13,21,8,.72))!important;border-color:rgba(120,160,50,.34)!important;backdrop-filter:blur(12px)}
+/* O contorno dourado do logo, aplicado ao cartão que decide (Resumo total). */
+.pb-cosmic .pb-gold{border-color:#DAA520!important;box-shadow:0 0 22px rgba(226,179,46,.30),0 0 9px rgba(242,208,100,.22)}
+
+/* Campos: fundo escuro + foco dourado, como no login. color-scheme mantém o
+   ícone do calendário e a setinha do select visíveis no escuro. */
+.pb-cosmic{color-scheme:dark}
+.pb-cosmic input,.pb-cosmic select{background:rgba(9,16,6,.6)!important;border-color:rgba(120,160,50,.28)!important;color:#eaf0dc!important}
+.pb-cosmic input::placeholder{color:#7d8a63!important}
+/* Label no verde-claro do login: o slate-500 do tema escuro dava contraste 3.4:1
+   sobre o fundo cósmico (ilegível para texto de 11px). Este dá 7:1. */
+.pb-cosmic .pb-lbl{color:#a9bd82!important}
+.pb-cosmic input:focus,.pb-cosmic select:focus{border-color:#DAA520!important;box-shadow:0 0 0 3px rgba(218,165,32,.16)}
+.pb-cosmic option{background:#0d1508;color:#eaf0dc}
+
+/* Botões da faixa: dourado para a ação principal, vidro para as secundárias. */
+.pb-btn-gold{background:linear-gradient(135deg,#B8860B,#DAA520);color:#1a1a00;border:1px solid rgba(242,208,100,.5);box-shadow:0 8px 22px rgba(184,134,11,.35);transition:.15s}
+.pb-btn-gold:hover{filter:brightness(1.08)}
+.pb-btn-ghost{background:rgba(9,16,6,.55);border:1px solid rgba(120,160,50,.34);color:#cfe0ac;transition:.15s}
+.pb-btn-ghost:hover{border-color:#DAA520;background:rgba(9,16,6,.8);color:#f0e6c8}`}</style>
       <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {/* TOPBAR */}
         {/* min-w-0 + nav rolável: no celular os 9 itens não cabem numa linha. Sem isto
@@ -473,6 +504,11 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
 
         <main className="w-full px-4 py-5 sm:px-6">
 
+          {/* CABEÇA DO PAINEL (resumo + abas + filtros) na identidade da PrimeBet.
+              `dark` no wrapper: os números já têm cores próprias para fundo escuro
+              (dark:), então reaproveitamos a regra em vez de inventar outra. */}
+          <div className="dark pb-cosmic mb-4 p-4">
+
           {/* RESUMO DO PERÍODO — o lucro é o número que importa, então ele manda na tela.
               O resto é o caminho até ele: o que entrou, o que a banca ganhou, o que saiu. */}
           {(() => {
@@ -511,7 +547,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
           })()}
 
           {/* ABAS: fila pendente x histórico completo */}
-          <div className="mb-3 flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900 w-fit">
+          <div className="pb-glass mb-3 flex w-fit items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
             {([['pend', 'Pendentes'], ['todas', 'Todas']] as const).map(([k, label]) => (
               <button
                 key={k}
@@ -536,7 +572,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
           </div>
 
           {/* FILTROS */}
-          <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="pb-glass rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <div><span className={lbl}>Cliente</span>
                 <select className={inp} value={filtros.nome} onChange={(e) => setF('nome', e.target.value)}>
@@ -574,10 +610,12 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               <div><span className={lbl}>Irregular</span><select className={inp} value={filtros.irr} onChange={(e) => setF('irr', e.target.value)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
             </div>
             <div className="mt-3 flex flex-wrap justify-end gap-2">
-              <button onClick={limpar} title="Limpar todos os filtros" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">🗑️ Limpar</button>
-              <button onClick={() => { reload(); toast('Lista atualizada.'); }} title="Recarregar a lista (descarta rascunhos não salvos)" className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition hover:border-amber-400 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20">🔄 Atualizar</button>
+              <button onClick={limpar} title="Limpar todos os filtros" className="pb-btn-ghost inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium">🗑️ Limpar</button>
+              <button onClick={() => { reload(); toast('Lista atualizada.'); }} title="Recarregar a lista (descarta rascunhos não salvos)" className="pb-btn-gold inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold">🔄 Atualizar</button>
             </div>
           </div>
+
+          </div>{/* fim da faixa cósmica */}
 
           <div className="mb-2 text-xs text-slate-400">{total} aposta(s) · página {pageSafe}/{totalPages} · exibindo {total ? start + 1 : 0}–{start + regs.length}</div>
 
@@ -943,9 +981,10 @@ function Kpi({ icone, cor, titulo, valor, valorCls, sub, dica, href }: {
   valor: string; valorCls: string; sub: string; dica?: string; href?: string;
 }) {
   const destaque = cor === 'destaque';
-  const cls = `group relative overflow-hidden rounded-xl border bg-white p-3 transition dark:bg-slate-900 ${
+  // pb-glass/pb-gold só valem dentro da faixa cósmica; fora dela o cartão segue branco.
+  const cls = `group pb-glass relative overflow-hidden rounded-xl border bg-white p-3 transition dark:bg-slate-900 ${
     destaque
-      ? 'border-amber-400 ring-1 ring-amber-400/30 dark:border-amber-500/50'
+      ? 'pb-gold border-amber-400 ring-1 ring-amber-400/30 dark:border-amber-500/50'
       : 'border-slate-200 hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:hover:border-slate-700'}`;
   const conteudo = (
     <>
