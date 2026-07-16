@@ -24,7 +24,7 @@ const { parseValor, parseValorMensagem } = require('./valor');
 const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId, gruposDeClientes } = require('./ingest');
 const {
   registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido,
-  baixarThumbBase64, thumbPathPorMsg, legendaPorMsg, anexarTextoAUltimaImagem,
+  baixarThumbBase64, thumbPathPorMsg, legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg,
 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto, setTeste } = require('./webqr');
@@ -152,6 +152,34 @@ async function baixarBase64(sock, m) {
   return Buffer.isBuffer(buf) ? buf.toString('base64') : null;
 }
 
+/**
+ * Obtém a imagem em ALTA para transcrever, na melhor fonte disponível:
+ *   1) memória do processo (rápido);
+ *   2) mensagem guardada no banco -> rebaixa a ORIGINAL do WhatsApp (sobrevive a restart);
+ *   3) miniatura da Conferência (720px) — ÚLTIMO recurso.
+ *
+ * A ordem importa e é o motivo desta função existir: com o bot reiniciando, o passo 3
+ * virava o caminho normal e a IA lia numeros errados no bilhete borrado (odd 120,
+ * valor 18,5). A miniatura serve para CONFERIR com o olho, não para a IA transcrever.
+ */
+async function imagemParaTranscrever(sock, jid, msgId) {
+  const orig = acharImagem(jid, msgId);
+  if (orig) {
+    const base64 = await baixarBase64(sock, orig).catch((e) => { console.log('   (falha ao baixar da memória:', e.message, ')'); return null; });
+    if (base64) return { base64, mime: (orig.message.imageMessage && orig.message.imageMessage.mimetype) || 'image/jpeg', fonte: 'original (memória)', orig };
+  }
+
+  const salva = await msgJsonPorMsg(msgId);
+  if (salva) {
+    const base64 = await baixarBase64(sock, salva).catch((e) => { console.log('   (falha ao rebaixar a original:', e.message, ')'); return null; });
+    if (base64) return { base64, mime: (salva.message && salva.message.imageMessage && salva.message.imageMessage.mimetype) || 'image/jpeg', fonte: 'original (rebaixada do WhatsApp)', orig: salva };
+  }
+
+  const base64 = await baixarThumbBase64(await thumbPathPorMsg(msgId));
+  if (base64) return { base64, mime: 'image/jpeg', fonte: '⚠️ MINIATURA (baixa qualidade — valores podem sair errados)', orig: null };
+  return { base64: null, mime: 'image/jpeg', fonte: 'nenhuma', orig: null };
+}
+
 // ─────────── /status ───────────
 const ehComandoStatus = (body) => (body || '').trim().toLowerCase() === '/status';
 
@@ -242,6 +270,9 @@ async function registrarImagemDeMsg(sock, m, jid, nomeGrupo) {
     enviadoEm: tsIso(m),
     base64,
     legenda,
+    // Guarda a mensagem: sem isto, um restart obriga a reação a usar a miniatura,
+    // e a IA lê valor errado no bilhete borrado.
+    msgJson: JSON.parse(JSON.stringify(m)),
   });
   console.log(`🗂  imagem registrada p/ conferência | grupo "${nomeGrupo}"${cli ? '' : ' (⚠️ SEM cliente)'}`);
   if (veioDeAntes) console.log(`   🔗 valor "${legenda}" (escrito antes do print) aplicado a esta imagem`);
@@ -421,18 +452,9 @@ async function iniciarWhatsApp() {
           continue;
         }
 
-        // 1) imagem original (memória). 2) fallback: miniatura do Storage.
-        const orig = acharImagem(jid, msgId);
-        let base64 = null, mime = 'image/jpeg';
-        if (orig) {
-          base64 = await baixarBase64(sock, orig);
-          mime = (orig.message.imageMessage && orig.message.imageMessage.mimetype) || 'image/jpeg';
-        }
-        if (!base64) {
-          console.log('   (imagem não está na memória — usando a miniatura da conferência)');
-          base64 = await baixarThumbBase64(await thumbPathPorMsg(msgId));
-        }
+        const { base64, mime, fonte, orig } = await imagemParaTranscrever(sock, jid, msgId);
         if (!base64) { console.log('ℹ️  Sem imagem para transcrever. Ignorado.'); continue; }
+        console.log('   imagem:', fonte);
 
         // Legenda: vem do banco — lá está OU a legenda colada na imagem, OU o valor que o
         // cliente escreveu na mensagem debaixo do print. Cai na memória se a linha sumiu.
@@ -484,19 +506,12 @@ function iniciarPollerPedidos(sock) {
 async function processarPedido(sock, p) {
   try {
     if (!p.cliente_id) { await marcarPedido(p.id, 'erro', 'Grupo sem cliente cadastrado.'); return; }
-    // 1) imagem original (memória) 2) fallback: miniatura do Storage
-    let base64 = null, mime = 'image/jpeg', keyRef = null;
-    const orig = acharImagem(p.grupo_id, p.msg_id);
-    if (orig) {
-      base64 = await baixarBase64(sock, orig).catch(() => null);
-      mime = (orig.message.imageMessage && orig.message.imageMessage.mimetype) || 'image/jpeg';
-      keyRef = orig.key;
-    }
-    if (!base64) base64 = await baixarThumbBase64(p.thumb_path);
+    const { base64, mime, fonte, orig } = await imagemParaTranscrever(sock, p.grupo_id, p.msg_id);
     if (!base64) { await marcarPedido(p.id, 'erro', 'Imagem indisponível para transcrever.'); return; }
+    const keyRef = orig && orig.key ? orig.key : null;
 
     const emoji = p.pedido_emoji || '⚪';
-    console.log(`\n🖱  lançar do dashboard | grupo "${p.grupo_nome}" | ${emoji}`);
+    console.log(`\n🖱  lançar do dashboard | grupo "${p.grupo_nome}" | ${emoji} | imagem: ${fonte}`);
     const { aposta } = await lancarAposta({
       sock, base64, mime, emoji, legenda: p.legenda || '',
       oddManual: p.pedido_odd, valorManual: p.pedido_valor,

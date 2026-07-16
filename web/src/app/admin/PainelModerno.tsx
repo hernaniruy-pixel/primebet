@@ -406,7 +406,11 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               return <a href="https://primebet-production.up.railway.app/?t=primebet2026" target="_blank" rel="noopener noreferrer" title={tip} className={`animate-pulse rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${cls}`}>{label} — reconectar →</a>;
             })()}
           </div>
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* SEM justify-end e SEM flex-1: com eles, o que transborda vai para a ESQUERDA
+              e o navegador nem trata como rolável (scrollWidth = clientWidth) — a barra
+              trava e os botões do começo somem. O justify-between do header já joga este
+              bloco para a direita. */}
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button onClick={() => setModal('cli')} className={navBtn}>👤 Clientes</button>
             <button onClick={() => setModal('af')} className={navBtn}>🤝 Afiliados</button>
             <button onClick={() => setModal('fech')} className={navBtn}>📊 Fechamento</button>

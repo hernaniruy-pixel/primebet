@@ -4,10 +4,15 @@ const { sb, bancaPadrao } = require('./ingest');
 const BUCKET = 'conferencia';
 const safe = (s) => String(s || '').replace(/[^\w.-]/g, '_');
 
-/** Gera uma miniatura JPEG (~720px, qualidade 72) — leve, mas legível (dá pra ler odds/valores). */
+/**
+ * Miniatura JPEG para a tela de Conferência e para o último recurso da transcrição.
+ * Era 720px/q72: bom para o olho humano, RUIM para a IA — em 15/07/2026 ela leu
+ * "odd 120 / valor 1" e "valor 18,5" de bilhetes borrados. 1100px/q85 mantém a letra
+ * miúda (odd, valor) legível, e ainda é uma fração do peso do print original.
+ */
 async function fazerThumb(base64) {
   const img = await Jimp.read(Buffer.from(base64, 'base64'));
-  img.scaleToFit(720, 720).quality(72);
+  img.scaleToFit(1100, 1100).quality(85);
   return img.getBufferAsync(Jimp.MIME_JPEG);
 }
 
@@ -15,13 +20,14 @@ async function fazerThumb(base64) {
  * Registra TODA imagem recebida num grupo (para a tela de Conferência).
  * Faz upload da miniatura no Storage e insere a linha (ignora duplicado por msg_id).
  */
-async function registrarImagemRecebida({ grupoId, grupoNome, clienteId, msgId, remetente, enviadoEm, base64, legenda = '' }) {
+async function registrarImagemRecebida({ grupoId, grupoNome, clienteId, msgId, remetente, enviadoEm, base64, legenda = '', msgJson = null }) {
   // 1) grava a linha JÁ (rápido) — não bloqueia o processamento de eventos do WhatsApp.
   const { error } = await sb.from('imagens_recebidas').upsert({
     banca_id: await bancaPadrao(),
     grupo_id: grupoId, grupo_nome: grupoNome, cliente_id: clienteId ?? null,
     msg_id: msgId, remetente: remetente || '', enviado_em: enviadoEm, thumb_path: null,
     legenda: legenda || null,
+    msg_json: msgJson, // permite rebaixar a imagem ORIGINAL depois de um restart
   }, { onConflict: 'msg_id', ignoreDuplicates: true });
   if (error) { console.error('   conferencia insert:', error.message); return; }
 
@@ -56,7 +62,7 @@ async function marcarReagida(msgId, { apostaId = null, emoji = '', grupoId, grup
 /** Pedidos de "lançar do dashboard" ainda pendentes (o operador clicou Lançar no painel). */
 async function listarPedidosPendentes(limite = 5) {
   const { data, error } = await sb.from('imagens_recebidas')
-    .select('id,msg_id,grupo_id,grupo_nome,cliente_id,pedido_emoji,pedido_odd,pedido_valor,thumb_path,legenda')
+    .select('id,msg_id,grupo_id,grupo_nome,cliente_id,pedido_emoji,pedido_odd,pedido_valor,thumb_path,legenda,msg_json')
     .eq('pedido_status', 'pendente').limit(limite);
   if (error) { console.error('   pedidos:', error.message); return []; }
   return data || [];
@@ -64,6 +70,16 @@ async function listarPedidosPendentes(limite = 5) {
 
 async function marcarPedido(id, status, erro = null) {
   await sb.from('imagens_recebidas').update({ pedido_status: status, pedido_erro: erro }).eq('id', id);
+}
+
+/**
+ * Mensagem original da Baileys guardada no banco. É o que permite rebaixar a imagem
+ * em ALTA depois de um restart, em vez de cair na miniatura (que a IA lê errado).
+ */
+async function msgJsonPorMsg(msgId) {
+  if (!msgId) return null;
+  const { data } = await sb.from('imagens_recebidas').select('msg_json').eq('msg_id', msgId).maybeSingle();
+  return (data && data.msg_json) || null;
 }
 
 /** Legenda guardada para uma imagem (usada quando a reação chega depois de um restart). */
@@ -157,6 +173,6 @@ async function limparImagensAntigas() {
 module.exports = {
   registrarImagemRecebida, marcarReagida,
   listarPedidosPendentes, marcarPedido, baixarThumbBase64, thumbPathPorMsg,
-  legendaPorMsg, anexarTextoAUltimaImagem,
+  legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg,
   limparImagensAntigas, imagemJaRegistrada,
 };
