@@ -489,60 +489,23 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             const rotuloLucro = cliFiltrado ? `lucro gerado por ${cliFiltrado.nome}`
               : recorte ? 'lucro do filtro (sem despesas)'
                 : 'lucro do período';
-            // Todos os cartões iguais: mesma caixa, mesma borda, mesmo fundo. O "Resumo
-            // total" se destaca só pelo que importa — borda âmbar e número maior —, sem
-            // virar um bloco de outra cor no meio da tela.
-            const cell = 'rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900';
-            const lbl2 = 'text-[10px] font-medium uppercase tracking-wide text-slate-400';
-            const sub = 'mt-0.5 text-[11px] text-slate-400';
-            const num = 'mt-1 text-lg font-semibold tabular-nums';
             return (
               <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                <div className={cell}>
-                  <div className={lbl2}>Entrada</div>
-                  <div className={`${num} ${posCls(totals.entradas)}`}>{tot(totals.entradas)}</div>
-                  <div className={sub}>{total} linhas</div>
-                </div>
-                <div className={cell}>
-                  <div className={lbl2}>Em aberto</div>
-                  <div className={`${num} ${entCls(totals.em_aberto_total)}`}>{tot(totals.em_aberto_total)}</div>
-                  <div className={sub}>{totals.em_aberto_qtd} linhas</div>
-                </div>
-                <div className={cell}>
-                  <div className={lbl2}>Saldo bruto</div>
-                  <div className={`${num} ${clrCls(totals.saldo_bruto)}`}>{tot(totals.saldo_bruto)}</div>
-                  <div className={sub}>ganho/perda dos bilhetes</div>
-                </div>
-                <div className={cell} title="Quanto os clientes ficaram no período, depois da comissão. Positivo = os clientes ganharam. É o dinheiro deles, não o lucro da banca.">
-                  <div className={lbl2}>Saldo líquido</div>
-                  <div className={`${num} ${clrCls(totals.saldo_liquido)}`}>{tot(totals.saldo_liquido)}</div>
-                  <div className={sub}>resultado dos clientes</div>
-                </div>
-                <div className={cell}>
-                  <div className={lbl2}>Comissão</div>
-                  <div className={`${num} ${comCls(totals.comissao)}`}>{tot(totals.comissao)}</div>
-                  <div className={sub}>receita da banca</div>
-                </div>
-                <div className={cell}>
-                  <div className={lbl2}>Com. afiliados</div>
-                  <div className={`${num} ${comCls(totals.comissao_afiliado)}`}>{tot(totals.comissao_afiliado)}</div>
-                  <div className={sub}>custo da banca</div>
-                </div>
-                <a href="/admin/despesas" className={`${cell} block transition hover:border-amber-400`} title={recorte ? 'As despesas são da banca inteira — não pertencem a um cliente nem a um filtro de apostas. Limpe os filtros e use a aba "Todas" para ver o lucro do período.' : 'Despesas do período (vêm do grupo de despesa no WhatsApp). Clique para ver a lista.'}>
-                  <div className={lbl2}>Despesas</div>
-                  {recorte
-                    ? <div className={`${num} text-slate-300 dark:text-slate-600`}>—</div>
-                    : <div className={`${num} ${comCls(despPeriodo)}`}>{tot(despPeriodo)}</div>}
-                  <div className={sub}>{recorte ? 'não se aplica ao filtro 🔗' : 'do período 🔗'}</div>
-                </a>
-                <div className={`${cell.replace('border-slate-200', 'border-amber-400').replace('dark:border-slate-800', 'dark:border-amber-500/50')} ring-1 ring-amber-400/30`}
-                     title={recorte
+                <Kpi icone="⇄" cor="blue" titulo="Entrada" valor={tot(totals.entradas)} valorCls={posCls(totals.entradas)} sub={`${total} linhas`} />
+                <Kpi icone="🕐" cor="amber" titulo="Em aberto" valor={tot(totals.em_aberto_total)} valorCls={entCls(totals.em_aberto_total)} sub={`${totals.em_aberto_qtd} linhas`} />
+                <Kpi icone="📈" cor="violet" titulo="Saldo bruto" valor={tot(totals.saldo_bruto)} valorCls={clrCls(totals.saldo_bruto)} sub="ganho/perda dos bilhetes" />
+                <Kpi icone="✓" cor="emerald" titulo="Saldo líquido" valor={tot(totals.saldo_liquido)} valorCls={clrCls(totals.saldo_liquido)} sub="resultado dos clientes"
+                     dica="Quanto os clientes ficaram no período, depois da comissão. Positivo = os clientes ganharam. É o dinheiro deles, não o lucro da banca." />
+                <Kpi icone="%" cor="rose" titulo="Comissão" valor={tot(totals.comissao)} valorCls={comCls(totals.comissao)} sub="receita da banca" />
+                <Kpi icone="🤝" cor="teal" titulo="Com. afiliados" valor={tot(totals.comissao_afiliado)} valorCls={comCls(totals.comissao_afiliado)} sub="custo da banca" />
+                <Kpi icone="💸" cor="slate" titulo="Despesas" href="/admin/despesas"
+                     valor={recorte ? '—' : tot(despPeriodo)} valorCls={recorte ? 'text-slate-300 dark:text-slate-600' : comCls(despPeriodo)}
+                     sub={recorte ? 'não se aplica ao filtro 🔗' : 'do período 🔗'}
+                     dica={recorte ? 'As despesas são da banca inteira — não pertencem a um cliente nem a um filtro de apostas. Limpe os filtros e use a aba "Todas" para ver o lucro do período.' : 'Despesas do período (vêm do grupo de despesa no WhatsApp). Clique para ver a lista.'} />
+                <Kpi icone="★" cor="destaque" titulo="Resumo total" valor={tot(lucro)} valorCls={clrCls(lucro)} sub={rotuloLucro}
+                     dica={recorte
                        ? 'Comissão ganha − Comissão dos afiliados, apenas do que está filtrado. As despesas são da banca inteira e por isso ficam de fora aqui.'
-                       : 'Lucro = Comissão ganha − Comissão dos afiliados − Despesas do período. A banca só ganha comissão em bilhete GREEN.'}>
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">Resumo total</div>
-                  <div className={`mt-1 text-xl font-bold tabular-nums ${clrCls(lucro)}`}>{tot(lucro)}</div>
-                  <div className={sub}>{rotuloLucro}</div>
-                </div>
+                       : 'Lucro = Comissão ganha − Comissão dos afiliados − Despesas do período. A banca só ganha comissão em bilhete GREEN.'} />
               </div>
             );
           })()}
@@ -611,8 +574,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               <div><span className={lbl}>Irregular</span><select className={inp} value={filtros.irr} onChange={(e) => setF('irr', e.target.value)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
             </div>
             <div className="mt-3 flex flex-wrap justify-end gap-2">
-              <button onClick={limpar} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">Limpar</button>
-              <button onClick={() => { reload(); toast('Lista atualizada.'); }} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20">🔄 Atualizar</button>
+              <button onClick={limpar} title="Limpar todos os filtros" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">🗑️ Limpar</button>
+              <button onClick={() => { reload(); toast('Lista atualizada.'); }} title="Recarregar a lista (descarta rascunhos não salvos)" className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition hover:border-amber-400 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20">🔄 Atualizar</button>
             </div>
           </div>
 
@@ -957,6 +920,47 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
 }
 
 function tot(n: number) { return `R$ ${fmt(n)}`; }
+
+// Selo de ícone de cada cartão. A cor é só do selo — o número segue a regra de cor
+// do painel (verde/vermelho/preto), senão a moldura brigaria com o dado.
+const KPI_COR: Record<string, string> = {
+  blue: 'bg-blue-50 text-blue-500 dark:bg-blue-500/10 dark:text-blue-300',
+  amber: 'bg-amber-50 text-amber-500 dark:bg-amber-500/10 dark:text-amber-300',
+  violet: 'bg-violet-50 text-violet-500 dark:bg-violet-500/10 dark:text-violet-300',
+  emerald: 'bg-emerald-50 text-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-300',
+  rose: 'bg-rose-50 text-rose-500 dark:bg-rose-500/10 dark:text-rose-300',
+  teal: 'bg-teal-50 text-teal-500 dark:bg-teal-500/10 dark:text-teal-300',
+  slate: 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300',
+  destaque: 'bg-amber-400/20 text-amber-600 dark:bg-amber-400/15 dark:text-amber-300',
+};
+
+/**
+ * Cartão do resumo. Todos com a mesma caixa e o mesmo peso; o "Resumo total"
+ * (cor="destaque") ganha borda âmbar e número maior por ser o dado que decide.
+ */
+function Kpi({ icone, cor, titulo, valor, valorCls, sub, dica, href }: {
+  icone: string; cor: keyof typeof KPI_COR | string; titulo: string;
+  valor: string; valorCls: string; sub: string; dica?: string; href?: string;
+}) {
+  const destaque = cor === 'destaque';
+  const cls = `group relative overflow-hidden rounded-xl border bg-white p-3 transition dark:bg-slate-900 ${
+    destaque
+      ? 'border-amber-400 ring-1 ring-amber-400/30 dark:border-amber-500/50'
+      : 'border-slate-200 hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:hover:border-slate-700'}`;
+  const conteudo = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <div className={`text-[10px] font-medium uppercase tracking-wide ${destaque ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>{titulo}</div>
+        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[11px] ${KPI_COR[cor] ?? KPI_COR.slate}`}>{icone}</span>
+      </div>
+      <div className={`mt-1 tabular-nums ${destaque ? 'text-xl font-bold' : 'text-lg font-semibold'} ${valorCls}`}>{valor}</div>
+      <div className="mt-0.5 text-[11px] text-slate-400">{sub}</div>
+    </>
+  );
+  return href
+    ? <a href={href} title={dica} className={`${cls} block hover:border-amber-400`}>{conteudo}</a>
+    : <div title={dica} className={cls}>{conteudo}</div>;
+}
 
 /**
  * Diz, sem rodeio, se o bot está lendo o grupo deste cliente.
