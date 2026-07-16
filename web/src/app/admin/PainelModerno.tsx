@@ -465,13 +465,13 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             <a href="/admin/conferencia" className={navBtn} title="Conferência de grupos (imagens recebidas × transcritas)">🗂 Conferência</a>
             <a href="/admin/despesas" className={navBtn} title="Despesas (lançadas pelo grupo despesa)">💸 Despesas</a>
             <button onClick={toggleTheme} title="Tema" className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
-            <button onClick={sair} className="shrink-0 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
+            {/* O e-mail saiu do corpo da tela (ocupava espaço e o topo já diz onde você
+                está). Fica aqui no título: passe o mouse para ver a conta logada. */}
+            <button onClick={sair} title={`Sair — logado como ${email}`} className="shrink-0 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
           </div>
         </header>
 
         <main className="w-full px-4 py-5 sm:px-6">
-          <div className="mb-1 text-lg font-medium">Primebet — Controle</div>
-          <div className="mb-4 text-xs text-slate-400">Registros — {email}</div>
 
           {/* RESUMO DO PERÍODO — o lucro é o número que importa, então ele manda na tela.
               O resto é o caminho até ele: o que entrou, o que a banca ganhou, o que saiu. */}
