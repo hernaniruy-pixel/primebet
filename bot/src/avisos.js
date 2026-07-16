@@ -52,16 +52,26 @@ async function avisar(client, texto) {
   }
 }
 
-// O grupo só recebe aviso quando algo acontece de fato: o bot CAIU ou VOLTOU
-// de uma queda real. Reinício/redeploy/reconexão normal NÃO gera mensagem.
-let caiu = false; // houve uma desconexão desde a última conexão?
+// ─────────── quando avisar (e quando ficar calado) ───────────
+// A conexão da Baileys cai e volta sozinha o tempo todo — medido em 16/07/2026:
+// 7 "quedas" em 14h, TODAS de 0 a 4 segundos, sem o bot parar um instante. Avisar
+// cada uma enche o grupo de "RECUPERADA" e ensina todo mundo a ignorar o alerta —
+// aí, no dia da queda real, ninguém olha. Só falamos de queda SUSTENTADA.
+const QUEDA_MIN_MS = 3 * 60 * 1000; // 3 min desconectado = queda de verdade
+let timerQueda = null;   // aguardando confirmar que a queda é real
+let avisouQueda = false; // já mandamos o "CAIU"? só então faz sentido dizer "RECUPERADA"
+let anunciouBoot = false; // "ONLINE" sai uma vez por processo, não a cada reconexão
 
 /**
- * Chamado no 'ready'. Aquece o cache do grupo AVISOS/ALERTA em silêncio
- * (logo após o ready o getChats vem vazio, por isso tentamos por ~3 min) e
- * só anuncia se estivermos nos RECUPERANDO de uma queda — nunca no boot.
+ * Chamado quando conecta. Aquece o cache do grupo AVISOS/ALERTA e decide se fala:
+ *   • voltou de uma queda que ANUNCIAMOS  -> "RECUPERADA";
+ *   • primeira conexão do processo        -> "ONLINE" (confirma que o deploy subiu);
+ *   • reconexão de rotina (o caso comum)  -> silêncio.
  */
 async function aoConectar(client, avisosLink) {
+  // Reconectou: a queda não era real. Cancela o aviso que estava por sair.
+  if (timerQueda) { clearTimeout(timerQueda); timerQueda = null; }
+
   // 1) define o grupo de alertas pelo link (entra nele) — método assertivo.
   if (avisosLink) await resolverAvisosPorLink(client, avisosLink);
   // 2) fallback: acha por nome (avisos/alerta) se o link não veio/resolveu.
@@ -69,18 +79,33 @@ async function aoConectar(client, avisosLink) {
     if (await acharGrupo(client)) break;
     await new Promise((r) => setTimeout(r, 10000));
   }
-  // 3) avisa SEMPRE que conecta (online) — e sinaliza se foi recuperação de queda.
-  const msg = caiu
-    ? `✅ *PrimeBet — integração RECUPERADA*\nO bot voltou ONLINE após uma queda.\n🕒 ${horaBR()}`
-    : `✅ *PrimeBet — integração ONLINE*\nBot conectado, ouvindo os grupos (reações + despesas).\n🕒 ${horaBR()}`;
-  caiu = false;
-  await avisar(client, msg);
+
+  if (avisouQueda) {
+    avisouQueda = false;
+    anunciouBoot = true;
+    await avisar(client, `✅ *PrimeBet — integração RECUPERADA*\nO bot voltou ONLINE após uma queda.\n🕒 ${horaBR()}`);
+    return;
+  }
+  if (!anunciouBoot) {
+    anunciouBoot = true;
+    await avisar(client, `✅ *PrimeBet — integração ONLINE*\nBot conectado, ouvindo os grupos (reações + despesas).\n🕒 ${horaBR()}`);
+    return;
+  }
+  console.log('   (reconexão de rotina — sem aviso no grupo)');
 }
 
-/** Chamado no 'disconnected'. Marca a queda e alerta o grupo (melhor esforço). */
+/**
+ * Chamado quando a conexão cai. NÃO avisa na hora: espera QUEDA_MIN_MS para ver se
+ * volta sozinha (quase sempre volta, em segundos). Só avisa se continuar fora.
+ */
 async function aoDesconectar(client, motivo) {
-  caiu = true;
-  await avisar(client, `⚠️ *PrimeBet — integração CAIU*\nMotivo: ${motivo}\nPode ser necessário reescanear o QR. Verifiquem.\n🕒 ${horaBR()}`);
+  if (timerQueda || avisouQueda) return; // já tem aviso pendente/enviado p/ esta queda
+  timerQueda = setTimeout(async () => {
+    timerQueda = null;
+    avisouQueda = true;
+    await avisar(client, `⚠️ *PrimeBet — integração CAIU*\nMotivo: ${motivo}\nFora do ar há mais de ${QUEDA_MIN_MS / 60000} min. Pode ser necessário reescanear o QR.\n🕒 ${horaBR()}`);
+  }, QUEDA_MIN_MS);
+  console.log(`   (desconectou: ${motivo} — aguardando ${QUEDA_MIN_MS / 60000}min antes de avisar; reconexão rápida não gera alerta)`);
 }
 
 /** Alerta de autenticação (útil pra saber que está subindo). */
