@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { listarContas, criarConta, atualizarConta, excluirConta } from '../actions';
-import type { Conta } from './types';
+import { listarContas, criarConta, atualizarConta, excluirConta, listarMovimentosConta } from '../actions';
+import type { Conta, MovimentoConta } from './types';
+import { MOV_LABEL } from './types';
 
 const brl = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // parser simples e previsível: aceita "1234.56" ou "1234,56"
@@ -34,8 +35,17 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
   const [editIds, setEditIds] = useState<Set<number>>(new Set());
   const [novo, setNovo] = useState({ open: false, casa: 'BET365', novaCasa: false, login: '', nome: '', cpf: '', saldo: '', emAberto: '', deposito: '', retirada: '' });
   const [msg, setMsg] = useState('');
+  // Histórico da conta (modal). `movs === null` = ainda carregando.
+  const [hist, setHist] = useState<{ conta: Conta; movs: MovimentoConta[] | null } | null>(null);
 
   function toast(m: string) { setMsg(m); window.setTimeout(() => setMsg(''), 2500); }
+
+  function abrirHistorico(c: Conta) {
+    setHist({ conta: c, movs: null });
+    listarMovimentosConta(c.id)
+      .then((movs) => setHist((h) => (h && h.conta.id === c.id ? { ...h, movs } : h)))
+      .catch(() => { setHist(null); toast('Erro ao carregar o histórico.'); });
+  }
 
   const isEdit = (id: number) => editIds.has(id);
   function startEdit(id: number) { setEditIds((s) => new Set(s).add(id)); }
@@ -285,6 +295,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                           ) : (
                             <>
                               <button onClick={() => startEdit(c.id)} className="rounded-md bg-amber-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-600">Editar</button>
+                              <button onClick={() => abrirHistorico(c)} title="Todos os depósitos, retiradas e ajustes desta conta, com data e hora" className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50">📜 Histórico</button>
                               <button onClick={() => excluir(c)} className="rounded-md border border-rose-200 px-2 py-1 text-xs text-rose-500 hover:bg-rose-50">Excluir</button>
                             </>
                           )}
@@ -317,6 +328,72 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
           {busy ? 'carregando…' : 'Resumo (ganhou/perdeu) = saldo + em aberto + saques − depósitos. Verde = lucro, vermelho = prejuízo. A data/hora é atualizada a cada "Salvar".'}
         </p>
       </div>
+
+      {/* HISTÓRICO da conta: cada depósito/retirada/ajuste, com data e hora. */}
+      {hist && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setHist(null)}>
+          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between border-b border-slate-200 px-5 py-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-800">📜 Histórico — {hist.conta.login || hist.conta.nome || `#${hist.conta.id}`}</div>
+                <div className="text-[11px] text-slate-400">{hist.conta.casa} · todos os lançamentos desta conta</div>
+              </div>
+              <button onClick={() => setHist(null)} className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100">✕</button>
+            </div>
+
+            <div className="overflow-y-auto px-5 py-3">
+              {hist.movs === null ? (
+                <div className="py-10 text-center text-sm text-slate-400">carregando…</div>
+              ) : hist.movs.length === 0 ? (
+                <div className="py-10 text-center text-sm text-slate-400">
+                  Nenhum lançamento ainda.<br />
+                  <span className="text-[11px]">O histórico começa a partir de agora: cada &quot;Salvar&quot; que mudar depósito, retirada ou saldo vira uma linha aqui.</span>
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-[11px] uppercase tracking-wide text-slate-400">
+                      <th className="py-2 pr-2">Data / hora</th>
+                      <th className="py-2 pr-2">Lançamento</th>
+                      <th className="py-2 pr-2 text-right">Valor</th>
+                      <th className="py-2 text-right">Total depois</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hist.movs.map((m) => {
+                      // Depósito e retirada entram como valor positivo; negativo = correção
+                      // de um lançamento digitado errado (aparece marcado, não escondido).
+                      const correcao = m.valor < 0;
+                      return (
+                        <tr key={m.id} className="border-b border-slate-100">
+                          <td className="whitespace-nowrap py-2 pr-2 text-xs text-slate-500 tabular-nums">{m.criadoEm}</td>
+                          <td className="py-2 pr-2">
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                              m.tipo === 'deposito' ? 'bg-blue-100 text-blue-700'
+                                : m.tipo === 'retirada' ? 'bg-amber-100 text-amber-700'
+                                  : 'bg-slate-100 text-slate-600'}`}>{MOV_LABEL[m.tipo]}</span>
+                            {correcao && <span title="Valor menor que o anterior — correção de lançamento" className="ml-1 text-[10px] font-medium text-rose-500">correção</span>}
+                          </td>
+                          <td className={`py-2 pr-2 text-right font-semibold tabular-nums ${correcao ? 'text-rose-600' : 'text-slate-800'}`}>
+                            {correcao ? '' : '+'}R$ {brl(m.valor)}
+                          </td>
+                          <td className="py-2 text-right text-xs text-slate-500 tabular-nums">R$ {brl(m.para)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {hist.movs !== null && hist.movs.length > 0 && (
+              <div className="border-t border-slate-200 bg-slate-50 px-5 py-2.5 text-[11px] text-slate-500">
+                {hist.movs.length} lançamento(s) · o mais recente primeiro. &quot;Total depois&quot; é como o campo ficou após aquele lançamento.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {msg && <div className="fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm text-white shadow-lg">{msg}</div>}
     </main>

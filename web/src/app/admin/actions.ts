@@ -10,7 +10,7 @@ import {
 } from './types';
 import type { ConfGrupo, ConfImagensResp, ConfFiltro } from './conferencia/types';
 import type { DespesasResp, SemanaDespesas, Despesa } from './despesas/types';
-import type { Conta, NovaConta, PatchConta } from './contas/types';
+import type { Conta, NovaConta, PatchConta, MovimentoConta } from './contas/types';
 import { semanasBR, janelaSemana } from '@/lib/semana';
 
 // ═══════════════════ LISTAGEM / FECHAMENTO (paginação no servidor) ═══════════════════
@@ -198,6 +198,33 @@ export async function listarContas(): Promise<Conta[]> {
   return ((data ?? []) as ContaRow[]).map(mapConta);
 }
 
+/**
+ * Grava os movimentos da conta comparando os totais ANTES x DEPOIS.
+ * Ex.: total depositado foi de 1.000 para 3.000 -> depósito de 2.000, com data/hora.
+ * Falha aqui não derruba o salvamento da conta: o histórico é registro, não o dado.
+ */
+async function registrarMovimentos(
+  db: ReturnType<typeof createAdminClient>,
+  contaId: number,
+  antes: ContaRow,
+  depois: ContaRow,
+) {
+  const campos: [MovimentoConta['tipo'], keyof ContaRow][] = [
+    ['deposito', 'deposito'], ['retirada', 'retirada'], ['saldo', 'saldo'], ['em_aberto', 'em_aberto'],
+  ];
+  const linhas = campos.flatMap(([tipo, col]) => {
+    const de = Number(antes[col] ?? 0);
+    const para = Number(depois[col] ?? 0);
+    const valor = Number((para - de).toFixed(2));
+    return valor === 0 ? [] : [{ conta_id: contaId, tipo, valor, de, para }];
+  });
+  if (!linhas.length) return;
+  const { error } = await db.from('contas_movimentos').insert(linhas);
+  // O histórico é registro, não o dado: se a tabela ainda não existe (migração 018
+  // pendente) ou o insert falha, a conta JÁ foi salva e não pode ser perdida por isso.
+  if (error) console.error('histórico da conta:', error.message);
+}
+
 export async function criarConta(input: NovaConta): Promise<Conta> {
   await exigirSessao();
   const db = createAdminClient();
@@ -208,12 +235,19 @@ export async function criarConta(input: NovaConta): Promise<Conta> {
     atualizado_em: new Date().toISOString(),
   }).select('*').single();
   if (error) throw error;
-  return mapConta(data as ContaRow);
+  const row = data as ContaRow;
+  // Conta que já nasce com depósito/saldo: isso também é movimento e vai para o histórico.
+  const zerada = { deposito: 0, retirada: 0, saldo: 0, em_aberto: 0 } as unknown as ContaRow;
+  await registrarMovimentos(db, row.id, zerada, row);
+  return mapConta(row);
 }
 
 export async function atualizarConta(id: number, patch: PatchConta): Promise<Conta> {
   await exigirSessao();
   const db = createAdminClient();
+  // Estado atual, para saber o que mudou e registrar no histórico.
+  const { data: antes } = await db.from('contas').select('*').eq('id', id).maybeSingle();
+
   // Toda atualização carimba a data/hora (é o "atualizei o saldo hoje").
   const upd: Record<string, unknown> = { atualizado_em: new Date().toISOString() };
   if (patch.casa !== undefined) upd.casa = patch.casa;
@@ -226,7 +260,25 @@ export async function atualizarConta(id: number, patch: PatchConta): Promise<Con
   if (patch.retirada !== undefined) upd.retirada = patch.retirada;
   const { data, error } = await db.from('contas').update(upd).eq('id', id).select('*').single();
   if (error) throw error;
+  if (antes) await registrarMovimentos(db, id, antes as ContaRow, data as ContaRow);
   return mapConta(data as ContaRow);
+}
+
+/** Histórico de movimentação de uma conta (mais recente primeiro). */
+export async function listarMovimentosConta(contaId: number): Promise<MovimentoConta[]> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const { data, error } = await db.from('contas_movimentos')
+    .select('id,conta_id,tipo,valor,de,para,criado_em')
+    .eq('conta_id', contaId).order('criado_em', { ascending: false }).limit(500);
+  // Migração 018 pendente: mostra o histórico vazio em vez de estourar a tela.
+  if (error && /contas_movimentos/.test(error.message)) return [];
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id, contaId: r.conta_id, tipo: r.tipo as MovimentoConta['tipo'],
+    valor: Number(r.valor), de: Number(r.de ?? 0), para: Number(r.para ?? 0),
+    criadoEm: fmtTs(r.criado_em),
+  }));
 }
 
 export async function excluirConta(id: number): Promise<void> {

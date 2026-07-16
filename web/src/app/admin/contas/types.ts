@@ -16,6 +16,28 @@ export interface NovaConta {
   saldo: number; emAberto: number; deposito: number; retirada: number;
 }
 
+/**
+ * Um lançamento no histórico da conta. `valor` é o quanto MUDOU naquele momento
+ * (negativo = correção de um lançamento errado); `de`/`para` são os totais antes e
+ * depois, para a conta bater na hora de auditar.
+ */
+export interface MovimentoConta {
+  id: number;
+  contaId: number;
+  tipo: 'deposito' | 'retirada' | 'saldo' | 'em_aberto';
+  valor: number;
+  de: number;
+  para: number;
+  criadoEm: string; // 'HH:mm DD-MM-AAAA'
+}
+
+export const MOV_LABEL: Record<MovimentoConta['tipo'], string> = {
+  deposito: 'Depósito',
+  retirada: 'Retirada',
+  saldo: 'Ajuste de saldo',
+  em_aberto: 'Ajuste em aberto',
+};
+
 export interface PatchConta {
   casa?: string; login?: string; nome?: string; cpf?: string;
   saldo?: number; emAberto?: number; deposito?: number; retirada?: number;
