@@ -75,8 +75,8 @@ function renderJogo(jogo: string) {
       const teams = (om ? om[1] : body).trim();
       const rest = om ? om[2].trim() : '';
       return (
-        <div key={i} className="font-semibold text-blue-800 dark:text-blue-300">
-          <span className="text-slate-400">{pref}</span>{teams}{rest ? ` ${rest}` : ''}
+        <div key={i} className="font-bold text-green-800 dark:text-green-400">
+          <span className="font-normal text-slate-400">{pref}</span>{teams}{rest ? ` ${rest}` : ''}
         </div>
       );
     }
