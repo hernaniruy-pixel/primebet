@@ -611,10 +611,19 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                   <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">🟢 {lendo} sendo lidos</span>
                   {vinculando > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">⏳ {vinculando} vinculando</span>}
                   {fora > 0 && <span className="rounded-full bg-rose-100 px-2.5 py-1 font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">🔴 {fora} ativo(s) sem grupo — o bot não lê</span>}
-                  {inativos > 0 && <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">⚪ {inativos} inativo(s)</span>}
+                  {inativos > 0 && <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">⚠️ {inativos} inativo(s)</span>}
                 </div>
               );
             })()}
+
+            {/* Legenda: quem opera precisa saber o que cada sinal da coluna "#" significa. */}
+            <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+              <span className="font-semibold text-slate-600 dark:text-slate-300">Legenda:</span>
+              <span>🟢 <b className="text-slate-700 dark:text-slate-200">Lendo</b> — o bot está lendo o grupo deste cliente</span>
+              <span>⏳ <b className="text-slate-700 dark:text-slate-200">Vinculando</b> — link colado, aguarde ~1 min</span>
+              <span>🔴 <b className="text-slate-700 dark:text-slate-200">Sem grupo</b> — cliente ativo sem link: <b>o bot não lê nada dele</b></span>
+              <span>⚠️ <b className="text-slate-700 dark:text-slate-200">Inativo</b> — o bot não lê, e está certo assim</span>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead><tr className="text-left text-slate-400">
@@ -817,9 +826,9 @@ function tot(n: number) { return `R$ ${fmt(n)}`; }
  * do cliente simplesmente não entram. É a diferença entre "cadastrado" e "funcionando",
  * e ela precisa estar na cara de quem cadastra.
  */
-/** Bolinha ao lado do nº: verde = o bot lê, vermelho = não lê, cinza = inativo (esperado). */
+/** Sinal ao lado do nº. A legenda no topo da aba explica cada um. */
 function PontoGrupo({ ativo, link, grupoId }: { ativo: boolean; link: string | null; grupoId: string | null }) {
-  if (!ativo) return <span title="Cliente inativo — o bot não lê, e está certo assim.">⚪</span>;
+  if (!ativo) return <span title="Cliente inativo — o bot não lê, e está certo assim.">⚠️</span>;
   if (grupoId) return <span title="O bot está lendo o grupo deste cliente.">🟢</span>;
   if (link) return <span title="Link colado; o bot ainda está vinculando (~1 min).">⏳</span>;
   return <span title="Cliente ATIVO sem grupo: o bot não lê nada dele. Cole o link do grupo.">🔴</span>;
