@@ -564,9 +564,9 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                   <tr className="border-b border-slate-200 text-left text-[11px] uppercase tracking-wide text-slate-400 dark:border-slate-800">
                     <th className="px-2 py-2 font-medium">id</th><th className="px-2 py-2 font-medium">data</th>
                     <th className="px-2 py-2 font-medium">nome</th><th className="px-2 py-2 font-medium">jogo</th>
-                    <th className="px-2 py-2 text-right font-medium">odd</th><th className="px-2 py-2 text-right font-medium">entradas</th>
-                    <th className="px-2 py-2 font-medium">status</th>
-                    <th className="px-2 py-2 text-right font-medium">s. bruto</th><th className="px-2 py-2 text-right font-medium">comissão</th>
+                    <th className="px-2 py-2 text-center font-medium">odd</th><th className="px-2 py-2 text-center font-medium">entradas</th>
+                    <th className="px-2 py-2 text-center font-medium">status</th>
+                    <th className="px-2 py-2 text-center font-medium">s. bruto</th><th className="px-2 py-2 text-center font-medium">comissão</th>
                     <th className="px-2 py-2 text-center font-medium">baixa liq.</th><th className="px-2 py-2 text-center font-medium">saldo líq.</th>
                     <th className="px-2 py-2 text-center font-medium">ações</th>
                   </tr>
@@ -599,17 +599,17 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                           )}
                           {renderJogo(r.jogo)}
                         </div></td>
-                        <td className="px-2 py-1.5">
-                          <NumInput kind="odd" desc={cliDesc[r.cId] ?? 0} value={dV(r, 'odd')} onChange={(v) => updDraft(r.id, 'odd', v)} cls={`${cinp} w-16 text-right ${edited(r, 'odd') ? 'border-amber-400' : ''}`} />
+                        <td className="px-2 py-1.5 text-center">
+                          <NumInput kind="odd" desc={cliDesc[r.cId] ?? 0} value={dV(r, 'odd')} onChange={(v) => updDraft(r.id, 'odd', v)} cls={`${cinp} w-16 text-center ${edited(r, 'odd') ? 'border-amber-400' : ''}`} />
                         </td>
-                        <td className="px-2 py-1.5"><NumInput kind="money" value={dV(r, 'val')} onChange={(v) => updDraft(r.id, 'val', v)} cls={`${cinp} w-20 text-right font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} /></td>
-                        <td className="px-2 py-1.5">
+                        <td className="px-2 py-1.5 text-center"><NumInput kind="money" value={dV(r, 'val')} onChange={(v) => updDraft(r.id, 'val', v)} cls={`${cinp} w-20 text-center font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} /></td>
+                        <td className="px-2 py-1.5 text-center">
                           {(() => { const stv = dV(r, 'st'); const pend = edited(r, 'st'); return (
                             <select value={stv} onChange={(e) => updDraft(r.id, 'st', e.target.value)} title={pend ? 'Status não salvo — clique em Salvar para confirmar' : undefined} style={{ backgroundColor: stStyle(stv).bg, color: stStyle(stv).fg, boxShadow: pend ? '0 0 0 2px #f59e0b' : undefined }} className="rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer">{STS.map((s) => <option key={s} value={s} style={{ backgroundColor: stStyle(s).bg, color: stStyle(s).fg }}>{s}</option>)}</select>
                           ); })()}
                         </td>
-                        <td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td>
-                        <td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td>
+                        <td className={`px-2 py-1.5 text-center tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td>
+                        <td className={`px-2 py-1.5 text-center tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td>
                         <td className="px-2 py-1.5 text-center"><select value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} className={`${cinp} w-16`}><option>Não</option><option>Sim</option></select></td>
                         <td className={`px-2 py-1.5 text-center font-semibold tabular-nums ${clrCls(r.sl)}`}>{fmt(r.sl)}</td>
                         <td className="px-2 py-1.5">
