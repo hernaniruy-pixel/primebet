@@ -7,10 +7,11 @@ import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCl
 import {
   criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao,
   criarCliente, atualizarCliente, excluirCliente, criarAfiliado, atualizarAfiliado, excluirAfiliado,
-  fechamentoClientes, fechamentoAfiliados, bilhetesCliente,
+  fechamentoClientes, fechamentoAfiliados, bilhetesCliente, listarDespesasPeriodo,
   statusBot, type BotStatus,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
+import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
 import { fmtOdd, fmtMoney, parseNumBR } from './num';
 
 interface Draft { dt?: string; odd?: string; val?: string; jogo?: string; st?: string; _saved?: boolean }
@@ -350,6 +351,17 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       gerarPdfFechamento({ banca: 'PrimeBet', resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2, desc: cliDesc[row.id] ?? 0 });
     } catch { toast('Erro ao gerar o PDF.'); }
     finally { setPdfBusy(null); }
+  }
+  // PDF do fechamento GERAL (o que os sócios imprimem). As despesas vêm do MESMO
+  // período do fechamento — se o período mudar, o lucro muda junto.
+  const [pdfGeralBusy, setPdfGeralBusy] = useState(false);
+  async function baixarPdfGeral() {
+    setPdfGeralBusy(true);
+    try {
+      const desp = await listarDespesasPeriodo(fech.dt1 || null, fech.dt2 || null);
+      gerarPdfFechamentoGeral({ banca: 'PrimeBet', g: fechData.g, despesas: desp.total, dt1: fech.dt1, dt2: fech.dt2 });
+    } catch { toast('Erro ao gerar o PDF.'); }
+    finally { setPdfGeralBusy(false); }
   }
   function loadFaf(d1: string, d2: string) { fechamentoAfiliados(d1 || null, d2 || null).then(setFafRes).catch(() => toast('Erro no fechamento.')); }
   useEffect(() => {
@@ -691,6 +703,9 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               <div><span className={lbl}>Data fim</span><input type="date" className={inp} value={fech.dt2} onChange={(e) => setFech((f) => ({ ...f, dt2: e.target.value, period: '' }))} /></div>
               <div><span className={lbl}>Período</span><select className={inp} value={fech.period} onChange={(e) => { const p = periodDates(e.target.value); setFech({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); loadFech(p.d1, p.d2); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta semana</option><option value="semana_ant">Semana passada</option></select></div>
               <button onClick={() => loadFech(fech.dt1, fech.dt2)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Buscar</button>
+              <button onClick={baixarPdfGeral} disabled={pdfGeralBusy} title="PDF do fechamento geral do período (para os sócios imprimirem)" className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-[#DAA520] hover:brightness-125 disabled:opacity-50">
+                {pdfGeralBusy ? 'Gerando…' : '📄 PDF fechamento geral'}
+              </button>
             </div>
             <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {([['Calção', fechData.g.cal], ['Saldo calção', fechData.g.saldoCal], ['Total apostado', fechData.g.val], ['Em aberto', fechData.g.ab], ['Saldo bruto', fechData.g.sb], ['Comissão', fechData.g.cm], ['Com. afiliado', fechData.g.caf], ['Saldo líquido', fechData.g.sl]] as [string, number][]).map(([l, v]) => (
