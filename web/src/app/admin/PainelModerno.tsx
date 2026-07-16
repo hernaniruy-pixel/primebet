@@ -195,7 +195,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
 
   // Atualizar/recarregar DESCARTA rascunhos não salvos (status pendente volta ao real).
   const reload = () => { setDrafts({}); setReloadKey((k) => k + 1); };
-  const navBtn = 'rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/15';
+  const navBtn = 'shrink-0 whitespace-nowrap rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/15';
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageSafe = Math.min(Math.max(1, page), totalPages);
   const start = (pageSafe - 1) * PAGE_SIZE;
@@ -388,8 +388,10 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       <style>{`@keyframes pbAlertPulse{0%,100%{border-color:#ef4444}50%{border-color:#fecaca}} tr.pb-alert>td{border-width:2px;animation:pbAlertPulse 1.1s ease-in-out infinite} @keyframes pbFlash{0%{background-color:rgba(34,197,94,.45)}100%{background-color:transparent}} tr.pb-flash>td{animation:pbFlash 1.6s ease-out}`}</style>
       <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {/* TOPBAR */}
-        <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b-2 border-amber-500 bg-slate-900 px-4">
-          <div className="flex items-center gap-2.5">
+        {/* min-w-0 + nav rolável: no celular os 9 itens não cabem numa linha. Sem isto
+            eles esticavam a página, criavam rolagem lateral e apareciam as bordas pretas. */}
+        <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b-2 border-amber-500 bg-slate-900 px-3 sm:px-4">
+          <div className="flex min-w-0 shrink-0 items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">★</div>
             <div className="leading-tight">
               <div className="text-sm font-medium text-amber-400">PrimeBet</div>
@@ -404,7 +406,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               return <a href="https://primebet-production.up.railway.app/?t=primebet2026" target="_blank" rel="noopener noreferrer" title={tip} className={`animate-pulse rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${cls}`}>{label} — reconectar →</a>;
             })()}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button onClick={() => setModal('cli')} className={navBtn}>👤 Clientes</button>
             <button onClick={() => setModal('af')} className={navBtn}>🤝 Afiliados</button>
             <button onClick={() => setModal('fech')} className={navBtn}>📊 Fechamento</button>
@@ -412,8 +414,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             <a href="/admin/contas" className={navBtn} title="Contas usadas para replicar as apostas (controle dos donos)">💳 Contas</a>
             <a href="/admin/conferencia" className={navBtn} title="Conferência de grupos (imagens recebidas × transcritas)">🗂 Conferência</a>
             <a href="/admin/despesas" className={navBtn} title="Despesas (lançadas pelo grupo despesa)">💸 Despesas</a>
-            <button onClick={toggleTheme} title="Tema" className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
-            <button onClick={sair} className="rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
+            <button onClick={toggleTheme} title="Tema" className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
+            <button onClick={sair} className="shrink-0 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
           </div>
         </header>
 
@@ -425,70 +427,55 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               O resto é o caminho até ele: o que entrou, o que a banca ganhou, o que saiu. */}
           {(() => {
             const lucro = totals.comissao - totals.comissao_afiliado - despPeriodo;
+            // Todos os cartões iguais: mesma caixa, mesma borda, mesmo fundo. O "Resumo
+            // total" se destaca só pelo que importa — borda âmbar e número maior —, sem
+            // virar um bloco de outra cor no meio da tela.
             const cell = 'rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900';
             const lbl2 = 'text-[10px] font-medium uppercase tracking-wide text-slate-400';
+            const sub = 'mt-0.5 text-[11px] text-slate-400';
+            const num = 'mt-1 text-lg font-semibold tabular-nums';
             return (
-              <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(300px,1.05fr)_2fr]">
-                {/* Painel do lucro */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#13200a] via-[#1b2c0f] to-[#243c15] p-5 shadow-lg">
-                  <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-amber-400/10 blur-2xl" />
-                  <div className="relative">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-widest text-[#DAA520]">Resumo total</span>
-                      <span title="Lucro = Comissão ganha − Comissão dos afiliados − Despesas do período. A banca só ganha comissão em bilhete GREEN." className="cursor-help rounded-full border border-white/20 px-1.5 text-[10px] text-slate-300">?</span>
-                    </div>
-                    <div className={`mt-1 text-3xl font-bold tabular-nums ${lucro > 0 ? 'text-emerald-400' : lucro < 0 ? 'text-rose-400' : 'text-white'}`}>{tot(lucro)}</div>
-                    <div className="mt-0.5 text-[11px] text-slate-400">Lucro do período apurado</div>
-
-                    <div className="mt-4 space-y-1.5 border-t border-white/10 pt-3 text-xs">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-slate-300">Comissão ganha</span>
-                        <span className="font-semibold tabular-nums text-emerald-400">{tot(totals.comissao)}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-slate-300">− Comissão afiliados</span>
-                        <span className="font-semibold tabular-nums text-rose-400">{tot(totals.comissao_afiliado)}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <a href="/admin/despesas" title="Ver as despesas do período (vêm do grupo de despesa no WhatsApp)" className="text-slate-300 underline decoration-white/20 underline-offset-2 hover:text-white">− Despesas 🔗</a>
-                        <span className="font-semibold tabular-nums text-rose-400">{tot(despPeriodo)}</span>
-                      </div>
-                    </div>
-                  </div>
+              <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                <div className={cell}>
+                  <div className={lbl2}>Entrada</div>
+                  <div className={`${num} ${posCls(totals.entradas)}`}>{tot(totals.entradas)}</div>
+                  <div className={sub}>{total} linhas</div>
                 </div>
-
-                {/* Movimento do período */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <div className={cell}>
-                    <div className={lbl2}>Entrada</div>
-                    <div className={`mt-1 text-lg font-semibold tabular-nums ${posCls(totals.entradas)}`}>{tot(totals.entradas)}</div>
-                    <div className="mt-0.5 text-[11px] text-slate-400">{total} linhas</div>
-                  </div>
-                  <div className={cell}>
-                    <div className={lbl2}>Em aberto</div>
-                    <div className={`mt-1 text-lg font-semibold tabular-nums ${entCls(totals.em_aberto_total)}`}>{tot(totals.em_aberto_total)}</div>
-                    <div className="mt-0.5 text-[11px] text-slate-400">{totals.em_aberto_qtd} linhas</div>
-                  </div>
-                  <div className={cell}>
-                    <div className={lbl2}>Saldo bruto</div>
-                    <div className={`mt-1 text-lg font-semibold tabular-nums ${clrCls(totals.saldo_bruto)}`}>{tot(totals.saldo_bruto)}</div>
-                    <div className="mt-0.5 text-[11px] text-slate-400">ganho/perda dos bilhetes</div>
-                  </div>
-                  <div className={cell}>
-                    <div className={lbl2}>Comissão</div>
-                    <div className={`mt-1 text-lg font-semibold tabular-nums ${comCls(totals.comissao)}`}>{tot(totals.comissao)}</div>
-                    <div className="mt-0.5 text-[11px] text-slate-400">receita da banca</div>
-                  </div>
-                  <div className={cell}>
-                    <div className={lbl2}>Com. afiliados</div>
-                    <div className={`mt-1 text-lg font-semibold tabular-nums ${comCls(totals.comissao_afiliado)}`}>{tot(totals.comissao_afiliado)}</div>
-                    <div className="mt-0.5 text-[11px] text-slate-400">custo da banca</div>
-                  </div>
-                  <div className={cell} title="Quanto os clientes ficaram no período, depois da comissão. Positivo = os clientes ganharam. É o dinheiro deles, não o lucro da banca.">
-                    <div className={lbl2}>Saldo líquido</div>
-                    <div className={`mt-1 text-lg font-semibold tabular-nums ${clrCls(totals.saldo_liquido)}`}>{tot(totals.saldo_liquido)}</div>
-                    <div className="mt-0.5 text-[11px] text-slate-400">resultado dos clientes</div>
-                  </div>
+                <div className={cell}>
+                  <div className={lbl2}>Em aberto</div>
+                  <div className={`${num} ${entCls(totals.em_aberto_total)}`}>{tot(totals.em_aberto_total)}</div>
+                  <div className={sub}>{totals.em_aberto_qtd} linhas</div>
+                </div>
+                <div className={cell}>
+                  <div className={lbl2}>Saldo bruto</div>
+                  <div className={`${num} ${clrCls(totals.saldo_bruto)}`}>{tot(totals.saldo_bruto)}</div>
+                  <div className={sub}>ganho/perda dos bilhetes</div>
+                </div>
+                <div className={cell} title="Quanto os clientes ficaram no período, depois da comissão. Positivo = os clientes ganharam. É o dinheiro deles, não o lucro da banca.">
+                  <div className={lbl2}>Saldo líquido</div>
+                  <div className={`${num} ${clrCls(totals.saldo_liquido)}`}>{tot(totals.saldo_liquido)}</div>
+                  <div className={sub}>resultado dos clientes</div>
+                </div>
+                <div className={cell}>
+                  <div className={lbl2}>Comissão</div>
+                  <div className={`${num} ${comCls(totals.comissao)}`}>{tot(totals.comissao)}</div>
+                  <div className={sub}>receita da banca</div>
+                </div>
+                <div className={cell}>
+                  <div className={lbl2}>Com. afiliados</div>
+                  <div className={`${num} ${comCls(totals.comissao_afiliado)}`}>{tot(totals.comissao_afiliado)}</div>
+                  <div className={sub}>custo da banca</div>
+                </div>
+                <a href="/admin/despesas" className={`${cell} block transition hover:border-amber-400`} title="Despesas do período (vêm do grupo de despesa no WhatsApp). Clique para ver a lista.">
+                  <div className={lbl2}>Despesas</div>
+                  <div className={`${num} ${comCls(despPeriodo)}`}>{tot(despPeriodo)}</div>
+                  <div className={sub}>do período 🔗</div>
+                </a>
+                <div className={`${cell.replace('border-slate-200', 'border-amber-400').replace('dark:border-slate-800', 'dark:border-amber-500/50')} ring-1 ring-amber-400/30`}
+                     title="Lucro = Comissão ganha − Comissão dos afiliados − Despesas do período. A banca só ganha comissão em bilhete GREEN.">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">Resumo total</div>
+                  <div className={`mt-1 text-xl font-bold tabular-nums ${clrCls(lucro)}`}>{tot(lucro)}</div>
+                  <div className={sub}>lucro do período</div>
                 </div>
               </div>
             );

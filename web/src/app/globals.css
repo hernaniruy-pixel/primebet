@@ -15,15 +15,14 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* NÃO seguir o modo escuro do sistema aqui: o tema do painel é por CLASSE (.dark,
+   botão ☀/🌙). Quando o body seguia o tema do celular, ele ficava preto por baixo —
+   e qualquer arrasto lateral revelava esse preto nas bordas da tela. */
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  /* Nada deve criar rolagem lateral na página; tabelas largas rolam na própria caixa. */
+  overflow-x: hidden;
 }

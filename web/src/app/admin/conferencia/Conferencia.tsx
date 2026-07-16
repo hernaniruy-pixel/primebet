@@ -107,7 +107,9 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
             <b>Todos os grupos</b>
           </button>
 
-          <div className="max-h-[70vh] space-y-1.5 overflow-y-auto pr-1">
+          {/* No celular o layout empilha e esta lista vem ANTES das imagens: com 70vh de
+              altura, os prints ficavam fora de vista e pareciam não existir. */}
+          <div className="max-h-[28vh] space-y-1.5 overflow-y-auto pr-1 md:max-h-[70vh]">
             {grupos.map((g) => (
               <button
                 key={g.grupo_id}
