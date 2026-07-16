@@ -680,11 +680,11 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                           <div className="flex justify-center gap-1.5">
                             {r.adv && <button onClick={() => setObsModal({ id: r.id, text: r.obs })} title={`Advertência: ${r.obs}`} className="rounded-lg bg-rose-600 px-2 py-1 text-xs text-white transition hover:bg-rose-700">⚠</button>}
                             {r.ct && <button onClick={() => resolverCt(r.id)} title="Encerrar contestação mantendo o status atual" className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-emerald-700">✓ Resolver</button>}
-                            {/* Botões contornados, como no JM: fundo claro + borda/texto na cor.
-                                Pesam menos na tela do que os blocos sólidos e deixam a linha
+                            {/* Botões como no JM: fundo colorido CLARO + borda e texto escuros
+                                na mesma cor. Pesam menos que blocos sólidos e deixam a linha
                                 do bilhete ser a protagonista. */}
-                            <button onClick={() => saveReg(r.id)} className={`rounded-md border px-3 py-1 text-xs font-semibold transition ${drafts[r.id]?._saved ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-blue-300 bg-white text-blue-600 hover:bg-blue-50 dark:border-blue-500/40 dark:bg-transparent dark:text-blue-300 dark:hover:bg-blue-500/10'}`}>{drafts[r.id]?._saved ? '✓' : 'Salvar'}</button>
-                            <button onClick={() => delReg(r.id)} className="rounded-md border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-500 transition hover:bg-rose-50 dark:border-rose-500/40 dark:bg-transparent dark:text-rose-300 dark:hover:bg-rose-500/10">Excluir</button>
+                            <button onClick={() => saveReg(r.id)} className={`rounded-md border px-3 py-1 text-xs font-semibold transition ${drafts[r.id]?._saved ? 'border-emerald-300 bg-emerald-100 text-emerald-800' : 'border-blue-300 bg-blue-100 text-blue-800 hover:bg-blue-200 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-200 dark:hover:bg-blue-500/25'}`}>{drafts[r.id]?._saved ? '✓' : 'Salvar'}</button>
+                            <button onClick={() => delReg(r.id)} className="rounded-md border border-rose-300 bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-800 transition hover:bg-rose-200 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-200 dark:hover:bg-rose-500/25">Excluir</button>
                           </div>
                         </td>
                       </tr>
