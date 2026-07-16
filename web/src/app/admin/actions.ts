@@ -264,6 +264,44 @@ export async function atualizarConta(id: number, patch: PatchConta): Promise<Con
   return mapConta(data as ContaRow);
 }
 
+/**
+ * Lança um NOVO movimento na conta (o caminho normal do dia a dia).
+ * O operador informa só o valor do lançamento — quem soma ao total acumulado é o
+ * sistema. Antes era preciso abrir "Editar", ver o total, somar de cabeça e digitar
+ * o resultado: conta de cabeça em cima de dinheiro é erro esperando para acontecer.
+ *
+ * `ajustarSaldo` = o dinheiro entrou/saiu da casa agora, então o saldo acompanha
+ * (depósito soma, retirada subtrai). Desmarque se o saldo digitado já considera isso.
+ */
+export async function lancarMovimentoConta(
+  contaId: number,
+  tipo: 'deposito' | 'retirada',
+  valor: number,
+  ajustarSaldo = true,
+): Promise<Conta> {
+  await exigirSessao();
+  if (!(valor > 0)) throw new Error('Informe um valor maior que zero.');
+  const db = createAdminClient();
+  const { data: antes, error: e1 } = await db.from('contas').select('*').eq('id', contaId).maybeSingle();
+  if (e1) throw e1;
+  if (!antes) throw new Error('Conta não encontrada.');
+  const a = antes as ContaRow;
+
+  const upd: Record<string, unknown> = { atualizado_em: new Date().toISOString() };
+  if (tipo === 'deposito') {
+    upd.deposito = Number((Number(a.deposito ?? 0) + valor).toFixed(2));
+    if (ajustarSaldo) upd.saldo = Number((Number(a.saldo ?? 0) + valor).toFixed(2));
+  } else {
+    upd.retirada = Number((Number(a.retirada ?? 0) + valor).toFixed(2));
+    if (ajustarSaldo) upd.saldo = Number((Number(a.saldo ?? 0) - valor).toFixed(2));
+  }
+
+  const { data, error } = await db.from('contas').update(upd).eq('id', contaId).select('*').single();
+  if (error) throw error;
+  await registrarMovimentos(db, contaId, a, data as ContaRow);
+  return mapConta(data as ContaRow);
+}
+
 /** Histórico de movimentação de uma conta (mais recente primeiro). */
 export async function listarMovimentosConta(contaId: number): Promise<MovimentoConta[]> {
   await exigirSessao();

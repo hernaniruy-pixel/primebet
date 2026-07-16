@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { listarContas, criarConta, atualizarConta, excluirConta, listarMovimentosConta } from '../actions';
+import { listarContas, criarConta, atualizarConta, excluirConta, listarMovimentosConta, lancarMovimentoConta } from '../actions';
 import type { Conta, MovimentoConta } from './types';
 import { MOV_LABEL } from './types';
 
@@ -45,6 +45,27 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
     listarMovimentosConta(c.id)
       .then((movs) => setHist((h) => (h && h.conta.id === c.id ? { ...h, movs } : h)))
       .catch(() => { setHist(null); toast('Erro ao carregar o histórico.'); });
+  }
+
+  // ── Novo lançamento (depósito/retirada) ──
+  // O operador digita SÓ o valor do lançamento; o sistema soma ao total acumulado.
+  const [lanc, setLanc] = useState<{ conta: Conta; tipo: 'deposito' | 'retirada'; valor: string; ajustarSaldo: boolean } | null>(null);
+  function abrirLancamento(c: Conta, tipo: 'deposito' | 'retirada' = 'deposito') {
+    setLanc({ conta: c, tipo, valor: '', ajustarSaldo: true });
+  }
+  async function confirmarLancamento() {
+    if (!lanc) return;
+    const v = toNum(lanc.valor);
+    if (!(v > 0)) { toast('Informe um valor maior que zero.'); return; }
+    setBusy(true);
+    try {
+      const atualizada = await lancarMovimentoConta(lanc.conta.id, lanc.tipo, v, lanc.ajustarSaldo);
+      setContas((cs) => cs.map((c) => (c.id === atualizada.id ? atualizada : c)));
+      setLanc(null);
+      toast(`${lanc.tipo === 'deposito' ? 'Depósito' : 'Retirada'} de R$ ${brl(v)} lançado.`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Erro ao lançar.');
+    } finally { setBusy(false); }
   }
 
   const isEdit = (id: number) => editIds.has(id);
@@ -270,8 +291,10 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                           <td className="px-2 py-1.5"><input value={dv(c, 'cpf')} onChange={(ev) => upd(c.id, 'cpf', ev.target.value)} className={`${inp} w-28`} /></td>
                           <td className="px-2 py-1.5"><input value={dv(c, 'saldo')} onChange={(ev) => upd(c.id, 'saldo', ev.target.value)} className={numInp} inputMode="decimal" /></td>
                           <td className="px-2 py-1.5"><input value={dv(c, 'emAberto')} onChange={(ev) => upd(c.id, 'emAberto', ev.target.value)} className={numInp} inputMode="decimal" /></td>
-                          <td className="px-2 py-1.5"><input value={dv(c, 'deposito')} onChange={(ev) => upd(c.id, 'deposito', ev.target.value)} className={numInp} inputMode="decimal" /></td>
-                          <td className="px-2 py-1.5"><input value={dv(c, 'retirada')} onChange={(ev) => upd(c.id, 'retirada', ev.target.value)} className={numInp} inputMode="decimal" /></td>
+                          {/* TOTAIS acumulados. O caminho normal é "+ Lançar" (que soma
+                              sozinho); aqui só se o operador precisar CORRIGIR um erro. */}
+                          <td className="px-2 py-1.5"><input title="Total acumulado. Para um novo depósito use “+ Lançar” — aqui só para corrigir." value={dv(c, 'deposito')} onChange={(ev) => upd(c.id, 'deposito', ev.target.value)} className={`${numInp} bg-amber-50`} inputMode="decimal" /></td>
+                          <td className="px-2 py-1.5"><input title="Total acumulado. Para uma nova retirada use “+ Lançar” — aqui só para corrigir." value={dv(c, 'retirada')} onChange={(ev) => upd(c.id, 'retirada', ev.target.value)} className={`${numInp} bg-amber-50`} inputMode="decimal" /></td>
                         </>
                       ) : (
                         <>
@@ -294,7 +317,8 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                             </>
                           ) : (
                             <>
-                              <button onClick={() => startEdit(c.id)} className="rounded-md bg-amber-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-600">Editar</button>
+                              <button onClick={() => abrirLancamento(c)} title="Lançar um novo depósito ou retirada nesta conta" className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700">+ Lançar</button>
+                              <button onClick={() => startEdit(c.id)} title="Corrigir os dados da conta (saldo, em aberto, login…)" className="rounded-md bg-amber-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-600">Editar</button>
                               <button onClick={() => abrirHistorico(c)} title="Todos os depósitos, retiradas e ajustes desta conta, com data e hora" className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50">📜 Histórico</button>
                               <button onClick={() => excluir(c)} className="rounded-md border border-rose-200 px-2 py-1 text-xs text-rose-500 hover:bg-rose-50">Excluir</button>
                             </>
@@ -328,6 +352,66 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
           {busy ? 'carregando…' : 'Resumo (ganhou/perdeu) = saldo + em aberto + saques − depósitos. Verde = lucro, vermelho = prejuízo. A data/hora é atualizada a cada "Salvar".'}
         </p>
       </div>
+
+      {/* NOVO LANÇAMENTO: o operador informa só o valor; o sistema soma ao total. */}
+      {lanc && (() => {
+        const v = toNum(lanc.valor);
+        const dep = lanc.tipo === 'deposito';
+        const totalDepois = dep ? lanc.conta.deposito + v : lanc.conta.retirada + v;
+        const saldoDepois = lanc.ajustarSaldo ? (dep ? lanc.conta.saldo + v : lanc.conta.saldo - v) : lanc.conta.saldo;
+        const inp = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-amber-500';
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setLanc(null)}>
+            <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="mb-1 text-base font-semibold text-slate-800">Novo lançamento</div>
+              <div className="mb-4 text-[11px] text-slate-400">{lanc.conta.casa} · {lanc.conta.login || lanc.conta.nome || `#${lanc.conta.id}`}</div>
+
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                {([['deposito', '↓ Depósito', 'entrou dinheiro na casa'], ['retirada', '↑ Retirada', 'saiu dinheiro da casa']] as const).map(([t, label, hint]) => (
+                  <button key={t} onClick={() => setLanc((l) => (l ? { ...l, tipo: t } : l))}
+                    className={`rounded-xl border p-3 text-left transition ${lanc.tipo === t ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                    <div className={`text-sm font-semibold ${lanc.tipo === t ? 'text-emerald-700' : 'text-slate-600'}`}>{label}</div>
+                    <div className="text-[10px] text-slate-400">{hint}</div>
+                  </button>
+                ))}
+              </div>
+
+              <label className="mb-1 block text-[11px] font-medium text-slate-500">Valor deste lançamento</label>
+              <input autoFocus inputMode="decimal" value={lanc.valor} placeholder="ex.: 1.000,00"
+                onChange={(e) => setLanc((l) => (l ? { ...l, valor: e.target.value } : l))}
+                onKeyDown={(e) => { if (e.key === 'Enter') confirmarLancamento(); }}
+                className={inp} />
+              <div className="mt-1 text-[11px] text-slate-400">
+                Só o valor de agora — o sistema soma ao total. Hoje: R$ {brl(dep ? lanc.conta.deposito : lanc.conta.retirada)} {dep ? 'depositado' : 'sacado'}.
+              </div>
+
+              <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg bg-slate-50 p-2.5">
+                <input type="checkbox" checked={lanc.ajustarSaldo} onChange={(e) => setLanc((l) => (l ? { ...l, ajustarSaldo: e.target.checked } : l))} className="mt-0.5 accent-emerald-600" />
+                <span className="text-[11px] text-slate-600">
+                  <b>{dep ? 'Somar' : 'Subtrair'} do saldo da conta</b> — o dinheiro {dep ? 'entrou' : 'saiu'} agora, então o saldo na casa {dep ? 'subiu' : 'caiu'}.
+                  <span className="block text-slate-400">Desmarque se o saldo que você já digitou considera este {dep ? 'depósito' : 'saque'}.</span>
+                </span>
+              </label>
+
+              {v > 0 && (
+                <div className="mt-3 space-y-1 rounded-lg border border-slate-200 p-2.5 text-xs">
+                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Como a conta fica</div>
+                  <div className="flex justify-between"><span className="text-slate-500">Total {dep ? 'depositado' : 'sacado'}</span><span className="font-semibold tabular-nums">R$ {brl(dep ? lanc.conta.deposito : lanc.conta.retirada)} → R$ {brl(totalDepois)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Saldo</span><span className="font-semibold tabular-nums">R$ {brl(lanc.conta.saldo)} → R$ {brl(saldoDepois)}</span></div>
+                  <div className="flex justify-between border-t border-slate-100 pt-1"><span className="text-slate-500">Resumo (ganhou/perdeu)</span><span className="font-semibold tabular-nums">R$ {brl(lanc.conta.saldo + lanc.conta.emAberto + lanc.conta.retirada - lanc.conta.deposito)} → R$ {brl(saldoDepois + lanc.conta.emAberto + (dep ? lanc.conta.retirada : totalDepois) - (dep ? totalDepois : lanc.conta.deposito))}</span></div>
+                </div>
+              )}
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button onClick={() => setLanc(null)} className="rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100">Cancelar</button>
+                <button onClick={confirmarLancamento} disabled={busy || !(v > 0)} className="rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-40">
+                  {busy ? 'Lançando…' : 'Lançar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* HISTÓRICO da conta: cada depósito/retirada/ajuste, com data e hora. */}
       {hist && (
