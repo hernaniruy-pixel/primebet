@@ -22,13 +22,21 @@ async function fazerThumb(base64) {
  */
 async function registrarImagemRecebida({ grupoId, grupoNome, clienteId, msgId, remetente, enviadoEm, base64, legenda = '', msgJson = null }) {
   // 1) grava a linha JÁ (rápido) — não bloqueia o processamento de eventos do WhatsApp.
-  const { error } = await sb.from('imagens_recebidas').upsert({
+  const linha = {
     banca_id: await bancaPadrao(),
     grupo_id: grupoId, grupo_nome: grupoNome, cliente_id: clienteId ?? null,
     msg_id: msgId, remetente: remetente || '', enviado_em: enviadoEm, thumb_path: null,
     legenda: legenda || null,
     msg_json: msgJson, // permite rebaixar a imagem ORIGINAL depois de um restart
-  }, { onConflict: 'msg_id', ignoreDuplicates: true });
+  };
+  let { error } = await sb.from('imagens_recebidas').upsert(linha, { onConflict: 'msg_id', ignoreDuplicates: true });
+  // Se a migração 017 ainda não rodou, a coluna msg_json não existe. NÃO é motivo para
+  // perder o print: grava sem ela e segue (a reação cai na miniatura até a migração).
+  if (error && /msg_json/.test(error.message)) {
+    console.warn('   ⚠️  coluna msg_json ausente (rode a migração 017) — registrando sem ela');
+    delete linha.msg_json;
+    ({ error } = await sb.from('imagens_recebidas').upsert(linha, { onConflict: 'msg_id', ignoreDuplicates: true }));
+  }
   if (error) { console.error('   conferencia insert:', error.message); return; }
 
   // 2) miniatura em SEGUNDO PLANO (jimp é pesado; não segura a fila de reações/pedidos).
@@ -61,9 +69,12 @@ async function marcarReagida(msgId, { apostaId = null, emoji = '', grupoId, grup
 
 /** Pedidos de "lançar do dashboard" ainda pendentes (o operador clicou Lançar no painel). */
 async function listarPedidosPendentes(limite = 5) {
-  const { data, error } = await sb.from('imagens_recebidas')
-    .select('id,msg_id,grupo_id,grupo_nome,cliente_id,pedido_emoji,pedido_odd,pedido_valor,thumb_path,legenda,msg_json')
-    .eq('pedido_status', 'pendente').limit(limite);
+  const cols = 'id,msg_id,grupo_id,grupo_nome,cliente_id,pedido_emoji,pedido_odd,pedido_valor,thumb_path,legenda';
+  let { data, error } = await sb.from('imagens_recebidas')
+    .select(`${cols},msg_json`).eq('pedido_status', 'pendente').limit(limite);
+  if (error && /msg_json/.test(error.message)) { // migração 017 pendente
+    ({ data, error } = await sb.from('imagens_recebidas').select(cols).eq('pedido_status', 'pendente').limit(limite));
+  }
   if (error) { console.error('   pedidos:', error.message); return []; }
   return data || [];
 }
@@ -78,7 +89,8 @@ async function marcarPedido(id, status, erro = null) {
  */
 async function msgJsonPorMsg(msgId) {
   if (!msgId) return null;
-  const { data } = await sb.from('imagens_recebidas').select('msg_json').eq('msg_id', msgId).maybeSingle();
+  const { data, error } = await sb.from('imagens_recebidas').select('msg_json').eq('msg_id', msgId).maybeSingle();
+  if (error) return null; // coluna ainda não existe (migração 017 pendente)
   return (data && data.msg_json) || null;
 }
 
