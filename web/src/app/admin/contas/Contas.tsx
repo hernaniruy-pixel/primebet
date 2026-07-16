@@ -247,7 +247,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                 )}
               </div>
               <div><label className="mb-1 block text-[10px] font-medium text-slate-500">LOGIN</label><input value={novo.login} onChange={(e) => setNovo((n) => ({ ...n, login: e.target.value }))} className={inp} /></div>
-              <div><label className="mb-1 block text-[10px] font-medium text-slate-500">NOME</label><input value={novo.nome} onChange={(e) => setNovo((n) => ({ ...n, nome: e.target.value }))} className={inp} /></div>
+              <div><label className="mb-1 block text-[10px] font-medium text-slate-500">NOME</label><input value={novo.nome} onChange={(e) => setNovo((n) => ({ ...n, nome: e.target.value.toUpperCase() }))} className={inp} /></div>
               <div><label className="mb-1 block text-[10px] font-medium text-slate-500">CPF</label><input value={novo.cpf} onChange={(e) => setNovo((n) => ({ ...n, cpf: e.target.value }))} className={inp} /></div>
               <div><label className="mb-1 block text-[10px] font-medium text-slate-500">SALDO</label><input value={novo.saldo} onChange={(e) => setNovo((n) => ({ ...n, saldo: e.target.value }))} className={inp} inputMode="decimal" /></div>
               <div><label className="mb-1 block text-[10px] font-medium text-slate-500">EM ABERTO</label><input value={novo.emAberto} onChange={(e) => setNovo((n) => ({ ...n, emAberto: e.target.value }))} className={inp} inputMode="decimal" /></div>
@@ -287,7 +287,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                       {emEdicao ? (
                         <>
                           <td className="px-2 py-1.5"><input value={dv(c, 'login')} onChange={(ev) => upd(c.id, 'login', ev.target.value)} className={`${inp} w-28`} /></td>
-                          <td className="px-2 py-1.5"><input value={dv(c, 'nome')} onChange={(ev) => upd(c.id, 'nome', ev.target.value)} className={`${inp} w-28`} /></td>
+                          <td className="px-2 py-1.5"><input value={dv(c, 'nome')} onChange={(ev) => upd(c.id, 'nome', ev.target.value.toUpperCase())} className={`${inp} w-28`} /></td>
                           <td className="px-2 py-1.5"><input value={dv(c, 'cpf')} onChange={(ev) => upd(c.id, 'cpf', ev.target.value)} className={`${inp} w-28`} /></td>
                           <td className="px-2 py-1.5"><input value={dv(c, 'saldo')} onChange={(ev) => upd(c.id, 'saldo', ev.target.value)} className={numInp} inputMode="decimal" /></td>
                           <td className="px-2 py-1.5"><input value={dv(c, 'emAberto')} onChange={(ev) => upd(c.id, 'emAberto', ev.target.value)} className={numInp} inputMode="decimal" /></td>
@@ -298,8 +298,11 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                         </>
                       ) : (
                         <>
+                          {/* Login NÃO vira maiúsculo: é credencial da casa (e-mail, usuário).
+                              Mostrar diferente do que está gravado faria o operador digitar
+                              errado na Bet365. Nome/casa são texto e ficam em caixa alta. */}
                           <td className="px-2 py-1.5 font-medium">{c.login || '—'}</td>
-                          <td className="px-2 py-1.5">{c.nome || '—'}</td>
+                          <td className="px-2 py-1.5 uppercase">{c.nome || '—'}</td>
                           <td className="px-2 py-1.5 text-slate-500">{c.cpf || '—'}</td>
                           <td className={`px-2 py-1.5 text-right font-bold tabular-nums ${corSaldo(e.saldo)}`}>{brl(e.saldo)}</td>
                           <td className={`px-2 py-1.5 text-right font-bold tabular-nums ${corNum(e.emAberto)}`}>{brl(e.emAberto)}</td>
