@@ -35,10 +35,14 @@ async function listarClientes(limit = 20) {
 /**
  * Grava o bilhete transcrito na fila do painel (tabela apostas, EM ABERTO).
  * `final` = { jogo, odd, valor, casa }  (null em odd/valor => entra como 0 = "em aberto")
- * `meta`  = { clienteId, grupoId }
+ * `meta`  = { clienteId, grupoId, enviadoEm }
  * O trigger calc_aposta no banco já calcula saldo bruto/comissão/líquido.
+ *
+ * `enviadoEm` = quando o CLIENTE mandou o print no grupo. Sem ele o banco usava o
+ * now() do INSERT, ou seja, a hora em que o operador reagiu — e a aposta ficava com
+ * a hora errada (vimos 76 min de diferença). A aposta pertence ao momento do bilhete.
  */
-async function registrarBilhete(final, { clienteId, grupoId = null }) {
+async function registrarBilhete(final, { clienteId, grupoId = null, enviadoEm = null }) {
   if (!clienteId) throw new Error('registrarBilhete: clienteId é obrigatório');
   const row = {
     banca_id: await bancaPadrao(),
@@ -50,6 +54,7 @@ async function registrarBilhete(final, { clienteId, grupoId = null }) {
     casa: final.casa || '',
     origem: 'whatsapp',
     grupo_id: grupoId,
+    ...(enviadoEm ? { data: enviadoEm } : {}),
   };
   const { data, error } = await sb.from('apostas').insert(row).select().single();
   if (error) throw new Error('Erro gravando aposta: ' + error.message);

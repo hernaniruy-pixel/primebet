@@ -24,7 +24,7 @@ const { parseValor, parseValorMensagem } = require('./valor');
 const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId, gruposDeClientes } = require('./ingest');
 const {
   registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido,
-  baixarThumbBase64, thumbPathPorMsg, legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg,
+  baixarThumbBase64, thumbPathPorMsg, legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg, enviadoEmPorMsg,
 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto, setTeste } = require('./webqr');
@@ -330,12 +330,13 @@ function parseOdd(t) {
   return isNaN(n) ? null : n;
 }
 
-async function lancarAposta({ sock, base64, mime, emoji, legenda = '', oddManual = null, valorManual = null, clienteId, grupoId, grupoNome, msgId, keyParaReagir = null }) {
+async function lancarAposta({ sock, base64, mime, emoji, legenda = '', oddManual = null, valorManual = null, clienteId, grupoId, grupoNome, msgId, keyParaReagir = null, enviadoEm = null }) {
   const regra = regraPorEmoji(emoji) || { emoji, mascara: [] };
   const { bruto, final } = await transcreverBilhete(base64, '⚪', mime, legenda);
   if (regra.mascara.includes('odd')) final.odd = parseOdd(oddManual);
   if (regra.mascara.includes('valor')) final.valor = parseValor(valorManual);
-  const aposta = await registrarBilhete(final, { clienteId, grupoId });
+  // A aposta é do momento em que o cliente mandou o print — não de quando o operador reagiu.
+  const aposta = await registrarBilhete(final, { clienteId, grupoId, enviadoEm });
   await marcarReagida(msgId, { apostaId: aposta.id, emoji: regra.emoji, grupoId, grupoNome, clienteId });
   if (keyParaReagir && sock) {
     try { await sock.sendMessage(grupoId, { react: { text: regra.emoji, key: keyParaReagir } }); }
@@ -486,8 +487,10 @@ async function iniciarWhatsApp() {
         if (legenda) console.log(`   legenda/valor: "${legenda}"`);
 
         console.log(`\n📩 ${regra.emoji} ${regra.label} | grupo "${nomeGrupo}" → cliente ${cli.nome}`);
+        // A hora do PRINT: da memória (mensagem original) ou da linha da Conferência.
+        const enviadoEm = (orig && tsIso(orig)) || (await enviadoEmPorMsg(msgId));
         const { bruto, aposta } = await lancarAposta({
-          sock, base64, mime, emoji, legenda,
+          sock, base64, mime, emoji, legenda, enviadoEm,
           clienteId: cli.id, grupoId: jid, grupoNome: nomeGrupo, msgId,
         });
         console.log('   ↳ lido:', JSON.stringify(bruto));
@@ -541,6 +544,7 @@ async function processarPedido(sock, p) {
       oddManual: p.pedido_odd, valorManual: p.pedido_valor,
       clienteId: p.cliente_id, grupoId: p.grupo_id, grupoNome: p.grupo_nome,
       msgId: p.msg_id, keyParaReagir: keyRef,
+      enviadoEm: p.enviado_em || null, // hora do print, não do clique em Lançar
     });
     await marcarPedido(p.id, 'feito');
     console.log(`   ✅ aposta #${aposta.id} lançada do dashboard (odd ${aposta.odd}, valor ${aposta.valor})${keyRef ? ' + reagiu no grupo' : ''}`);

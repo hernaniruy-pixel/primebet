@@ -69,7 +69,7 @@ async function marcarReagida(msgId, { apostaId = null, emoji = '', grupoId, grup
 
 /** Pedidos de "lançar do dashboard" ainda pendentes (o operador clicou Lançar no painel). */
 async function listarPedidosPendentes(limite = 5) {
-  const cols = 'id,msg_id,grupo_id,grupo_nome,cliente_id,pedido_emoji,pedido_odd,pedido_valor,thumb_path,legenda';
+  const cols = 'id,msg_id,grupo_id,grupo_nome,cliente_id,pedido_emoji,pedido_odd,pedido_valor,thumb_path,legenda,enviado_em';
   let { data, error } = await sb.from('imagens_recebidas')
     .select(`${cols},msg_json`).eq('pedido_status', 'pendente').limit(limite);
   if (error && /msg_json/.test(error.message)) { // migração 017 pendente
@@ -99,6 +99,13 @@ async function legendaPorMsg(msgId) {
   if (!msgId) return '';
   const { data } = await sb.from('imagens_recebidas').select('legenda').eq('msg_id', msgId).maybeSingle();
   return (data && data.legenda) || '';
+}
+
+/** Quando o cliente MANDOU o print. É a data que a aposta deve levar — não a da reação. */
+async function enviadoEmPorMsg(msgId) {
+  if (!msgId) return null;
+  const { data } = await sb.from('imagens_recebidas').select('enviado_em').eq('msg_id', msgId).maybeSingle();
+  return (data && data.enviado_em) || null;
 }
 
 /**
@@ -185,6 +192,6 @@ async function limparImagensAntigas() {
 module.exports = {
   registrarImagemRecebida, marcarReagida,
   listarPedidosPendentes, marcarPedido, baixarThumbBase64, thumbPathPorMsg,
-  legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg,
+  legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg, enviadoEmPorMsg,
   limparImagensAntigas, imagemJaRegistrada,
 };
