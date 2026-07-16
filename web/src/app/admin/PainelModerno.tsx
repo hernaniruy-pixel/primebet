@@ -276,6 +276,17 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       return; // mantém eventuais rascunhos visíveis
     }
 
+    // Concluir exige odd E entrada. Sem isso a aposta vira lixo: GREEN com valor 0 dá
+    // saldo 0 e comissão 0 — foi o que aconteceu com o lote de 15/07. EM ABERTO pode
+    // ficar sem preencher (é o estado de espera), mas concluída, não.
+    const oddFinal = d.odd !== undefined ? parseNumBR(d.odd) : Number(reg?.odd ?? 0);
+    const valFinal = d.val !== undefined ? parseNumBR(d.val) : Number(reg?.val ?? 0);
+    if (resolvida && (!(oddFinal > 0) || !(valFinal > 0))) {
+      const falta = [!(oddFinal > 0) && 'odd', !(valFinal > 0) && 'entrada'].filter(Boolean).join(' e ');
+      toast(`Preencha ${falta} para concluir a aposta #${id} como ${statusEfetivo}.`);
+      return; // mantém o rascunho na tela para o operador completar
+    }
+
     // Fotografia do estado, para desfazer se o servidor recusar.
     const regsAntes = regs;
     const draftAntes = drafts[id];
@@ -452,7 +463,19 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
           {/* RESUMO DO PERÍODO — o lucro é o número que importa, então ele manda na tela.
               O resto é o caminho até ele: o que entrou, o que a banca ganhou, o que saiu. */}
           {(() => {
-            const lucro = totals.comissao - totals.comissao_afiliado - despPeriodo;
+            // Os cartões descrevem EXATAMENTE o que está filtrado na tela.
+            // As DESPESAS são da banca inteira — não pertencem a um cliente nem a um
+            // recorte de apostas. Subtrair elas de um filtro produzia número sem
+            // sentido (KAUAN gerou R$ 134 de comissão e o "lucro" aparecia −R$ 10 mil).
+            // Então: com filtro estreito, despesa sai da conta e o cartão diz isso.
+            const f = debFiltros;
+            const cliFiltrado = f.nome ? clientes.find((c) => c.id === Number(f.nome)) : null;
+            const recorte = !!(f.id || f.nome || f.st || f.jogo || f.dc || f.oddMin || f.oddMax
+              || f.valMin || f.valMax || f.bl || f.adv || f.irr || f.aba === 'pend');
+            const lucro = totals.comissao - totals.comissao_afiliado - (recorte ? 0 : despPeriodo);
+            const rotuloLucro = cliFiltrado ? `lucro gerado por ${cliFiltrado.nome}`
+              : recorte ? 'lucro do filtro (sem despesas)'
+                : 'lucro do período';
             // Todos os cartões iguais: mesma caixa, mesma borda, mesmo fundo. O "Resumo
             // total" se destaca só pelo que importa — borda âmbar e número maior —, sem
             // virar um bloco de outra cor no meio da tela.
@@ -492,16 +515,20 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                   <div className={`${num} ${comCls(totals.comissao_afiliado)}`}>{tot(totals.comissao_afiliado)}</div>
                   <div className={sub}>custo da banca</div>
                 </div>
-                <a href="/admin/despesas" className={`${cell} block transition hover:border-amber-400`} title="Despesas do período (vêm do grupo de despesa no WhatsApp). Clique para ver a lista.">
+                <a href="/admin/despesas" className={`${cell} block transition hover:border-amber-400`} title={recorte ? 'As despesas são da banca inteira — não pertencem a um cliente nem a um filtro de apostas. Limpe os filtros e use a aba "Todas" para ver o lucro do período.' : 'Despesas do período (vêm do grupo de despesa no WhatsApp). Clique para ver a lista.'}>
                   <div className={lbl2}>Despesas</div>
-                  <div className={`${num} ${comCls(despPeriodo)}`}>{tot(despPeriodo)}</div>
-                  <div className={sub}>do período 🔗</div>
+                  {recorte
+                    ? <div className={`${num} text-slate-300 dark:text-slate-600`}>—</div>
+                    : <div className={`${num} ${comCls(despPeriodo)}`}>{tot(despPeriodo)}</div>}
+                  <div className={sub}>{recorte ? 'não se aplica ao filtro 🔗' : 'do período 🔗'}</div>
                 </a>
                 <div className={`${cell.replace('border-slate-200', 'border-amber-400').replace('dark:border-slate-800', 'dark:border-amber-500/50')} ring-1 ring-amber-400/30`}
-                     title="Lucro = Comissão ganha − Comissão dos afiliados − Despesas do período. A banca só ganha comissão em bilhete GREEN.">
+                     title={recorte
+                       ? 'Comissão ganha − Comissão dos afiliados, apenas do que está filtrado. As despesas são da banca inteira e por isso ficam de fora aqui.'
+                       : 'Lucro = Comissão ganha − Comissão dos afiliados − Despesas do período. A banca só ganha comissão em bilhete GREEN.'}>
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">Resumo total</div>
                   <div className={`mt-1 text-xl font-bold tabular-nums ${clrCls(lucro)}`}>{tot(lucro)}</div>
-                  <div className={sub}>lucro do período</div>
+                  <div className={sub}>{rotuloLucro}</div>
                 </div>
               </div>
             );
