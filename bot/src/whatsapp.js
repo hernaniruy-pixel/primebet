@@ -146,10 +146,30 @@ function guardarImagem(jid, id, m) {
 }
 const acharImagem = (jid, id) => { const e = memImgs.get(`${jid}|${id}`); return e ? e.m : null; };
 
-/** Baixa a mídia de uma mensagem Baileys -> base64. */
+/**
+ * Baixa a mídia de uma mensagem Baileys -> base64.
+ * O servidor de mídia do WhatsApp às vezes nega a URL (403/410) mesmo em print recente.
+ * Nesse caso pedimos ao WhatsApp para REENVIAR a mídia e tentamos de novo — sem isso,
+ * um 403 isolado fazia o bilhete inteiro se perder.
+ */
 async function baixarBase64(sock, m) {
-  const buf = await downloadMediaMessage(m, 'buffer', {}, { logger: log, reuploadRequest: sock.updateMediaMessage });
-  return Buffer.isBuffer(buf) ? buf.toString('base64') : null;
+  const baixar = async (msg) => {
+    const buf = await downloadMediaMessage(msg, 'buffer', {}, { logger: log, reuploadRequest: sock.updateMediaMessage });
+    return Buffer.isBuffer(buf) ? buf.toString('base64') : null;
+  };
+  try {
+    return await baixar(m);
+  } catch (e) {
+    const st = (e && (e.output && e.output.statusCode)) || (e && e.message) || '';
+    console.log(`   (download falhou: ${e.message} — pedindo reenvio da mídia ao WhatsApp…)`);
+    try {
+      const atualizada = await sock.updateMediaMessage(m);
+      return await baixar(atualizada || m);
+    } catch (e2) {
+      console.log(`   (reenvio também falhou: ${e2.message}${st ? ` | 1ª: ${st}` : ''})`);
+      throw e;
+    }
+  }
 }
 
 /**
@@ -259,22 +279,26 @@ function escolherLegendaDaImagem(jid, legendaPropria) {
 async function registrarImagemDeMsg(sock, m, jid, nomeGrupo) {
   if (!ehImagem(m)) return false;
   guardarImagem(jid, m.key.id, m); // para a reação achar a original depois
-  const base64 = await baixarBase64(sock, m);
-  if (!base64) return false;
   const cli = await acharCliente(jid, nomeGrupo);
   const { legenda, veioDeAntes } = escolherLegendaDaImagem(jid, textoDaMsg(m) || '');
+
+  // O download PODE falhar (o WhatsApp às vezes nega a mídia com 403). Isso não pode
+  // custar o bilhete: gravamos a linha de qualquer jeito, com a mensagem guardada.
+  // Assim o print aparece na Conferência e a reação tenta baixar de novo depois.
+  const base64 = await baixarBase64(sock, m).catch(() => null);
+
   await registrarImagemRecebida({
     grupoId: jid, grupoNome: nomeGrupo,
     clienteId: cli ? cli.id : null, msgId: m.key.id,
     remetente: m.pushName || (m.key.participant || '').split('@')[0] || '',
     enviadoEm: tsIso(m),
-    base64,
+    base64, // null = sem miniatura; a linha entra do mesmo jeito
     legenda,
     // Guarda a mensagem: sem isto, um restart obriga a reação a usar a miniatura,
     // e a IA lê valor errado no bilhete borrado.
     msgJson: JSON.parse(JSON.stringify(m)),
   });
-  console.log(`🗂  imagem registrada p/ conferência | grupo "${nomeGrupo}"${cli ? '' : ' (⚠️ SEM cliente)'}`);
+  console.log(`🗂  imagem registrada p/ conferência | grupo "${nomeGrupo}"${cli ? '' : ' (⚠️ SEM cliente)'}${base64 ? '' : ' (⚠️ SEM a imagem — download negado; a reação tentará de novo)'}`);
   if (veioDeAntes) console.log(`   🔗 valor "${legenda}" (escrito antes do print) aplicado a esta imagem`);
   return true;
 }
