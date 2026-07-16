@@ -248,9 +248,13 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     toast('Contestação resolvida.');
     resolverContestacao(id).catch(() => toast('Erro ao resolver — clique em Atualizar.'));
   }
-  // "Salvar" = concluir a aposta: grava as edições pendentes, encerra contestação e,
-  // se a aposta já está resolvida (fora de EM ABERTO), tira ela da fila do dashboard.
-  // O status em si já é gravado ao ser escolhido no seletor; aqui garantimos a baixa.
+  // "Salvar" = concluir a aposta: grava o status escolhido + edições, encerra a
+  // contestação e tira a aposta da fila do dashboard.
+  //
+  // A tela é OTIMISTA (a linha some na hora), mas se o servidor recusar a gravação a
+  // linha VOLTA e o erro aparece na cara. Antes, a linha sumia mesmo com a gravação
+  // falhando e o aviso era um toast discreto: o operador achava que tinha salvo, e a
+  // aposta seguia EM ABERTO para o cliente. Dinheiro não pode sumir em silêncio.
   async function saveReg(id: number) {
     const d = drafts[id] || {};
     const reg = regs.find((r) => r.id === id);
@@ -272,21 +276,39 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       return; // mantém eventuais rascunhos visíveis
     }
 
-    // OTIMISTA: dá baixa na fila na hora; persiste (edição + encerrar contestação) em background.
+    // Fotografia do estado, para desfazer se o servidor recusar.
+    const regsAntes = regs;
+    const draftAntes = drafts[id];
+
+    // OTIMISTA: dá baixa na fila na hora; persiste em seguida.
     if (filtros.aba === 'pend') setRegs((rs) => rs.filter((r) => r.id !== id));
     else setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ct: false, ctStatus: '', ctMotivo: '' } : r)));
     if (reg?.ct) setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) }));
     setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; });
-    toast('Aposta salva e concluída ✓');
-    (async () => {
-      try {
-        if (temEdicao) {
-          const rr = await atualizarAposta(id, patch);
-          if (filtros.aba !== 'pend') setRegs((rs) => rs.map((r) => (r.id === id ? rr : r)));
-        }
-        if (reg?.ct) await resolverContestacao(id);
-      } catch { toast('Erro ao salvar no servidor — clique em Atualizar.'); }
-    })();
+
+    try {
+      if (temEdicao) {
+        const rr = await atualizarAposta(id, patch);
+        if (filtros.aba !== 'pend') setRegs((rs) => rs.map((r) => (r.id === id ? rr : r)));
+      }
+      if (reg?.ct) await resolverContestacao(id);
+      // Só agora podemos dizer que salvou — o banco confirmou.
+      toast(`Aposta #${id} salva ✓${patch.st ? ` (${patch.st})` : ''}`);
+    } catch (e) {
+      // DESFAZ: a linha volta para a fila com o rascunho intacto, para o operador tentar de novo.
+      setRegs(regsAntes);
+      if (draftAntes) setDrafts((dr) => ({ ...dr, [id]: draftAntes }));
+      if (reg?.ct) setTotals((t) => ({ ...t, contestadas_qtd: (t.contestadas_qtd ?? 0) + 1 }));
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('saveReg falhou:', e);
+      // alert (e não toast): o operador PRECISA ver que a aposta continua em aberto.
+      alert(
+        `⚠️ A aposta #${id} NÃO foi salva.\n\nMotivo: ${msg}\n\n` +
+        (/autenticad/i.test(msg)
+          ? 'Sua sessão expirou. Recarregue a página e entre de novo.'
+          : 'A aposta voltou para a fila. Tente salvar novamente.'),
+      );
+    }
   }
   async function delReg(id: number) { if (!confirm('Excluir este registro?')) return; try { await excluirAposta(id); setRegs((rs) => rs.filter((r) => r.id !== id)); reload(); } catch { toast('Erro ao excluir.'); } }
   async function salvarNovo() {
