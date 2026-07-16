@@ -182,6 +182,17 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debFiltros, page, reloadKey]);
 
+  // Despesas do MESMO período do filtro — entram na conta do lucro lá em cima.
+  // Vêm da aba Despesas (grupo "despesa" do WhatsApp), filtradas por data.
+  const [despPeriodo, setDespPeriodo] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    listarDespesasPeriodo(debFiltros.dt1 || null, debFiltros.dt2 || null)
+      .then((d) => { if (alive) setDespPeriodo(d.total); })
+      .catch(() => { if (alive) setDespPeriodo(0); });
+    return () => { alive = false; };
+  }, [debFiltros.dt1, debFiltros.dt2, reloadKey]);
+
   // Atualizar/recarregar DESCARTA rascunhos não salvos (status pendente volta ao real).
   const reload = () => { setDrafts({}); setReloadKey((k) => k + 1); };
   const navBtn = 'rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/15';
@@ -410,24 +421,78 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
           <div className="mb-1 text-lg font-medium">Primebet — Controle</div>
           <div className="mb-4 text-xs text-slate-400">Registros — {email}</div>
 
-          {/* MÉTRICAS */}
-          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-            {[
-              { l: 'Entrada', v: tot(totals.entradas), s: `${total} linhas`, c: posCls(totals.entradas) },
-              { l: 'Em aberto', v: tot(totals.em_aberto_total), s: `${totals.em_aberto_qtd} linhas`, c: entCls(totals.em_aberto_total) },
-              { l: 'Saldo bruto', v: tot(totals.saldo_bruto), c: clrCls(totals.saldo_bruto) },
-              { l: 'Comissão', v: tot(totals.comissao), c: comCls(totals.comissao) },
-              { l: 'Com. afiliados', v: tot(totals.comissao_afiliado), c: comCls(totals.comissao_afiliado) },
-              { l: 'Saldo líquido', v: tot(totals.saldo_liquido), c: clrCls(totals.saldo_liquido) },
-              { l: 'Total fechamento', v: tot(totals.saldo_liquido - totals.comissao_afiliado), c: clrCls(totals.saldo_liquido - totals.comissao_afiliado) },
-            ].map((m) => (
-              <div key={m.l} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{m.l}</div>
-                <div className={`mt-1 text-lg font-semibold tabular-nums ${m.c}`}>{m.v}</div>
-                {m.s && <div className="mt-0.5 text-[11px] text-slate-400">{m.s}</div>}
+          {/* RESUMO DO PERÍODO — o lucro é o número que importa, então ele manda na tela.
+              O resto é o caminho até ele: o que entrou, o que a banca ganhou, o que saiu. */}
+          {(() => {
+            const lucro = totals.comissao - totals.comissao_afiliado - despPeriodo;
+            const cell = 'rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900';
+            const lbl2 = 'text-[10px] font-medium uppercase tracking-wide text-slate-400';
+            return (
+              <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(300px,1.05fr)_2fr]">
+                {/* Painel do lucro */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#13200a] via-[#1b2c0f] to-[#243c15] p-5 shadow-lg">
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-amber-400/10 blur-2xl" />
+                  <div className="relative">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-widest text-[#DAA520]">Resumo total</span>
+                      <span title="Lucro = Comissão ganha − Comissão dos afiliados − Despesas do período. A banca só ganha comissão em bilhete GREEN." className="cursor-help rounded-full border border-white/20 px-1.5 text-[10px] text-slate-300">?</span>
+                    </div>
+                    <div className={`mt-1 text-3xl font-bold tabular-nums ${lucro > 0 ? 'text-emerald-400' : lucro < 0 ? 'text-rose-400' : 'text-white'}`}>{tot(lucro)}</div>
+                    <div className="mt-0.5 text-[11px] text-slate-400">Lucro do período apurado</div>
+
+                    <div className="mt-4 space-y-1.5 border-t border-white/10 pt-3 text-xs">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-slate-300">Comissão ganha</span>
+                        <span className="font-semibold tabular-nums text-emerald-400">{tot(totals.comissao)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-slate-300">− Comissão afiliados</span>
+                        <span className="font-semibold tabular-nums text-rose-400">{tot(totals.comissao_afiliado)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <a href="/admin/despesas" title="Ver as despesas do período (vêm do grupo de despesa no WhatsApp)" className="text-slate-300 underline decoration-white/20 underline-offset-2 hover:text-white">− Despesas 🔗</a>
+                        <span className="font-semibold tabular-nums text-rose-400">{tot(despPeriodo)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Movimento do período */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className={cell}>
+                    <div className={lbl2}>Entrada</div>
+                    <div className={`mt-1 text-lg font-semibold tabular-nums ${posCls(totals.entradas)}`}>{tot(totals.entradas)}</div>
+                    <div className="mt-0.5 text-[11px] text-slate-400">{total} linhas</div>
+                  </div>
+                  <div className={cell}>
+                    <div className={lbl2}>Em aberto</div>
+                    <div className={`mt-1 text-lg font-semibold tabular-nums ${entCls(totals.em_aberto_total)}`}>{tot(totals.em_aberto_total)}</div>
+                    <div className="mt-0.5 text-[11px] text-slate-400">{totals.em_aberto_qtd} linhas</div>
+                  </div>
+                  <div className={cell}>
+                    <div className={lbl2}>Saldo bruto</div>
+                    <div className={`mt-1 text-lg font-semibold tabular-nums ${clrCls(totals.saldo_bruto)}`}>{tot(totals.saldo_bruto)}</div>
+                    <div className="mt-0.5 text-[11px] text-slate-400">ganho/perda dos bilhetes</div>
+                  </div>
+                  <div className={cell}>
+                    <div className={lbl2}>Comissão</div>
+                    <div className={`mt-1 text-lg font-semibold tabular-nums ${comCls(totals.comissao)}`}>{tot(totals.comissao)}</div>
+                    <div className="mt-0.5 text-[11px] text-slate-400">receita da banca</div>
+                  </div>
+                  <div className={cell}>
+                    <div className={lbl2}>Com. afiliados</div>
+                    <div className={`mt-1 text-lg font-semibold tabular-nums ${comCls(totals.comissao_afiliado)}`}>{tot(totals.comissao_afiliado)}</div>
+                    <div className="mt-0.5 text-[11px] text-slate-400">custo da banca</div>
+                  </div>
+                  <div className={cell} title="Quanto os clientes ficaram no período, depois da comissão. Positivo = os clientes ganharam. É o dinheiro deles, não o lucro da banca.">
+                    <div className={lbl2}>Saldo líquido</div>
+                    <div className={`mt-1 text-lg font-semibold tabular-nums ${clrCls(totals.saldo_liquido)}`}>{tot(totals.saldo_liquido)}</div>
+                    <div className="mt-0.5 text-[11px] text-slate-400">resultado dos clientes</div>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
+            );
+          })()}
 
           {/* ABAS: fila pendente x histórico completo */}
           <div className="mb-3 flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900 w-fit">
