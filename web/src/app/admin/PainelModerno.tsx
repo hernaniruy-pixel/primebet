@@ -51,8 +51,17 @@ const comCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-rose-600 dark:t
 const entCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-blue-600 dark:text-blue-400'); // entradas/em aberto: azul (preto se 0)
 const posCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-emerald-600 dark:text-emerald-400'); // entrada: verde (preto se 0)
 
-// Renderiza o jogo deixando os TIMES em negrito (a linha que contém "(Odd ...)").
-// Cobre os formatos "Time A - Time B", "Time A @ Time B" e "Time A v Time B".
+// Nome do jogador destacado dentro da linha de mercado: "[Fulano]" ou "Fulano: 1+ ...".
+// É o que o JM faz — o olho acha o jogador na hora, sem ler a linha inteira.
+function destacarJogador(texto: string, k: number) {
+  const m = texto.match(/^(.*?)(\[[^\]]+\])(.*)$/) || texto.match(/^([•\s]*)([^:•]+:)(.*)$/);
+  if (!m) return <span key={k}>{texto}</span>;
+  return <span key={k}>{m[1]}<span className="text-teal-700 dark:text-teal-400">{m[2]}</span>{m[3]}</span>;
+}
+
+// Renderiza o jogo no formato do JM: fonte monoespaçada (alinha tudo), linha do
+// confronto em azul e negrito, jogador em destaque. Cobre "Time A - Time B",
+// "Time A @ Time B" e "Time A v Time B".
 function renderJogo(jogo: string) {
   return (jogo || '').split('\n').map((line, i) => {
     const t = line.trimStart();
@@ -65,9 +74,13 @@ function renderJogo(jogo: string) {
       const om = body.match(/^(.*?)(\s*\(odd.*)$/i); // separa o "(Odd ...)" se existir
       const teams = (om ? om[1] : body).trim();
       const rest = om ? om[2].trim() : '';
-      return <div key={i}>{pref}<b className="font-bold">{teams}</b>{rest ? ` ${rest}` : ''}</div>;
+      return (
+        <div key={i} className="font-semibold text-blue-800 dark:text-blue-300">
+          <span className="text-slate-400">{pref}</span>{teams}{rest ? ` ${rest}` : ''}
+        </div>
+      );
     }
-    return <div key={i}>{line}</div>;
+    return <div key={i} className="text-slate-700 dark:text-slate-300">{destacarJogador(line, i)}</div>;
   });
 }
 function periodDates(v: string): { d1: string; d2: string } {
@@ -628,10 +641,12 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         <td className="px-2 py-1.5 font-medium text-slate-500">{r.id}</td>
                         <td className="px-2 py-1.5 whitespace-nowrap text-xs text-slate-500">{r.dt}</td>
                         <td className="px-2 py-1.5">
-                          <select value={String(r.cId)} onChange={(e) => patchReg(r.id, { cId: Number(e.target.value) })} className={`${cinp} w-36 font-medium`}>{cliSorted.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select>
+                          <select value={String(r.cId)} onChange={(e) => patchReg(r.id, { cId: Number(e.target.value) })} className={`${cinp} w-36 font-mono text-[11px] font-medium`}>{cliSorted.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select>
                           {inc && <span className="ml-1 inline-block rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">preencher</span>}
                         </td>
-                        <td className="px-2 py-1.5"><div className="max-w-[340px] text-xs leading-snug">
+                        {/* Fonte monoespaçada (como no JM): alinha as linhas do bilhete e
+                            deixa números/odds na mesma largura — muito mais fácil de conferir. */}
+                        <td className="px-2 py-1.5"><div className="max-w-[340px] font-mono text-[11px] leading-snug">
                           {r.ct && (
                             <span className="mb-1 flex flex-wrap items-center gap-1">
                               <span title={r.ctMotivo || 'Contestada pelo cliente'} className="inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⚠️ Contestada</span>
@@ -665,8 +680,11 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                           <div className="flex justify-center gap-1.5">
                             {r.adv && <button onClick={() => setObsModal({ id: r.id, text: r.obs })} title={`Advertência: ${r.obs}`} className="rounded-lg bg-rose-600 px-2 py-1 text-xs text-white transition hover:bg-rose-700">⚠</button>}
                             {r.ct && <button onClick={() => resolverCt(r.id)} title="Encerrar contestação mantendo o status atual" className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-emerald-700">✓ Resolver</button>}
-                            <button onClick={() => saveReg(r.id)} className={`rounded-lg px-2.5 py-1 text-xs font-medium text-white transition ${drafts[r.id]?._saved ? 'bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'}`}>{drafts[r.id]?._saved ? '✓' : 'Salvar'}</button>
-                            <button onClick={() => delReg(r.id)} className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-50 dark:border-rose-500/30 dark:hover:bg-rose-500/10">Excluir</button>
+                            {/* Botões contornados, como no JM: fundo claro + borda/texto na cor.
+                                Pesam menos na tela do que os blocos sólidos e deixam a linha
+                                do bilhete ser a protagonista. */}
+                            <button onClick={() => saveReg(r.id)} className={`rounded-md border px-3 py-1 text-xs font-semibold transition ${drafts[r.id]?._saved ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-blue-300 bg-white text-blue-600 hover:bg-blue-50 dark:border-blue-500/40 dark:bg-transparent dark:text-blue-300 dark:hover:bg-blue-500/10'}`}>{drafts[r.id]?._saved ? '✓' : 'Salvar'}</button>
+                            <button onClick={() => delReg(r.id)} className="rounded-md border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-500 transition hover:bg-rose-50 dark:border-rose-500/40 dark:bg-transparent dark:text-rose-300 dark:hover:bg-rose-500/10">Excluir</button>
                           </div>
                         </td>
                       </tr>
