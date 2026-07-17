@@ -464,21 +464,34 @@ async function iniciarWhatsApp() {
         if (!ehGrupo(jid)) { console.log('   ↳ ignorada: não é grupo'); continue; }
         if (!(await gruposPermitidos()).has(jid)) { console.log('   ↳ ignorada: grupo fora da lista'); continue; }
 
+        // O WhatsApp migrou os participantes de grupo para @lid (id interno, DIFERENTE
+        // do telefone). Quando o reator vem como @lid não há como comparar com
+        // OPERADORES (que são telefones): NÃO bloqueia — o porteiro acima já garante
+        // que é grupo de cliente. Só bloqueia quando o reator é um telefone real e de
+        // fato não está na lista. Sem isto, a migração p/ @lid fazia TODA reação ser
+        // ignorada em silêncio (o operador reagia e nada acontecia).
+        const ehLid = /@lid$/i.test(String(quem));
         const reactor = String(quem).replace(/\D/g, '');
-        if (OPERADORES.length && reactor && !OPERADORES.includes(reactor)) {
+        if (OPERADORES.length && !ehLid && reactor && !OPERADORES.includes(reactor)) {
           console.log('ℹ️  Reação ignorada (não é operador autorizado):', reactor);
           continue;
         }
+        if (OPERADORES.length && ehLid) console.log('   (reator veio como @lid — não dá p/ checar OPERADORES; liberado pelo grupo permitido)');
 
         const nomeGrupo = await nomeDoGrupo(sock, jid);
         const cli = await acharCliente(jid, nomeGrupo);
         if (!cli) {
           console.log(`⚠️  Grupo "${nomeGrupo}" (${jid}) não casou com nenhum cliente cadastrado — pulei.`);
+          await avisar(cliente, `⚠️ Reagi um bilhete em "${nomeGrupo}", mas o grupo não está vinculado a nenhum cliente. Cadastre o link do grupo no cliente e reaja de novo.`);
           continue;
         }
 
         const { base64, mime, fonte, orig } = await imagemParaTranscrever(sock, jid, msgId);
-        if (!base64) { console.log('ℹ️  Sem imagem para transcrever. Ignorado.'); continue; }
+        if (!base64) {
+          console.log('ℹ️  Sem imagem para transcrever. Ignorado.');
+          await avisar(cliente, `⚠️ Reação em "${nomeGrupo}" (${cli.nome}): não recuperei a imagem do bilhete (o WhatsApp negou a mídia). Reenvie o print e reaja de novo.`);
+          continue;
+        }
         console.log('   imagem:', fonte);
 
         // Legenda: vem do banco — lá está OU a legenda colada na imagem, OU o valor que o
@@ -497,6 +510,8 @@ async function iniciarWhatsApp() {
         console.log(`   ✅ aposta #${aposta.id} gravada (odd ${aposta.odd}, valor ${aposta.valor}, casa "${aposta.casa}", EM ABERTO)`);
       } catch (e) {
         console.error('❌ Erro ao processar reação:', e && e.message);
+        // Nunca falhar em silêncio: o operador reagiu esperando a transcrição.
+        try { await avisar(cliente, `⚠️ Não consegui transcrever um bilhete reagido: ${String(e && e.message).slice(0, 150)}. Reaja de novo ou lance pelo painel.`); } catch { /* silencioso */ }
       }
     }
   });
