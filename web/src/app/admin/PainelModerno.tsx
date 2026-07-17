@@ -432,15 +432,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   return (
     <div className={dark ? 'dark' : ''}>
       <style>{`@keyframes pbAlertPulse{0%,100%{border-color:#ef4444}50%{border-color:#fecaca}} tr.pb-alert>td{border-width:2px;animation:pbAlertPulse 1.1s ease-in-out infinite} @keyframes pbFlash{0%{background-color:rgba(34,197,94,.45)}100%{background-color:transparent}} tr.pb-flash>td{animation:pbFlash 1.6s ease-out}
-
-/* Botões da cabeça do painel: dourado cheio na ação principal, borda dourada
-   (a mesma do cartão Resumo total) nas secundárias. */
-.pb-btn-gold{background:linear-gradient(135deg,#B8860B,#DAA520);color:#1a1a00;border:1px solid rgba(242,208,100,.5);box-shadow:0 4px 12px rgba(184,134,11,.28);transition:.15s}
-.pb-btn-gold:hover{filter:brightness(1.08)}
-.pb-btn-ghost{background:#fff;border:1px solid #DAA520;color:#8a6508;transition:.15s}
-.pb-btn-ghost:hover{background:#fdf7e6}
-.dark .pb-btn-ghost{background:transparent;border-color:rgba(218,165,32,.55);color:#e2b32e}
-.dark .pb-btn-ghost:hover{background:rgba(218,165,32,.12)}`}</style>
+`}</style>
       <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {/* TOPBAR */}
         {/* min-w-0 + nav rolável: no celular os 9 itens não cabem numa linha. Sem isto
@@ -583,8 +575,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               <div><span className={lbl}>Irregular</span><select className={inp} value={filtros.irr} onChange={(e) => setF('irr', e.target.value)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
             </div>
             <div className="mt-3 flex flex-wrap justify-end gap-2">
-              <button onClick={limpar} title="Limpar todos os filtros" className="pb-btn-ghost inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium">🗑️ Limpar</button>
-              <button onClick={() => { reload(); toast('Lista atualizada.'); }} title="Recarregar a lista (descarta rascunhos não salvos)" className="pb-btn-gold inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold">🔄 Atualizar</button>
+              <button onClick={limpar} title="Limpar todos os filtros" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">🗑️ Limpar</button>
+              <button onClick={() => { reload(); toast('Lista atualizada.'); }} title="Recarregar a lista (descarta rascunhos não salvos)" className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition hover:border-amber-400 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20">🔄 Atualizar</button>
             </div>
           </div>
 
@@ -931,15 +923,17 @@ function tot(n: number) { return `R$ ${fmt(n)}`; }
 
 // Selo de ícone de cada cartão. A cor é só do selo — o número segue a regra de cor
 // do painel (verde/vermelho/preto), senão a moldura brigaria com o dado.
+// Fundo + contorno na mesma família de cor: o tom -50 sozinho sumia no branco do
+// cartão e o selo ficava boiando. O -100 com borda -300 desenha o selo de verdade.
 const KPI_COR: Record<string, string> = {
-  blue: 'bg-blue-50 text-blue-500 dark:bg-blue-500/10 dark:text-blue-300',
-  amber: 'bg-amber-50 text-amber-500 dark:bg-amber-500/10 dark:text-amber-300',
-  violet: 'bg-violet-50 text-violet-500 dark:bg-violet-500/10 dark:text-violet-300',
-  emerald: 'bg-emerald-50 text-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-300',
-  rose: 'bg-rose-50 text-rose-500 dark:bg-rose-500/10 dark:text-rose-300',
-  teal: 'bg-teal-50 text-teal-500 dark:bg-teal-500/10 dark:text-teal-300',
-  slate: 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300',
-  destaque: 'bg-amber-400/20 text-amber-600 dark:bg-amber-400/15 dark:text-amber-300',
+  blue: 'border-blue-300 bg-blue-100 text-blue-600 dark:border-blue-400/40 dark:bg-blue-500/15 dark:text-blue-300',
+  amber: 'border-amber-300 bg-amber-100 text-amber-600 dark:border-amber-400/40 dark:bg-amber-500/15 dark:text-amber-300',
+  violet: 'border-violet-300 bg-violet-100 text-violet-600 dark:border-violet-400/40 dark:bg-violet-500/15 dark:text-violet-300',
+  emerald: 'border-emerald-300 bg-emerald-100 text-emerald-600 dark:border-emerald-400/40 dark:bg-emerald-500/15 dark:text-emerald-300',
+  rose: 'border-rose-300 bg-rose-100 text-rose-600 dark:border-rose-400/40 dark:bg-rose-500/15 dark:text-rose-300',
+  teal: 'border-teal-300 bg-teal-100 text-teal-600 dark:border-teal-400/40 dark:bg-teal-500/15 dark:text-teal-300',
+  slate: 'border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-500/50 dark:bg-slate-700 dark:text-slate-300',
+  destaque: 'border-amber-400 bg-amber-200/60 text-amber-700 dark:border-amber-400/50 dark:bg-amber-400/20 dark:text-amber-300',
 };
 
 /**
@@ -959,7 +953,7 @@ function Kpi({ icone, cor, titulo, valor, valorCls, sub, dica, href }: {
     <>
       <div className="flex items-start justify-between gap-2">
         <div className={`text-[10px] font-medium uppercase tracking-wide ${destaque ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>{titulo}</div>
-        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[11px] ${KPI_COR[cor] ?? KPI_COR.slate}`}>{icone}</span>
+        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[11px] ${KPI_COR[cor] ?? KPI_COR.slate}`}>{icone}</span>
       </div>
       <div className={`mt-1 tabular-nums ${destaque ? 'text-xl font-bold' : 'text-lg font-semibold'} ${valorCls}`}>{valor}</div>
       <div className="mt-0.5 text-[11px] text-slate-400">{sub}</div>
