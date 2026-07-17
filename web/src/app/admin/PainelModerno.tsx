@@ -493,8 +493,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             return (
               <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 <Kpi icone="⇄" cor="blue" titulo="Entrada" valor={tot(totals.entradas)} valorCls={posCls(totals.entradas)} sub={`${total} linhas`} />
-                <Kpi icone="🕐" cor="amber" titulo="Em aberto" valor={tot(totals.em_aberto_total)} valorCls={entCls(totals.em_aberto_total)} sub={`${totals.em_aberto_qtd} linhas`} />
-                <Kpi icone="📈" cor="violet" titulo="Saldo bruto" valor={tot(totals.saldo_bruto)} valorCls={clrCls(totals.saldo_bruto)} sub="ganho/perda dos bilhetes" />
+                <Kpi icone="🕐" cor="violet" titulo="Em aberto" valor={tot(totals.em_aberto_total)} valorCls={entCls(totals.em_aberto_total)} sub={`${totals.em_aberto_qtd} linhas`} />
+                <Kpi icone="📈" cor="slate" titulo="Saldo bruto" valor={tot(totals.saldo_bruto)} valorCls={clrCls(totals.saldo_bruto)} sub="ganho/perda dos bilhetes" />
                 <Kpi icone="✓" cor="emerald" titulo="Saldo líquido" valor={tot(totals.saldo_liquido)} valorCls={clrCls(totals.saldo_liquido)} sub="resultado dos clientes"
                      dica="Quanto os clientes ficaram no período, depois da comissão. Positivo = os clientes ganharam. É o dinheiro deles, não o lucro da banca." />
                 <Kpi icone="%" cor="rose" titulo="Comissão" valor={tot(totals.comissao)} valorCls={comCls(totals.comissao)} sub="receita da banca" />
