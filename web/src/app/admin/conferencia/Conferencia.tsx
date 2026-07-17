@@ -34,39 +34,45 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
   const [msgErro, setMsgErro] = useState('');
   const [carregando, startTransition] = useTransition();
 
-  // Carrega as páginas 1..ateP de uma vez e as junta. Refazer todas (em vez de só
-  // anexar) mantém a lista coerente depois de lançar/ignorar, sem duplicar nem
-  // pular imagens quando uma some da fila.
-  function carregarPaginas(grupoId: string, somentePend: boolean, ateP: number) {
+  const PER = 48;
+  const totalPages = Math.max(1, Math.ceil(total / PER));
+
+  // Carrega UMA página por vez (48). Assim ignorar/lançar não precisam refazer a
+  // lista inteira nem reassinar centenas de miniaturas — o que estava deixando o
+  // clique lento.
+  function carregar(grupoId: string, somentePend: boolean, p: number) {
     startTransition(async () => {
-      const [g, ...pgs] = await Promise.all([
+      const [g, im] = await Promise.all([
         listarConfGrupos(),
-        ...Array.from({ length: ateP }, (_, i) =>
-          listarConfImagens({ grupoId: grupoId || undefined, pend: somentePend, page: i + 1 })),
+        listarConfImagens({ grupoId: grupoId || undefined, pend: somentePend, page: p }),
       ]);
-      setGrupos(g);
-      setImagens(pgs.flatMap((p) => p.rows));
-      setTotal(pgs[pgs.length - 1]?.total ?? 0);
-      setPage(ateP);
+      setGrupos(g); setImagens(im.rows); setTotal(im.total); setPage(p);
     });
   }
 
-  // Após uma ação (lançar/ignorar/atualizar) preserva a profundidade já aberta —
-  // não colapsa de volta para as 48 primeiras.
-  function recarregar(grupoId = grupoSel, somentePend = pend) { carregarPaginas(grupoId, somentePend, page); }
+  function recarregar(grupoId = grupoSel, somentePend = pend) { carregar(grupoId, somentePend, page); }
   // Trocar de grupo ou de aba recomeça na página 1.
-  function selecionarGrupo(id: string) { setGrupoSel(id); carregarPaginas(id, pend, 1); }
-  function alternarPend(v: boolean) { setPend(v); carregarPaginas(grupoSel, v, 1); }
-  function carregarMais() { carregarPaginas(grupoSel, pend, page + 1); }
+  function selecionarGrupo(id: string) { setGrupoSel(id); carregar(id, pend, 1); }
+  function alternarPend(v: boolean) { setPend(v); carregar(grupoSel, v, 1); }
+  function irPara(p: number) { if (p >= 1 && p <= totalPages && p !== page) carregar(grupoSel, pend, p); }
 
   const gruposFiltrados = buscaGrupo.trim()
     ? grupos.filter((g) => (g.grupo_nome || g.grupo_id).toLowerCase().includes(buscaGrupo.trim().toLowerCase()))
     : grupos;
 
   function ignorar(img: ConfImagem) {
+    const marcar = !img.ignorada;
+    // Otimista: some da fila na hora (na aba Pendentes) ou alterna o rótulo (Todas),
+    // sem esperar o servidor nem recarregar a página — o clique fica instantâneo.
+    if (pend && marcar) { setImagens((cur) => cur.filter((x) => x.id !== img.id)); setTotal((t) => Math.max(0, t - 1)); }
+    else setImagens((cur) => cur.map((x) => (x.id === img.id ? { ...x, ignorada: marcar } : x)));
     startTransition(async () => {
-      await ignorarImagem(img.id, !img.ignorada);
-      recarregar();
+      try {
+        await ignorarImagem(img.id, marcar);
+        setGrupos(await listarConfGrupos()); // só os contadores da barra lateral
+      } catch {
+        recarregar(); // deu errado: ressincroniza a página
+      }
     });
   }
 
@@ -167,13 +173,16 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
 
         {/* grade de imagens */}
         <section>
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
               {([[true, 'Pendentes'], [false, 'Todas']] as const).map(([k, label]) => (
                 <button key={String(k)} onClick={() => alternarPend(k)} className={`rounded-lg px-4 py-1.5 text-sm font-medium ${pend === k ? 'bg-[#13200a] text-[#DAA520]' : 'text-slate-500 hover:text-slate-800'}`}>{label}</button>
               ))}
             </div>
-            <span className="text-xs text-slate-400">{carregando ? 'carregando…' : `mostrando ${imagens.length} de ${total}`}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-400">{carregando ? 'carregando…' : `${total} imagem(ns)`}</span>
+              <Pager page={page} totalPages={totalPages} onIr={irPara} carregando={carregando} />
+            </div>
           </div>
 
           {imagens.length === 0 ? (
@@ -225,15 +234,9 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
             </div>
           )}
 
-          {imagens.length < total && (
-            <div className="mt-4 text-center">
-              <button
-                onClick={carregarMais}
-                disabled={carregando}
-                className="rounded-lg border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-              >
-                {carregando ? 'Carregando…' : `Carregar mais (${total - imagens.length} restantes)`}
-              </button>
+          {totalPages > 1 && (
+            <div className="mt-4 flex justify-center">
+              <Pager page={page} totalPages={totalPages} onIr={irPara} carregando={carregando} />
             </div>
           )}
 
@@ -297,6 +300,18 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
         </div>
       )}
     </main>
+  );
+}
+
+function Pager({ page, totalPages, onIr, carregando }: { page: number; totalPages: number; onIr: (p: number) => void; carregando: boolean }) {
+  if (totalPages <= 1) return null;
+  const btn = 'rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-600 transition enabled:hover:bg-slate-50 disabled:opacity-40';
+  return (
+    <div className="flex items-center gap-1">
+      <button disabled={carregando || page <= 1} onClick={() => onIr(page - 1)} className={btn} title="Página anterior">‹ Anterior</button>
+      <span className="px-2 text-xs tabular-nums text-slate-500">{page}/{totalPages}</span>
+      <button disabled={carregando || page >= totalPages} onClick={() => onIr(page + 1)} className={btn} title="Próxima página">Próxima ›</button>
+    </div>
   );
 }
 
