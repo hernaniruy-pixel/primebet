@@ -51,24 +51,35 @@ export interface ApostaRow {
 
 const num = (v: number | string | null | undefined) => Number(v ?? 0);
 
-// timestamptz (ISO) → 'HH:mm DD-MM-AAAA' no horário de Brasília (America/Sao_Paulo)
+// timestamptz (ISO) → 'HH:mm DD/MM/AA' no horário de Brasília (America/Sao_Paulo).
+// Ano com 2 dígitos e barra: é como se lê data no Brasil, e economiza a largura
+// que fazia falta na coluna.
 export function fmtTs(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   const parts = new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Sao_Paulo', hour12: false,
-    hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: '2-digit',
   }).formatToParts(d);
   const g = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
-  return `${g('hour')}:${g('minute')} ${g('day')}-${g('month')}-${g('year')}`;
+  return `${g('hour')}:${g('minute')} ${g('day')}/${g('month')}/${g('year')}`;
 }
 
-// 'HH:mm DD-MM-AAAA' (ou 'YYYY-MM-DD HH:mm' antigo) → ISO para gravar no banco
+/** 'HH:mm DD/MM/AA' → { hora: 'HH:mm', data: 'DD/MM/AA' }, para empilhar na célula. */
+export function partesTs(s: string): { hora: string; data: string } {
+  const m = /^(\d{1,2}:\d{2})\s+(.+)$/.exec(s || '');
+  return m ? { hora: m[1], data: m[2] } : { hora: '', data: s || '' };
+}
+
+// 'HH:mm DD/MM/AA' → ISO para gravar no banco. Aceita também o formato antigo
+// ('HH:mm DD-MM-AAAA') e ano de 4 dígitos: há valor digitado à mão por aí e
+// mudar o formato de exibição não pode invalidar o que já existe.
 export function parseTs(s: string): string {
-  const m = s.match(/^(\d{1,2}):(\d{2})\s+(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  const m = s.match(/^(\d{1,2}):(\d{2})\s+(\d{1,2})[/-](\d{1,2})[/-](\d{2}|\d{4})$/);
   if (m) {
-    const [, hh, mm, dd, mo, yyyy] = m;
-    const d = new Date(Number(yyyy), Number(mo) - 1, Number(dd), Number(hh), Number(mm));
+    const [, hh, mm, dd, mo, ano] = m;
+    const yyyy = ano.length === 2 ? 2000 + Number(ano) : Number(ano);
+    const d = new Date(yyyy, Number(mo) - 1, Number(dd), Number(hh), Number(mm));
     return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
   }
   const d = new Date(s.replace(' ', 'T'));

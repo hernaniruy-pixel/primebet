@@ -13,10 +13,10 @@ const brDate = (d: string): string => {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : (d || '');
 };
 
-// A data da despesa chega como 'HH:mm DD-MM-AAAA' (fmtTs). No PDF a linha fica mais
-// legível como 'DD/MM/AAAA HH:mm'.
+// A data da despesa chega como 'HH:mm DD/MM/AA' (fmtTs). No PDF a linha fica mais
+// legível como 'DD/MM/AA HH:mm'.
 const dataLinha = (s: string): string => {
-  const m = /^(\d{2}):(\d{2})\s+(\d{2})-(\d{2})-(\d{4})$/.exec(s || '');
+  const m = /^(\d{2}):(\d{2})\s+(\d{2})[/-](\d{2})[/-](\d{2}|\d{4})$/.exec(s || '');
   return m ? `${m[3]}/${m[4]}/${m[5]} ${m[1]}:${m[2]}` : s;
 };
 

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import type { ExtratoResp, SemanaExtrato } from './types';
 import { contestarAposta, sairCliente } from './actions';
 import { renderJogoLinhas } from './render';
 import type { Reg } from '../admin/types';
+import { partesTs } from '../admin/types';
 
 // Mesmas cores de status do painel admin — o cliente e o operador têm que estar
 // olhando para a mesma coisa quando falam ao telefone.
@@ -27,6 +28,10 @@ const CARD_COR: Record<string, string> = {
   destaque: 'border-amber-400 bg-amber-200/60 text-amber-700',
 };
 
+// Campos iguais aos do painel (o foco âmbar é a identidade da casa).
+const inp = 'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20';
+const lbl = 'mb-1 block text-[11px] font-medium text-slate-400';
+
 const brl = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const clr = (n: number) => (n > 0 ? 'text-emerald-600' : n < 0 ? 'text-rose-600' : 'text-slate-900');
 
@@ -46,6 +51,33 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
   // A odd que vale para o cliente já é a do bilhete MENOS o desconto do cadastro dele —
   // é sobre ela que o saldo é calculado. Mostrar a odd cheia aqui só geraria dúvida.
   const oddDoCliente = (odd: number) => Math.max(odd - (dados.cliente.desc || 0), 0);
+  // ── Filtros. As linhas da semana já vieram inteiras do servidor, então filtrar
+  // é só recortar em memória: a tela responde na hora, sem nova consulta.
+  const [busca, setBusca] = useState('');
+  const [fSt, setFSt] = useState('');
+  const [fData, setFData] = useState('');
+  const filtrando = !!(busca.trim() || fSt || fData);
+  const limpar = () => { setBusca(''); setFSt(''); setFData(''); };
+
+  const rows = useMemo(() => sem.rows.filter((r) => {
+    if (fSt && r.st !== fSt) return false;
+    // r.dt é 'HH:mm DD/MM/AA'; o <input type=date> dá 'AAAA-MM-DD'.
+    if (fData) {
+      const [ano, mes, dia] = fData.split('-');
+      if (partesTs(r.dt).data !== `${dia}/${mes}/${ano.slice(-2)}`) return false;
+    }
+    if (busca.trim() && !r.jogo.toLowerCase().includes(busca.trim().toLowerCase())) return false;
+    return true;
+  }), [sem.rows, busca, fSt, fData]);
+
+  // Os cards descrevem o que está na tela. Mostrar o total da semana com a lista
+  // filtrada faria o cliente conferir pelo número errado.
+  const tot = useMemo(() => ({
+    entradas: rows.reduce((s, r) => s + r.val, 0),
+    saldo: rows.reduce((s, r) => s + r.sl, 0),
+    abertas: rows.filter((r) => r.st === 'EM ABERTO').length,
+  }), [rows]);
+
   const router = useRouter();
   const [pend, startTransition] = useTransition();
   const [contestando, setContestando] = useState<Reg | null>(null);
@@ -87,9 +119,9 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
             dourado = o número que o cliente abre a tela para ver. */}
         <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Card icone="💰" cor="slate" titulo="Calção" valor={brl(dados.cliente.cal)} valorCls="text-slate-900" />
-          <Card icone="⇄" cor="blue" titulo="Entradas (semana)" valor={brl(sem.entradas)} valorCls={sem.entradas ? 'text-blue-600' : 'text-slate-900'} />
-          <Card icone="🕐" cor="violet" titulo="Em aberto" valor={String(sem.abertas)} valorCls={sem.abertas ? 'text-violet-700' : 'text-slate-900'} />
-          <Card icone="★" cor="destaque" destaque titulo="Saldo da semana" valor={brl(sem.saldo)} valorCls={clr(sem.saldo)} />
+          <Card icone="⇄" cor="blue" titulo={filtrando ? 'Entradas (filtro)' : 'Entradas (semana)'} valor={brl(tot.entradas)} valorCls={tot.entradas ? 'text-blue-600' : 'text-slate-900'} />
+          <Card icone="🕐" cor="violet" titulo="Em aberto" valor={String(tot.abertas)} valorCls={tot.abertas ? 'text-violet-700' : 'text-slate-900'} />
+          <Card icone="★" cor="destaque" destaque titulo={filtrando ? 'Saldo (filtro)' : 'Saldo da semana'} valor={brl(tot.saldo)} valorCls={clr(tot.saldo)} />
         </div>
 
         {/* Abas semana. No celular o período ia na mesma linha dos dois botões e
@@ -113,14 +145,51 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
           </span>
         </div>
 
+        {/* FILTROS — o cliente não tinha nenhum: para achar um bilhete precisava
+            varrer a semana inteira com o olho. */}
+        <div className="mb-3 rounded-xl border border-slate-200 bg-white p-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="col-span-2 sm:col-span-2">
+              <span className={lbl}>Buscar jogo / time</span>
+              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="ex: Argentina" className={inp} />
+            </div>
+            <div>
+              <span className={lbl}>Status</span>
+              <select value={fSt} onChange={(e) => setFSt(e.target.value)} className={inp}>
+                <option value="">Todos</option>
+                {['EM ABERTO', ...STATUS_OPCOES].map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <span className={lbl}>Dia</span>
+              <input type="date" value={fData} onChange={(e) => setFData(e.target.value)} min={sem.d1} max={sem.d2} className={inp} />
+            </div>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-slate-400">
+              {filtrando ? `${rows.length} de ${sem.rows.length} aposta(s)` : `${sem.rows.length} aposta(s) na semana`}
+            </span>
+            {filtrando && (
+              <button onClick={limpar} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">
+                🗑️ Limpar
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* MOBILE: um card por bilhete. A tabela tem 7 colunas e min-w 640px —
             num celular de 375px ela virava uma gaveta horizontal onde o cliente
             só via "Data" e precisava arrastar para achar o próprio saldo. */}
         <div className="space-y-2 sm:hidden">
-          {sem.rows.map((r) => (
+          {rows.map((r) => (
             <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-xs text-slate-500">{r.dt}</span>
+                <span className="text-xs leading-tight text-slate-500">
+                  {(() => { const p = partesTs(r.dt); return (<>
+                    <span className="font-medium text-slate-700">{p.hora}</span>
+                    <span className="ml-1.5 text-[11px] text-slate-400">{p.data}</span>
+                  </>); })()}
+                </span>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${STPILL[r.st] ?? 'bg-slate-100 text-slate-600'}`}>{r.st}</span>
               </div>
 
@@ -150,7 +219,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
               {r.ct && <div className="mt-2 text-center text-[11px] text-rose-500">em análise</div>}
             </div>
           ))}
-          {sem.rows.length === 0 && (
+          {rows.length === 0 && (
             <div className="rounded-xl border border-slate-200 bg-white px-3 py-10 text-center text-slate-400">Nenhuma aposta nesta semana.</div>
           )}
         </div>
@@ -170,9 +239,14 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
               </tr>
             </thead>
             <tbody>
-              {sem.rows.map((r) => (
+              {rows.map((r) => (
                 <tr key={r.id} className="border-b-2 border-slate-200 align-top">
-                  <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500">{r.dt}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-xs leading-tight text-slate-500">
+                    {(() => { const p = partesTs(r.dt); return (<>
+                      <div className="font-medium text-slate-700">{p.hora}</div>
+                      <div className="text-[11px] text-slate-400">{p.data}</div>
+                    </>); })()}
+                  </td>
                   <td className="px-3 py-2">
                     <div className="max-w-[340px] font-mono text-[11px] leading-snug">
                       {r.ct && <span className="mr-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">⚠️ Contestada</span>}
@@ -195,7 +269,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
                   </td>
                 </tr>
               ))}
-              {sem.rows.length === 0 && (
+              {rows.length === 0 && (
                 <tr><td colSpan={7} className="px-3 py-10 text-center text-slate-400">Nenhuma aposta nesta semana.</td></tr>
               )}
             </tbody>

@@ -4,10 +4,10 @@ import { useState, useTransition } from 'react';
 import { listarConfGrupos, listarConfImagens, ignorarImagem, lancarImagem } from '../actions';
 import type { ConfGrupo, ConfImagem, ConfImagensResp } from './types';
 
-// enviadoEm vem como 'HH:mm DD-MM-AAAA' (fmtTs). No cartão o ano só ocupa espaço:
+// enviadoEm vem como 'HH:mm DD/MM/AA' (fmtTs). No cartão o ano só ocupa espaço:
 // mostramos 'DD/MM às HH:mm' — a HORA é o que o operador precisa para achar o print.
 function dataHoraCurta(s: string): string {
-  const m = /^(\d{2}):(\d{2})\s+(\d{2})-(\d{2})-(\d{4})$/.exec(s || '');
+  const m = /^(\d{2}):(\d{2})\s+(\d{2})[/-](\d{2})[/-](\d{2}|\d{4})$/.exec(s || '');
   return m ? `${m[3]}/${m[4]} ${m[1]}:${m[2]}` : s;
 }
 

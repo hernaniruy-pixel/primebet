@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow } from './types';
+import { partesTs } from './types';
 import {
   criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao,
   criarCliente, atualizarCliente, excluirCliente, criarAfiliado, atualizarAfiliado, excluirAfiliado,
@@ -615,7 +616,14 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                     return (
                       <tr key={r.id} className={`border-b border-slate-100 align-middle transition hover:bg-slate-50 dark:border-slate-800/70 dark:hover:bg-slate-800/40 ${inc ? 'pb-alert bg-rose-50/60 dark:bg-rose-500/5' : ''} ${flashId === r.id ? 'pb-flash' : ''}`}>
                         <td className="px-2 py-1.5 font-medium text-slate-500">{r.id}</td>
-                        <td className="px-2 py-1.5 whitespace-nowrap text-xs text-slate-500">{r.dt}</td>
+                        {/* Hora em cima, data embaixo: a hora é o que identifica o
+                            print no grupo, e empilhado a coluna deixa de esticar. */}
+                        <td className="whitespace-nowrap px-2 py-1.5 text-xs leading-tight text-slate-500">
+                          {(() => { const p = partesTs(r.dt); return (<>
+                            <div className="font-medium text-slate-700 dark:text-slate-300">{p.hora}</div>
+                            <div className="text-[11px] text-slate-400">{p.data}</div>
+                          </>); })()}
+                        </td>
                         <td className="px-2 py-1.5">
                           <select value={String(r.cId)} onChange={(e) => patchReg(r.id, { cId: Number(e.target.value) })} className={`${cinp} w-36 font-mono text-[11px] font-medium`}>{cliSorted.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select>
                           {inc && <span className="ml-1 inline-block rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">preencher</span>}
