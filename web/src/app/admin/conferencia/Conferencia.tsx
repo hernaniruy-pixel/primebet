@@ -22,7 +22,9 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
   const [grupos, setGrupos] = useState<ConfGrupo[]>(gruposIni);
   const [imagens, setImagens] = useState<ConfImagem[]>(imagensIni.rows);
   const [total, setTotal] = useState(imagensIni.total);
+  const [page, setPage] = useState(1);            // quantas páginas (de 48) já carregadas
   const [grupoSel, setGrupoSel] = useState<string>(''); // '' = todos
+  const [buscaGrupo, setBuscaGrupo] = useState(''); // filtro da lista de grupos (são ~50)
   const [pend, setPend] = useState(true);
   const [zoom, setZoom] = useState<ConfImagem | null>(null);
   const [lancar, setLancar] = useState<ConfImagem | null>(null);
@@ -32,18 +34,34 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
   const [msgErro, setMsgErro] = useState('');
   const [carregando, startTransition] = useTransition();
 
-  function recarregar(grupoId = grupoSel, somentePend = pend) {
+  // Carrega as páginas 1..ateP de uma vez e as junta. Refazer todas (em vez de só
+  // anexar) mantém a lista coerente depois de lançar/ignorar, sem duplicar nem
+  // pular imagens quando uma some da fila.
+  function carregarPaginas(grupoId: string, somentePend: boolean, ateP: number) {
     startTransition(async () => {
-      const [g, im] = await Promise.all([
+      const [g, ...pgs] = await Promise.all([
         listarConfGrupos(),
-        listarConfImagens({ grupoId: grupoId || undefined, pend: somentePend, page: 1 }),
+        ...Array.from({ length: ateP }, (_, i) =>
+          listarConfImagens({ grupoId: grupoId || undefined, pend: somentePend, page: i + 1 })),
       ]);
-      setGrupos(g); setImagens(im.rows); setTotal(im.total);
+      setGrupos(g);
+      setImagens(pgs.flatMap((p) => p.rows));
+      setTotal(pgs[pgs.length - 1]?.total ?? 0);
+      setPage(ateP);
     });
   }
 
-  function selecionarGrupo(id: string) { setGrupoSel(id); recarregar(id, pend); }
-  function alternarPend(v: boolean) { setPend(v); recarregar(grupoSel, v); }
+  // Após uma ação (lançar/ignorar/atualizar) preserva a profundidade já aberta —
+  // não colapsa de volta para as 48 primeiras.
+  function recarregar(grupoId = grupoSel, somentePend = pend) { carregarPaginas(grupoId, somentePend, page); }
+  // Trocar de grupo ou de aba recomeça na página 1.
+  function selecionarGrupo(id: string) { setGrupoSel(id); carregarPaginas(id, pend, 1); }
+  function alternarPend(v: boolean) { setPend(v); carregarPaginas(grupoSel, v, 1); }
+  function carregarMais() { carregarPaginas(grupoSel, pend, page + 1); }
+
+  const gruposFiltrados = buscaGrupo.trim()
+    ? grupos.filter((g) => (g.grupo_nome || g.grupo_id).toLowerCase().includes(buscaGrupo.trim().toLowerCase()))
+    : grupos;
 
   function ignorar(img: ConfImagem) {
     startTransition(async () => {
@@ -107,10 +125,23 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
             <b>Todos os grupos</b>
           </button>
 
+          {/* Busca de grupo: são ~50, rolar para achar era inviável. */}
+          <div className="relative">
+            <input
+              value={buscaGrupo}
+              onChange={(e) => setBuscaGrupo(e.target.value)}
+              placeholder="🔍 Buscar grupo…"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+            />
+            {buscaGrupo && (
+              <button onClick={() => setBuscaGrupo('')} title="Limpar" className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-1 text-slate-400 hover:text-slate-700">✕</button>
+            )}
+          </div>
+
           {/* No celular o layout empilha e esta lista vem ANTES das imagens: com 70vh de
               altura, os prints ficavam fora de vista e pareciam não existir. */}
           <div className="max-h-[28vh] space-y-1.5 overflow-y-auto pr-1 md:max-h-[70vh]">
-            {grupos.map((g) => (
+            {gruposFiltrados.map((g) => (
               <button
                 key={g.grupo_id}
                 onClick={() => selecionarGrupo(g.grupo_id)}
@@ -126,7 +157,11 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
                 </div>
               </button>
             ))}
-            {grupos.length === 0 && <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center text-sm text-slate-400">Nenhuma imagem recebida ainda.</div>}
+            {gruposFiltrados.length === 0 && (
+              <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center text-sm text-slate-400">
+                {grupos.length === 0 ? 'Nenhuma imagem recebida ainda.' : 'Nenhum grupo encontrado.'}
+              </div>
+            )}
           </div>
         </aside>
 
@@ -138,7 +173,7 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
                 <button key={String(k)} onClick={() => alternarPend(k)} className={`rounded-lg px-4 py-1.5 text-sm font-medium ${pend === k ? 'bg-[#13200a] text-[#DAA520]' : 'text-slate-500 hover:text-slate-800'}`}>{label}</button>
               ))}
             </div>
-            <span className="text-xs text-slate-400">{carregando ? 'carregando…' : `${total} imagem(ns)`}</span>
+            <span className="text-xs text-slate-400">{carregando ? 'carregando…' : `mostrando ${imagens.length} de ${total}`}</span>
           </div>
 
           {imagens.length === 0 ? (
@@ -189,6 +224,19 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
               ))}
             </div>
           )}
+
+          {imagens.length < total && (
+            <div className="mt-4 text-center">
+              <button
+                onClick={carregarMais}
+                disabled={carregando}
+                className="rounded-lg border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                {carregando ? 'Carregando…' : `Carregar mais (${total - imagens.length} restantes)`}
+              </button>
+            </div>
+          )}
+
           <p className="mt-3 text-center text-[11px] text-slate-400">
             Para lançar uma pendente, reaja na imagem dentro do WhatsApp (⚪ ⚫ 🔵 ⚠️) — ela é transcrita e marcada aqui automaticamente.
           </p>
