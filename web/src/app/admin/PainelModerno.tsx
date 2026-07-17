@@ -432,6 +432,17 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   return (
     <div className={dark ? 'dark' : ''}>
       <style>{`@keyframes pbAlertPulse{0%,100%{border-color:#ef4444}50%{border-color:#fecaca}} tr.pb-alert>td{border-width:2px;animation:pbAlertPulse 1.1s ease-in-out infinite} @keyframes pbFlash{0%{background-color:rgba(34,197,94,.45)}100%{background-color:transparent}} tr.pb-flash>td{animation:pbFlash 1.6s ease-out}
+
+/* A lista aberta de um <select> nativo é desenhada pelo sistema, e ele pinta o item
+   selecionado com o azul do navegador POR CIMA da cor do status — foi por isso que
+   mexer no background da <option> não adiantou. appearance:base-select traz a lista
+   para o DOM, e aí o CSS manda. Navegador sem suporte ignora a regra e cai no select
+   nativo de sempre (o pior caso é voltar a ver o azul, nada quebra). */
+.pb-st, .pb-st::picker(select){appearance:base-select}
+.pb-st::picker(select){border:1px solid #e2e8f0;border-radius:12px;padding:4px;background:#fff;box-shadow:0 12px 34px rgba(0,0,0,.18)}
+.dark .pb-st::picker(select){background:#0f172a;border-color:#334155}
+.pb-st option{border-radius:999px;margin:2px;padding:4px 10px;font-size:12px;font-weight:600}
+.pb-st option:checked{font-weight:800}
 `}</style>
       <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {/* TOPBAR */}
@@ -632,7 +643,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         <td className="px-2 py-1.5 text-center"><NumInput kind="money" value={dV(r, 'val')} onChange={(v) => updDraft(r.id, 'val', v)} cls={`${cinp} w-20 text-center font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} /></td>
                         <td className="px-2 py-1.5 text-center">
                           {(() => { const stv = dV(r, 'st'); const pend = edited(r, 'st'); return (
-                            <select value={stv} onChange={(e) => updDraft(r.id, 'st', e.target.value)} title={pend ? 'Status não salvo — clique em Salvar para confirmar' : undefined} style={{ backgroundColor: stStyle(stv).bg, color: stStyle(stv).fg, accentColor: stStyle(stv).bg, boxShadow: pend ? '0 0 0 2px #f59e0b' : undefined }} className="rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer">{STS.map((s) => <option key={s} value={s} style={{ backgroundColor: stStyle(s).bg, color: stStyle(s).fg, backgroundImage: `linear-gradient(${stStyle(s).bg}, ${stStyle(s).bg})` }}>{s}</option>)}</select>
+                            <select value={stv} onChange={(e) => updDraft(r.id, 'st', e.target.value)} title={pend ? 'Status não salvo — clique em Salvar para confirmar' : undefined} style={{ backgroundColor: stStyle(stv).bg, color: stStyle(stv).fg, boxShadow: pend ? '0 0 0 2px #f59e0b' : undefined }} className="pb-st rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer">{STS.map((s) => <option key={s} value={s} style={{ backgroundColor: stStyle(s).bg, color: stStyle(s).fg }}>{s}</option>)}</select>
                           ); })()}
                         </td>
                         <td className={`px-2 py-1.5 text-center tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td>
