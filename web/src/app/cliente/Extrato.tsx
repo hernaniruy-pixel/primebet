@@ -300,10 +300,10 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
                 {rows.map((r) => (
                   <div key={r.id} className={`p-3 ${painel}`}>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="text-xs leading-tight text-slate-500 dark:text-slate-400">
+                      <span className="text-center leading-tight">
                         {(() => { const p = partesTs(r.dt); return (<>
-                          <span className="font-medium text-slate-700 dark:text-slate-200">{p.hora}</span>
-                          <span className="ml-1.5 text-[11px] text-slate-400 dark:text-slate-500">{p.data}</span>
+                          <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">{p.hora}</span>
+                          <span className="block text-[11px] text-slate-400 dark:text-slate-500">{p.data}</span>
                         </>); })()}
                       </span>
                       <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${STPILL[r.st] ?? 'bg-slate-100 text-slate-600'}`}>{r.st}</span>
@@ -357,7 +357,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
                   <tbody>
                     {rows.map((r) => (
                       <tr key={r.id} className="border-b-2 border-slate-200 align-top dark:border-slate-800">
-                        <td className="whitespace-nowrap px-3 py-2 text-xs leading-tight text-slate-500 dark:text-slate-400">
+                        <td className="whitespace-nowrap px-3 py-2 text-center text-xs leading-tight">
                           {(() => { const p = partesTs(r.dt); return (<>
                             <div className="font-medium text-slate-700 dark:text-slate-200">{p.hora}</div>
                             <div className="text-[11px] text-slate-400 dark:text-slate-500">{p.data}</div>
