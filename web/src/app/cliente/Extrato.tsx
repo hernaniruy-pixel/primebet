@@ -111,17 +111,16 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
     abertas: rowsDia.filter((r) => r.st === 'EM ABERTO').length,
   }), [rowsDia]);
 
-  // ── Estatísticas: greens/reds/reembolsos em quantidade e em R$ + aproveitamento.
+  // ── Aproveitamento: greens (GREEN + MEIO GREEN) sobre as apostas resolvidas.
+  // Os números por status saem do `porStatus`; aqui só o que a barra precisa.
   const stats = useMemo(() => {
-    let gQ = 0, gV = 0, rQ = 0, rV = 0, refQ = 0, refV = 0, resolvidas = 0;
+    let gQ = 0, resolvidas = 0;
     for (const r of rowsDia) {
       if (r.st === 'EM ABERTO') continue;
       resolvidas++;
-      if (r.st === 'GREEN' || r.st === 'MEIO GREEN') { gQ++; gV += r.sl; }
-      else if (r.st === 'RED' || r.st === 'MEIO RED') { rQ++; rV += r.sl; }
-      else if (r.st === 'REEMBOLSO') { refQ++; refV += r.sl; }
+      if (r.st === 'GREEN' || r.st === 'MEIO GREEN') gQ++;
     }
-    return { gQ, gV, rQ, rV, refQ, refV, resolvidas, apv: resolvidas ? (gQ / resolvidas) * 100 : null };
+    return { gQ, resolvidas, apv: resolvidas ? (gQ / resolvidas) * 100 : null };
   }, [rowsDia]);
 
   // Agregado por status para o PDF (mesma ordem visual do painel).
@@ -265,7 +264,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
           </div>
 
           {view === 'resumo' ? (
-            <ResumoView stats={stats} tot={tot} rowsQtd={rowsDia.length} onVerBilhetes={() => setView('bilhetes')} />
+            <ResumoView stats={stats} tot={tot} porStatus={porStatus.filter((s) => s.st !== 'EM ABERTO')} rowsQtd={rowsDia.length} onVerBilhetes={() => setView('bilhetes')} />
           ) : (
             <>
               {/* FILTROS da lista — busca e status. O dia fica no controle de período. */}
@@ -451,9 +450,13 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
 }
 
 // ── Tela de resumo: estatísticas do período (dia ou semana). ──
-function ResumoView({ stats, tot, rowsQtd, onVerBilhetes }: {
-  stats: { gQ: number; gV: number; rQ: number; rV: number; refQ: number; refV: number; resolvidas: number; apv: number | null };
+// Os blocos de status NÃO são fixos: aparece um para cada status com que os
+// bilhetes foram de fato resolvidos (se não houve nenhum MEIO RED, não há bloco
+// de MEIO RED). Assim um "meio ruim" solto não some do resumo.
+function ResumoView({ stats, tot, porStatus, rowsQtd, onVerBilhetes }: {
+  stats: { gQ: number; resolvidas: number; apv: number | null };
   tot: { abertas: number };
+  porStatus: { st: string; qtd: number; val: number; sl: number }[];
   rowsQtd: number;
   onVerBilhetes: () => void;
 }) {
@@ -462,11 +465,15 @@ function ResumoView({ stats, tot, rowsQtd, onVerBilhetes }: {
   }
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <StatBox tom="green" titulo="Greens" qtd={stats.gQ} valor={stats.gV} />
-        <StatBox tom="red" titulo="Reds" qtd={stats.rQ} valor={stats.rV} />
-        <StatBox tom="amber" titulo="Reembolsos" qtd={stats.refQ} valor={stats.refV} />
-      </div>
+      {porStatus.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {porStatus.map((s) => <StatBox key={s.st} st={s.st} qtd={s.qtd} sl={s.sl} />)}
+        </div>
+      ) : (
+        <div className={`px-3 py-8 text-center text-sm text-slate-400 dark:text-slate-500 ${painel}`}>
+          Nenhum bilhete resolvido ainda neste período.
+        </div>
+      )}
 
       <div className={`p-4 ${painel}`}>
         <div className="mb-2 flex items-center justify-between">
@@ -491,21 +498,16 @@ function ResumoView({ stats, tot, rowsQtd, onVerBilhetes }: {
   );
 }
 
-const STAT_TOM: Record<string, { selo: string; num: string }> = {
-  green: { selo: 'border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300', num: 'text-emerald-600 dark:text-emerald-400' },
-  red: { selo: 'border-rose-300 bg-rose-100 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-300', num: 'text-rose-600 dark:text-rose-400' },
-  amber: { selo: 'border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-300', num: 'text-amber-600 dark:text-amber-400' },
-};
-
-function StatBox({ tom, titulo, qtd, valor }: { tom: keyof typeof STAT_TOM; titulo: string; qtd: number; valor: number }) {
-  const t = STAT_TOM[tom];
+// Um bloco por status resolvido: o selo usa a MESMA cor do status na lista/painel;
+// o R$ é o saldo daquele status (verde se somou a favor, vermelho se contra).
+function StatBox({ st, qtd, sl }: { st: string; qtd: number; sl: number }) {
   return (
     <div className={`p-4 ${painel}`}>
-      <div className="flex items-center justify-between">
-        <span className={`inline-block rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${t.selo}`}>{titulo}</span>
+      <div className="flex items-center justify-between gap-2">
+        <span className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-semibold ${STPILL[st] ?? 'bg-slate-100 text-slate-600'}`}>{st}</span>
         <span className="text-2xl font-bold tabular-nums text-slate-800 dark:text-slate-100">{qtd}</span>
       </div>
-      <div className={`mt-2 text-lg font-semibold tabular-nums ${t.num}`}>R$ {brl(valor)}</div>
+      <div className={`mt-2 text-lg font-semibold tabular-nums ${clr(sl)}`}>R$ {brl(sl)}</div>
     </div>
   );
 }
