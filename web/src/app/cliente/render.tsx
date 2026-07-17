@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 function destacarJogador(texto: string, k: number) {
   const m = texto.match(/^(.*?)(\[[^\]]+\])(.*)$/) || texto.match(/^([•\s]*)([^:•]+:)(.*)$/);
   if (!m) return <span key={k}>{texto}</span>;
-  return <span key={k}>{m[1]}<span className="text-teal-700">{m[2]}</span>{m[3]}</span>;
+  return <span key={k}>{m[1]}<span className="text-teal-700 dark:text-teal-400">{m[2]}</span>{m[3]}</span>;
 }
 
 /**
@@ -25,11 +25,11 @@ export function renderJogoLinhas(jogo: string): ReactNode {
       const teams = (om ? om[1] : body).trim();
       const rest = om ? om[2].trim() : '';
       return (
-        <div key={i} className="font-bold text-orange-600">
-          <span className="font-normal text-slate-400">{pref}</span>{teams}{rest ? ` ${rest}` : ''}
+        <div key={i} className="font-bold text-orange-600 dark:text-orange-400">
+          <span className="font-normal text-slate-400 dark:text-slate-500">{pref}</span>{teams}{rest ? ` ${rest}` : ''}
         </div>
       );
     }
-    return <div key={i} className="text-slate-700">{destacarJogador(line, i)}</div>;
+    return <div key={i} className="text-slate-700 dark:text-slate-300">{destacarJogador(line, i)}</div>;
   });
 }
