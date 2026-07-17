@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow } from './types';
 import { partesTs } from './types';
 import {
-  criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao,
+  criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao, aceitarContestacao,
   criarCliente, atualizarCliente, excluirCliente, criarAfiliado, atualizarAfiliado, excluirAfiliado,
   fechamentoClientes, fechamentoAfiliados, bilhetesCliente, listarDespesasPeriodo,
   statusBot, type BotStatus,
@@ -258,15 +258,16 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   }
   function resolverCt(id: number) {
     // RECUSAR a contestação: encerra MANTENDO o status atual (cliente estava errado).
-    // OTIMISTA: some da fila na hora; resolve no servidor em segundo plano.
+    // OTIMISTA: some da fila na hora; resolve no servidor em segundo plano. Fora da fila,
+    // marca como "contestada — recusada" (o registro fica no bilhete).
     if (filtros.aba === 'pend') setRegs((rs) => rs.filter((r) => r.id !== id));
-    else setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ct: false, ctStatus: '', ctMotivo: '' } : r)));
+    else setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ct: false, ctResolvidaEm: r.ctResolvidaEm || 'agora', ctDesfecho: 'recusada' } : r)));
     setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) }));
-    toast('Contestação encerrada (status mantido).');
+    toast('Contestação recusada (status mantido).');
     resolverContestacao(id).catch(() => toast('Erro ao resolver — clique em Atualizar.'));
   }
-  // ACEITAR a contestação: aplica o status que o cliente sugeriu. atualizarAposta muda
-  // o status E encerra a contestação, e o trigger do banco recalcula o saldo do cliente.
+  // ACEITAR a contestação: aplica o status que o cliente sugeriu. aceitarContestacao muda
+  // o status E encerra a contestação (mantendo o registro), e o trigger recalcula o saldo.
   async function aceitarCt(id: number, novoStatus: string) {
     const regsAntes = regs;
     // OTIMISTA: some da fila; grava o status no servidor em seguida.
@@ -274,7 +275,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) }));
     toast(`Contestação aceita — status alterado para ${novoStatus}.`);
     try {
-      const rr = await atualizarAposta(id, { st: novoStatus });
+      const rr = await aceitarContestacao(id, novoStatus);
       if (filtros.aba !== 'pend') setRegs((rs) => rs.map((r) => (r.id === id ? rr : r)));
     } catch {
       // DESFAZ: a linha volta para a fila para o operador tentar de novo.
@@ -664,6 +665,15 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                               )}
                             </span>
                           )}
+                          {/* Registro PERMANENTE: já foi contestada e resolvida (selo fica no bilhete). */}
+                          {!r.ct && r.ctResolvidaEm && (
+                            <span
+                              title={`Contestação ${r.ctDesfecho || 'resolvida'}${r.ctResolvidaEm !== 'agora' ? ` em ${r.ctResolvidaEm}` : ''}${r.ctStatus ? ` · cliente sugeriu ${r.ctStatus}` : ''}${r.ctMotivo ? ` · motivo: ${r.ctMotivo}` : ''}`}
+                              className={`mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.ctDesfecho === 'aceita' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}
+                            >
+                              🏷️ contestada{r.ctDesfecho ? ` · ${r.ctDesfecho}` : ''}
+                            </span>
+                          )}
                           {renderJogo(r.jogo)}
                         </div></td>
                         <td className="px-2 py-1.5 text-center">
@@ -681,18 +691,24 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         <td className={`px-2 py-1.5 text-center font-semibold tabular-nums ${clrCls(r.sl)}`}>{fmt(r.sl)}</td>
                         <td className="px-2 py-1.5">
                           <div className="flex justify-center gap-1.5">
-                            {r.adv && <button onClick={() => setObsModal({ id: r.id, text: r.obs })} title={`Advertência: ${r.obs}`} className="rounded-lg bg-rose-600 px-2 py-1 text-xs text-white transition hover:bg-rose-700">⚠</button>}
-                            {r.ct && r.ctStatus && r.ctStatus !== r.st && (
-                              <button onClick={() => aceitarCt(r.id, r.ctStatus)} title={`Aceitar a contestação: mudar o status para ${r.ctStatus} e recalcular o saldo`} className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-emerald-700">✓ Aceitar {r.ctStatus}</button>
+                            {r.ct ? (
+                              // Bilhete em contestação: só o necessário — Aceitar (aplica o status
+                              // sugerido) e Recusar (mantém o status). Nada de Salvar/Excluir aqui.
+                              <>
+                                {r.ctStatus && r.ctStatus !== r.st && (
+                                  <button onClick={() => aceitarCt(r.id, r.ctStatus)} title={`Aceitar: mudar o status para ${r.ctStatus} e recalcular o saldo`} className="rounded-md border border-emerald-300 bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-200 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-200 dark:hover:bg-emerald-500/25">✓ Aceitar {r.ctStatus}</button>
+                                )}
+                                <button onClick={() => resolverCt(r.id)} title="Recusar a contestação: encerrar mantendo o status atual" className="rounded-md border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Recusar</button>
+                              </>
+                            ) : (
+                              // Bilhete normal: fluxo de sempre.
+                              <>
+                                {r.adv && <button onClick={() => setObsModal({ id: r.id, text: r.obs })} title={`Advertência: ${r.obs}`} className="rounded-lg bg-rose-600 px-2 py-1 text-xs text-white transition hover:bg-rose-700">⚠</button>}
+                                {/* Botões como no JM: fundo colorido CLARO + borda e texto escuros na mesma cor. */}
+                                <button onClick={() => saveReg(r.id)} className={`rounded-md border px-3 py-1 text-xs font-semibold transition ${drafts[r.id]?._saved ? 'border-emerald-300 bg-emerald-100 text-emerald-800' : 'border-blue-300 bg-blue-100 text-blue-800 hover:bg-blue-200 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-200 dark:hover:bg-blue-500/25'}`}>{drafts[r.id]?._saved ? '✓' : 'Salvar'}</button>
+                                <button onClick={() => delReg(r.id)} className="rounded-md border border-rose-300 bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-800 transition hover:bg-rose-200 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-200 dark:hover:bg-rose-500/25">Excluir</button>
+                              </>
                             )}
-                            {r.ct && (
-                              <button onClick={() => resolverCt(r.id)} title="Recusar a contestação: encerrar mantendo o status atual" className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">{r.ctStatus && r.ctStatus !== r.st ? `Manter ${r.st}` : '✓ Resolver'}</button>
-                            )}
-                            {/* Botões como no JM: fundo colorido CLARO + borda e texto escuros
-                                na mesma cor. Pesam menos que blocos sólidos e deixam a linha
-                                do bilhete ser a protagonista. */}
-                            <button onClick={() => saveReg(r.id)} className={`rounded-md border px-3 py-1 text-xs font-semibold transition ${drafts[r.id]?._saved ? 'border-emerald-300 bg-emerald-100 text-emerald-800' : 'border-blue-300 bg-blue-100 text-blue-800 hover:bg-blue-200 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-200 dark:hover:bg-blue-500/25'}`}>{drafts[r.id]?._saved ? '✓' : 'Salvar'}</button>
-                            <button onClick={() => delReg(r.id)} className="rounded-md border border-rose-300 bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-800 transition hover:bg-rose-200 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-200 dark:hover:bg-rose-500/25">Excluir</button>
                           </div>
                         </td>
                       </tr>

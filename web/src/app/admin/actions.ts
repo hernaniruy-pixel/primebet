@@ -425,15 +425,41 @@ export async function excluirAposta(id: number): Promise<void> {
   if (error) throw error;
 }
 
-/** Encerra a contestação de uma aposta SEM mudar o status (cliente estava errado / já
- *  revisado). Tira a aposta da fila de pendentes. */
-export async function resolverContestacao(id: number): Promise<void> {
+// Grava a resolução de uma contestação preservando o histórico (motivo + status
+// sugerido continuam gravados) e registrando o desfecho. O que tira da fila é a
+// flag `contestada`. As colunas de registro (migração 019) são best-effort: se
+// ainda não existirem, a resolução acontece do mesmo jeito, só sem o marcador.
+async function gravarResolucaoCt(
+  db: ReturnType<typeof createAdminClient>,
+  id: number,
+  patchBase: Record<string, unknown>,
+  desfecho: 'aceita' | 'recusada',
+): Promise<Reg> {
+  const marcador = { contestacao_resolvida_em: new Date().toISOString(), contestacao_desfecho: desfecho };
+  let r = await db.from('apostas').update({ ...patchBase, ...marcador }).eq('id', id).select('*').maybeSingle();
+  if (r.error && /contestacao_resolvida_em|contestacao_desfecho|column|schema cache/i.test(r.error.message)) {
+    // Migração 019 ainda não aplicada: grava sem o marcador (o comportamento essencial não pode falhar).
+    r = await db.from('apostas').update(patchBase).eq('id', id).select('*').maybeSingle();
+  }
+  if (r.error) throw r.error;
+  if (!r.data) throw new Error(`Aposta #${id} não encontrada.`);
+  return mapAposta(r.data as ApostaRow);
+}
+
+/** RECUSA a contestação: encerra SEM mudar o status (cliente estava errado). Tira da
+ *  fila mantendo o registro de que a aposta foi contestada. */
+export async function resolverContestacao(id: number): Promise<Reg> {
   await exigirSessao();
   const db = createAdminClient();
-  const { error } = await db.from('apostas')
-    .update({ contestada: false, contestada_em: null, contestacao: null, contestacao_status: null })
-    .eq('id', id);
-  if (error) throw error;
+  return gravarResolucaoCt(db, id, { contestada: false, contestada_em: null }, 'recusada');
+}
+
+/** ACEITA a contestação: aplica o status que o cliente sugeriu. O trigger recalcula
+ *  o saldo. Encerra a contestação mantendo o registro (motivo/status/desfecho). */
+export async function aceitarContestacao(id: number, novoStatus: string): Promise<Reg> {
+  await exigirSessao();
+  const db = createAdminClient();
+  return gravarResolucaoCt(db, id, { status: novoStatus, contestada: false, contestada_em: null }, 'aceita');
 }
 
 // ═══════════════════ CLIENTES ═══════════════════

@@ -1,7 +1,7 @@
 // ═══════════ TIPOS DO PAINEL (forma compacta usada na UI) ═══════════
 export interface Afiliado { id: number; nome: string; com: number }
 export interface Cliente { id: number; nome: string; s: string; on: boolean; cal: number; desc: number; com: number; sup: string | null; af: number; link: string | null; grupoLink: string | null; grupoId: string | null }
-export interface Reg { id: number; dt: string; cId: number; jogo: string; odd: number; val: number; st: string; dc: string; sb: number; cm: number; caf: number; sl: number; bl: boolean; adv: boolean; irr: boolean; obs: string; ct: boolean; ctMotivo: string; ctStatus: string }
+export interface Reg { id: number; dt: string; cId: number; jogo: string; odd: number; val: number; st: string; dc: string; sb: number; cm: number; caf: number; sl: number; bl: boolean; adv: boolean; irr: boolean; obs: string; ct: boolean; ctMotivo: string; ctStatus: string; ctResolvidaEm: string; ctDesfecho: string }
 
 export interface PanelData { afiliados: Afiliado[]; clientes: Cliente[]; regs: Reg[] }
 
@@ -47,6 +47,7 @@ export interface ApostaRow {
   comissao_afiliado: number | string; saldo_liquido: number | string;
   baixa_liquidez: boolean; advertido: boolean; irregular: boolean; advertencia: string | null;
   contestada?: boolean; contestacao?: string | null; contestacao_status?: string | null;
+  contestacao_resolvida_em?: string | null; contestacao_desfecho?: string | null;
 }
 
 const num = (v: number | string | null | undefined) => Number(v ?? 0);
@@ -106,4 +107,5 @@ export const mapAposta = (r: ApostaRow): Reg => ({
   sl: num(r.saldo_liquido), bl: r.baixa_liquidez, adv: r.advertido, irr: r.irregular,
   obs: r.advertencia ?? '',
   ct: r.contestada ?? false, ctMotivo: r.contestacao ?? '', ctStatus: r.contestacao_status ?? '',
+  ctResolvidaEm: r.contestacao_resolvida_em ? fmtTs(r.contestacao_resolvida_em) : '', ctDesfecho: r.contestacao_desfecho ?? '',
 });
