@@ -22,7 +22,7 @@ const PAGE_SIZE = 20;
 
 // Cores sólidas do status (igual ao original): fundo saturado + texto branco/escuro.
 const STPILL: Record<string, string> = {
-  'EM ABERTO': 'bg-blue-600 text-white',
+  'EM ABERTO': 'bg-violet-200 text-violet-900',
   GREEN: 'bg-green-600 text-white',
   'MEIO GREEN': 'bg-green-300 text-green-900',
   'MEIO RED': 'bg-red-300 text-red-900',
@@ -32,7 +32,7 @@ const STPILL: Record<string, string> = {
 
 // Mesmas cores em hex — para o <select>/<option> nativos (que ignoram classes Tailwind).
 const STCOLOR: Record<string, { bg: string; fg: string }> = {
-  'EM ABERTO': { bg: '#2563eb', fg: '#ffffff' },
+  'EM ABERTO': { bg: '#ddd6fe', fg: '#4c1d95' },
   GREEN: { bg: '#16a34a', fg: '#ffffff' },
   'MEIO GREEN': { bg: '#86efac', fg: '#14532d' },
   'MEIO RED': { bg: '#fca5a5', fg: '#7f1d1d' },
