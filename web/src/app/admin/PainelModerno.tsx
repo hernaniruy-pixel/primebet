@@ -99,7 +99,7 @@ const filtrosVazios = {
 };
 
 const inp = 'w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-sm text-slate-800 dark:text-slate-100 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20';
-const lbl = 'pb-lbl mb-1 block text-[11px] font-medium text-slate-400 dark:text-slate-500';
+const lbl = 'mb-1 block text-[11px] font-medium text-slate-400 dark:text-slate-500';
 const cinp = 'rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-amber-500';
 
 function Modal({ title, onClose, max = 'max-w-3xl', children }: { title: ReactNode; onClose: () => void; max?: string; children: ReactNode }) {
@@ -433,41 +433,15 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     <div className={dark ? 'dark' : ''}>
       <style>{`@keyframes pbAlertPulse{0%,100%{border-color:#ef4444}50%{border-color:#fecaca}} tr.pb-alert>td{border-width:2px;animation:pbAlertPulse 1.1s ease-in-out infinite} @keyframes pbFlash{0%{background-color:rgba(34,197,94,.45)}100%{background-color:transparent}} tr.pb-flash>td{animation:pbFlash 1.6s ease-out}
 
-/* ── Fundo cósmico da PÁGINA — mesmo vocabulário do login (galaxy + verde + dourado).
-   Era uma caixa verde flutuando no branco: a moldura clara em volta brigava com ela.
-   Agora o cósmico é o fundo de tudo, e só a TABELA fica clara — quem confere bilhete
-   o dia todo precisa de fundo claro ali. position:fixed deixa a galáxia parada na
-   rolagem (e evita repetir a imagem numa página longa). */
-.pb-page{position:relative;background:#08120a}
-.pb-page::before{content:'';position:fixed;inset:0;z-index:0;background:#08120a url('/galaxy.jpg') center/cover no-repeat;filter:brightness(.42) saturate(.55) hue-rotate(65deg)}
-.pb-page::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(70% 55% at 50% 0%,rgba(84,168,84,.20),transparent 62%),radial-gradient(50% 45% at 86% 6%,rgba(218,165,32,.11),transparent 62%),linear-gradient(rgba(6,14,8,.62),rgba(5,11,6,.92))}
-.pb-page>header{z-index:40}
-.pb-page>main{position:relative;z-index:10}
-/* O que era a faixa agora é só o escopo escuro — sem caixa própria. */
-.pb-cosmic{position:relative}
-
-/* Vidro esverdeado dos cartões/caixas dentro da faixa (igual à caixa do login). */
-.pb-cosmic .pb-glass{background:linear-gradient(180deg,rgba(26,40,15,.84),rgba(13,21,8,.72))!important;border-color:rgba(120,160,50,.34)!important;backdrop-filter:blur(12px)}
-/* O contorno dourado do logo, aplicado ao cartão que decide (Resumo total). */
-.pb-cosmic .pb-gold{border-color:#DAA520!important;box-shadow:0 0 22px rgba(226,179,46,.30),0 0 9px rgba(242,208,100,.22)}
-
-/* Campos: fundo escuro + foco dourado, como no login. color-scheme mantém o
-   ícone do calendário e a setinha do select visíveis no escuro. */
-.pb-cosmic{color-scheme:dark}
-.pb-cosmic input,.pb-cosmic select{background:rgba(9,16,6,.6)!important;border-color:rgba(120,160,50,.28)!important;color:#eaf0dc!important}
-.pb-cosmic input::placeholder{color:#7d8a63!important}
-/* Label no verde-claro do login: o slate-500 do tema escuro dava contraste 3.4:1
-   sobre o fundo cósmico (ilegível para texto de 11px). Este dá 7:1. */
-.pb-cosmic .pb-lbl{color:#a9bd82!important}
-.pb-cosmic input:focus,.pb-cosmic select:focus{border-color:#DAA520!important;box-shadow:0 0 0 3px rgba(218,165,32,.16)}
-.pb-cosmic option{background:#0d1508;color:#eaf0dc}
-
-/* Botões da faixa: dourado para a ação principal, vidro para as secundárias. */
-.pb-btn-gold{background:linear-gradient(135deg,#B8860B,#DAA520);color:#1a1a00;border:1px solid rgba(242,208,100,.5);box-shadow:0 8px 22px rgba(184,134,11,.35);transition:.15s}
+/* Botões da cabeça do painel: dourado cheio na ação principal, borda dourada
+   (a mesma do cartão Resumo total) nas secundárias. */
+.pb-btn-gold{background:linear-gradient(135deg,#B8860B,#DAA520);color:#1a1a00;border:1px solid rgba(242,208,100,.5);box-shadow:0 4px 12px rgba(184,134,11,.28);transition:.15s}
 .pb-btn-gold:hover{filter:brightness(1.08)}
-.pb-btn-ghost{background:rgba(9,16,6,.55);border:1px solid rgba(120,160,50,.34);color:#cfe0ac;transition:.15s}
-.pb-btn-ghost:hover{border-color:#DAA520;background:rgba(9,16,6,.8);color:#f0e6c8}`}</style>
-      <div className="pb-page min-h-screen text-slate-900 dark:text-slate-100">
+.pb-btn-ghost{background:#fff;border:1px solid #DAA520;color:#8a6508;transition:.15s}
+.pb-btn-ghost:hover{background:#fdf7e6}
+.dark .pb-btn-ghost{background:transparent;border-color:rgba(218,165,32,.55);color:#e2b32e}
+.dark .pb-btn-ghost:hover{background:rgba(218,165,32,.12)}`}</style>
+      <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {/* TOPBAR */}
         {/* min-w-0 + nav rolável: no celular os 9 itens não cabem numa linha. Sem isto
             eles esticavam a página, criavam rolagem lateral e apareciam as bordas pretas. */}
@@ -508,11 +482,6 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
 
         <main className="w-full px-4 py-5 sm:px-6">
 
-          {/* CABEÇA DO PAINEL (resumo + abas + filtros) sobre o fundo cósmico.
-              `dark` no wrapper: os números já têm cores próprias para fundo escuro
-              (dark:), então reaproveitamos a regra em vez de inventar outra. */}
-          <div className="dark pb-cosmic">
-
           {/* RESUMO DO PERÍODO — o lucro é o número que importa, então ele manda na tela.
               O resto é o caminho até ele: o que entrou, o que a banca ganhou, o que saiu. */}
           {(() => {
@@ -551,7 +520,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
           })()}
 
           {/* ABAS: fila pendente x histórico completo */}
-          <div className="pb-glass mb-3 flex w-fit items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
+          <div className="mb-3 flex w-fit items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
             {([['pend', 'Pendentes'], ['todas', 'Todas']] as const).map(([k, label]) => (
               <button
                 key={k}
@@ -576,7 +545,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
           </div>
 
           {/* FILTROS */}
-          <div className="pb-glass rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <div><span className={lbl}>Cliente</span>
                 <select className={inp} value={filtros.nome} onChange={(e) => setF('nome', e.target.value)}>
@@ -619,13 +588,9 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             </div>
           </div>
 
-          </div>{/* fim do escopo escuro */}
+          <div className="mb-2 mt-4 text-xs text-slate-400">{total} aposta(s) · página {pageSafe}/{totalPages} · exibindo {total ? start + 1 : 0}–{start + regs.length}</div>
 
-          <div className="mb-2 text-xs text-slate-300/80">{total} aposta(s) · página {pageSafe}/{totalPages} · exibindo {total ? start + 1 : 0}–{start + regs.length}</div>
-
-          {/* TABELA — a ÚNICA parte clara da tela, de propósito: é onde se lê bilhete
-              o dia todo. A borda dourada costura ela ao fundo cósmico. */}
-          <div className="overflow-hidden rounded-xl border border-amber-500/30 bg-white shadow-[0_20px_60px_rgba(0,0,0,.35)] dark:border-slate-800 dark:bg-slate-900">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-200 dark:[&_td]:border-slate-700 dark:[&_th]:border-slate-700">
                 <thead>
@@ -986,11 +951,10 @@ function Kpi({ icone, cor, titulo, valor, valorCls, sub, dica, href }: {
   valor: string; valorCls: string; sub: string; dica?: string; href?: string;
 }) {
   const destaque = cor === 'destaque';
-  // pb-glass/pb-gold só valem dentro da faixa cósmica; fora dela o cartão segue branco.
-  const cls = `group pb-glass relative overflow-hidden rounded-xl border bg-white p-3 transition dark:bg-slate-900 ${
-    destaque
-      ? 'pb-gold border-amber-400 ring-1 ring-amber-400/30 dark:border-amber-500/50'
-      : 'border-slate-200 hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:hover:border-slate-700'}`;
+  // Borda dourada em todos os cartões (era só no Resumo total). O destaque continua
+  // se separando pelo anel âmbar e pelo número maior, não pela cor da borda.
+  const cls = `group relative overflow-hidden rounded-xl border border-amber-400 bg-white p-3 transition dark:border-amber-500/50 dark:bg-slate-900 ${
+    destaque ? 'ring-1 ring-amber-400/30' : 'hover:shadow-sm hover:ring-1 hover:ring-amber-400/20'}`;
   const conteudo = (
     <>
       <div className="flex items-start justify-between gap-2">
