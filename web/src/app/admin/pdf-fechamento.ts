@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { FechCliRow, Reg } from './types';
 import { wa } from '@/lib/pdf-winansi';
+import { alinharCabecalho } from '@/lib/pdf-tabela';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const safe = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -120,6 +121,7 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0
       5: { cellWidth: 60, halign: 'right' },
     },
     didParseCell: (data) => {
+      alinharCabecalho(data, { 2: 'right', 3: 'right', 4: 'center', 5: 'right' });
       if (data.section === 'body' && data.column.index === 5) {
         const n = Number(String(data.cell.raw).replace(/\./g, '').replace(',', '.')) || 0;
         data.cell.styles.textColor = corNum(n);

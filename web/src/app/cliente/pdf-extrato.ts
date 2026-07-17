@@ -5,6 +5,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Reg } from '../admin/types';
 import { wa } from '@/lib/pdf-winansi';
+import { alinharCabecalho } from '@/lib/pdf-tabela';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const safe = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -83,6 +84,7 @@ export function gerarPdfExtrato(o: PdfExtratoOpts): { blob: Blob; nome: string }
     columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 140, halign: 'right', fontStyle: 'bold' } },
     // O saldo é o número que o jogador procura: verde se ganhou, vermelho se perdeu.
     didParseCell: (d) => {
+      alinharCabecalho(d, { 1: 'right' });
       if (d.section === 'body' && d.row.index === 3) {
         d.cell.styles.fontStyle = 'bold';
         d.cell.styles.fillColor = [241, 245, 249];
@@ -109,6 +111,7 @@ export function gerarPdfExtrato(o: PdfExtratoOpts): { blob: Blob; nome: string }
       2: { cellWidth: 90, halign: 'right' },
       3: { cellWidth: 90, halign: 'right' },
     },
+    didParseCell: (d) => alinharCabecalho(d, { 1: 'center', 2: 'right', 3: 'right' }),
   });
 
   // ── Bilhete a bilhete ──
@@ -143,6 +146,7 @@ export function gerarPdfExtrato(o: PdfExtratoOpts): { blob: Blob; nome: string }
       5: { cellWidth: 58, halign: 'right', fontStyle: 'bold' },
     },
     didParseCell: (d) => {
+      alinharCabecalho(d, { 2: 'right', 3: 'right', 4: 'center', 5: 'right' });
       if (d.section !== 'body') return;
       const r = o.rows[d.row.index];
       if (!r) return;

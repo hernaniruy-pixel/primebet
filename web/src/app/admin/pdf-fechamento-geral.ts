@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { FechCliResp } from './types';
 import { wa } from '@/lib/pdf-winansi';
+import { alinharCabecalho } from '@/lib/pdf-tabela';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const safe = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -78,6 +79,7 @@ export function gerarPdfFechamentoGeral({ banca = 'PrimeBet', g, despesas, dt1, 
     headStyles: { fillColor: [19, 32, 10], textColor: [218, 165, 32], fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 130, halign: 'right', fontStyle: 'bold' } },
+    didParseCell: (d) => alinharCabecalho(d, { 1: 'right' }),
   });
 
   // ── Apuração do lucro ──
@@ -99,6 +101,7 @@ export function gerarPdfFechamentoGeral({ banca = 'PrimeBet', g, despesas, dt1, 
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 130, halign: 'right', fontStyle: 'bold' } },
     didParseCell: (data) => {
+      alinharCabecalho(data, { 1: 'right' });
       // Deduções em vermelho, para ficar claro o que soma e o que subtrai.
       if (data.section === 'body' && data.column.index === 1 && data.row.index > 0) data.cell.styles.textColor = COR_NEG;
     },

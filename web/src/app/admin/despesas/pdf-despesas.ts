@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { SemanaDespesas } from './types';
 import { wa } from '@/lib/pdf-winansi';
+import { alinharCabecalho } from '@/lib/pdf-tabela';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const safe = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -76,6 +77,7 @@ export function gerarPdfDespesas({ banca = 'PrimeBet', sem }: PdfDespesasOpts) {
       1: { cellWidth: 'auto' },
       2: { cellWidth: 90, halign: 'right' },
     },
+    didParseCell: (d) => alinharCabecalho(d, { 2: 'right' }),
     didDrawPage: () => {
       const ph = doc.internal.pageSize.getHeight();
       doc.setFont('helvetica', 'normal');
