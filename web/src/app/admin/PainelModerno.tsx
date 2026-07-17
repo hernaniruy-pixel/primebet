@@ -498,8 +498,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                 <Kpi icone="✓" cor="emerald" titulo="Saldo líquido" valor={tot(totals.saldo_liquido)} valorCls={clrCls(totals.saldo_liquido)} sub="resultado dos clientes"
                      dica="Quanto os clientes ficaram no período, depois da comissão. Positivo = os clientes ganharam. É o dinheiro deles, não o lucro da banca." />
                 <Kpi icone="%" cor="rose" titulo="Comissão" valor={tot(totals.comissao)} valorCls={comCls(totals.comissao)} sub="receita da banca" />
-                <Kpi icone="🤝" cor="teal" titulo="Com. afiliados" valor={tot(totals.comissao_afiliado)} valorCls={comCls(totals.comissao_afiliado)} sub="custo da banca" />
-                <Kpi icone="💸" cor="slate" titulo="Despesas" href="/admin/despesas"
+                <Kpi icone="🤝" cor="rose" titulo="Com. afiliados" valor={tot(totals.comissao_afiliado)} valorCls={comCls(totals.comissao_afiliado)} sub="custo da banca" />
+                <Kpi icone="💸" cor="rose" titulo="Despesas" href="/admin/despesas"
                      valor={recorte ? '—' : tot(despPeriodo)} valorCls={recorte ? 'text-slate-300 dark:text-slate-600' : comCls(despPeriodo)}
                      sub={recorte ? 'não se aplica ao filtro 🔗' : 'do período 🔗'}
                      dica={recorte ? 'As despesas são da banca inteira — não pertencem a um cliente nem a um filtro de apostas. Limpe os filtros e use a aba "Todas" para ver o lucro do período.' : 'Despesas do período (vêm do grupo de despesa no WhatsApp). Clique para ver a lista.'} />
