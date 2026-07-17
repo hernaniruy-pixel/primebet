@@ -257,12 +257,31 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     }
   }
   function resolverCt(id: number) {
+    // RECUSAR a contestação: encerra MANTENDO o status atual (cliente estava errado).
     // OTIMISTA: some da fila na hora; resolve no servidor em segundo plano.
     if (filtros.aba === 'pend') setRegs((rs) => rs.filter((r) => r.id !== id));
     else setRegs((rs) => rs.map((r) => (r.id === id ? { ...r, ct: false, ctStatus: '', ctMotivo: '' } : r)));
     setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) }));
-    toast('Contestação resolvida.');
+    toast('Contestação encerrada (status mantido).');
     resolverContestacao(id).catch(() => toast('Erro ao resolver — clique em Atualizar.'));
+  }
+  // ACEITAR a contestação: aplica o status que o cliente sugeriu. atualizarAposta muda
+  // o status E encerra a contestação, e o trigger do banco recalcula o saldo do cliente.
+  async function aceitarCt(id: number, novoStatus: string) {
+    const regsAntes = regs;
+    // OTIMISTA: some da fila; grava o status no servidor em seguida.
+    if (filtros.aba === 'pend') setRegs((rs) => rs.filter((r) => r.id !== id));
+    setTotals((t) => ({ ...t, contestadas_qtd: Math.max(0, (t.contestadas_qtd ?? 1) - 1) }));
+    toast(`Contestação aceita — status alterado para ${novoStatus}.`);
+    try {
+      const rr = await atualizarAposta(id, { st: novoStatus });
+      if (filtros.aba !== 'pend') setRegs((rs) => rs.map((r) => (r.id === id ? rr : r)));
+    } catch {
+      // DESFAZ: a linha volta para a fila para o operador tentar de novo.
+      setRegs(regsAntes);
+      setTotals((t) => ({ ...t, contestadas_qtd: (t.contestadas_qtd ?? 0) + 1 }));
+      toast('Erro ao aceitar a contestação — clique em Atualizar.');
+    }
   }
   // "Salvar" = concluir a aposta: grava o status escolhido + edições, encerra a
   // contestação e tira a aposta da fila do dashboard.
@@ -663,7 +682,12 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         <td className="px-2 py-1.5">
                           <div className="flex justify-center gap-1.5">
                             {r.adv && <button onClick={() => setObsModal({ id: r.id, text: r.obs })} title={`Advertência: ${r.obs}`} className="rounded-lg bg-rose-600 px-2 py-1 text-xs text-white transition hover:bg-rose-700">⚠</button>}
-                            {r.ct && <button onClick={() => resolverCt(r.id)} title="Encerrar contestação mantendo o status atual" className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-emerald-700">✓ Resolver</button>}
+                            {r.ct && r.ctStatus && r.ctStatus !== r.st && (
+                              <button onClick={() => aceitarCt(r.id, r.ctStatus)} title={`Aceitar a contestação: mudar o status para ${r.ctStatus} e recalcular o saldo`} className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-emerald-700">✓ Aceitar {r.ctStatus}</button>
+                            )}
+                            {r.ct && (
+                              <button onClick={() => resolverCt(r.id)} title="Recusar a contestação: encerrar mantendo o status atual" className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">{r.ctStatus && r.ctStatus !== r.st ? `Manter ${r.st}` : '✓ Resolver'}</button>
+                            )}
                             {/* Botões como no JM: fundo colorido CLARO + borda e texto escuros
                                 na mesma cor. Pesam menos que blocos sólidos e deixam a linha
                                 do bilhete ser a protagonista. */}
