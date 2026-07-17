@@ -48,8 +48,10 @@ const fmtDate = (d: Date) => d.toISOString().split('T')[0];
 const ZEROCLS = 'text-slate-900 dark:text-slate-100';
 const clrCls = (n: number) => { const v = Number(n) || 0; return v > 0 ? 'text-emerald-600 dark:text-emerald-400' : v < 0 ? 'text-rose-600 dark:text-rose-400' : ZEROCLS; };
 const comCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-rose-600 dark:text-rose-400'); // comissões: vermelho (preto se 0)
-const entCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-blue-600 dark:text-blue-400'); // entradas/em aberto: azul (preto se 0)
-const posCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-emerald-600 dark:text-emerald-400'); // entrada: verde (preto se 0)
+// Cada número na cor do próprio card (preto se 0), para o valor e o selo do título
+// contarem a mesma história.
+const entCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-blue-600 dark:text-blue-400'); // entrada: azul
+const abertoCls = (n: number) => (Number(n) === 0 ? ZEROCLS : 'text-violet-700 dark:text-violet-400'); // em aberto: roxo escuro
 
 // Nome do jogador destacado dentro da linha de mercado: "[Fulano]" ou "Fulano: 1+ ...".
 // É o que o JM faz — o olho acha o jogador na hora, sem ler a linha inteira.
@@ -503,8 +505,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                 : 'lucro do período';
             return (
               <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                <Kpi icone="⇄" cor="blue" titulo="Entrada" valor={tot(totals.entradas)} valorCls={posCls(totals.entradas)} sub={`${total} linhas`} />
-                <Kpi icone="🕐" cor="violet" titulo="Em aberto" valor={tot(totals.em_aberto_total)} valorCls={entCls(totals.em_aberto_total)} sub={`${totals.em_aberto_qtd} linhas`} />
+                <Kpi icone="⇄" cor="blue" titulo="Entrada" valor={tot(totals.entradas)} valorCls={entCls(totals.entradas)} sub={`${total} linhas`} />
+                <Kpi icone="🕐" cor="violet" titulo="Em aberto" valor={tot(totals.em_aberto_total)} valorCls={abertoCls(totals.em_aberto_total)} sub={`${totals.em_aberto_qtd} linhas`} />
                 <Kpi icone="📈" cor="slate" titulo="Saldo bruto" valor={tot(totals.saldo_bruto)} valorCls={clrCls(totals.saldo_bruto)} sub="ganho/perda dos bilhetes" />
                 <Kpi icone="✓" cor="emerald" titulo="Saldo líquido" valor={tot(totals.saldo_liquido)} valorCls={clrCls(totals.saldo_liquido)} sub="resultado dos clientes"
                      dica="Quanto os clientes ficaram no período, depois da comissão. Positivo = os clientes ganharam. É o dinheiro deles, não o lucro da banca." />
