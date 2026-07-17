@@ -120,11 +120,14 @@ export function gerarPdfExtrato(o: PdfExtratoOpts): { blob: Blob; nome: string }
         money(r.sl),
       ])
       : [['', 'Nenhuma aposta no período.', '', '', '', '']],
-    foot: [['', 'TOTAL', '', `R$ ${money(o.entradas)}`, '', `R$ ${money(o.saldo)}`]],
+    // TOTAL sem o prefixo "R$ " e na MESMA fonte do corpo (8): com o prefixo e a
+    // fonte maior, o valor não cabia na coluna Valor (54pt) e quebrava em duas
+    // linhas, desalinhando a linha inteira. Os números seguem o corpo.
+    foot: [['', 'TOTAL', '', money(o.entradas), '', money(o.saldo)]],
     margin: { left: M, right: M },
     styles: { font: 'helvetica', fontSize: 8, cellPadding: 4, valign: 'middle', overflow: 'linebreak', textColor: [15, 23, 42] },
     headStyles: { fillColor: [19, 32, 10], textColor: [218, 165, 32], fontStyle: 'bold', fontSize: 8 },
-    footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
+    footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 8 },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
       0: { cellWidth: 74 },
