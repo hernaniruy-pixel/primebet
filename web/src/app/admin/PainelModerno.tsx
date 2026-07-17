@@ -952,7 +952,9 @@ function Kpi({ icone, cor, titulo, valor, valorCls, sub, dica, href }: {
   const conteudo = (
     <>
       <div className="flex items-start justify-between gap-2">
-        <div className={`text-[10px] font-medium uppercase tracking-wide ${destaque ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>{titulo}</div>
+        {/* O título vira selo contornado, na mesma cor do ícone: em slate-400 solto
+            ele ficava apagado no branco e não dizia a que card pertencia. */}
+        <div className={`inline-block rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${KPI_COR[cor] ?? KPI_COR.slate}`}>{titulo}</div>
         <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[11px] ${KPI_COR[cor] ?? KPI_COR.slate}`}>{icone}</span>
       </div>
       <div className={`mt-1 tabular-nums ${destaque ? 'text-xl font-bold' : 'text-lg font-semibold'} ${valorCls}`}>{valor}</div>
