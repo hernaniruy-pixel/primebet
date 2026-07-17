@@ -3,6 +3,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { FechCliRow, Reg } from './types';
+import { wa } from '@/lib/pdf-winansi';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const safe = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -29,6 +30,7 @@ export interface PdfFechamentoOpts {
 }
 
 export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0 }: PdfFechamentoOpts) {
+  banca = wa(banca);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const M = 40;
@@ -50,7 +52,7 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(15, 23, 42);
-  doc.text(resumo.nome, M, 80);
+  doc.text(wa(resumo.nome), M, 80);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
@@ -67,7 +69,7 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0
   const gap = 8;
   const cw = (W - 2 * M - (cols - 1) * gap) / cols;
   const ch = 38;
-  let y0 = 112;
+  const y0 = 112;
   cards.forEach(([label, val], i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
@@ -94,7 +96,7 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0
   const oddCliente = (odd: number) => (odd ? Math.max(odd - desc, 0) : odd);
   const body = bilhetes.map((b) => [
     b.dt,
-    (b.jogo || '').replace(/\s+\n/g, '\n').trim(),
+    wa((b.jogo || '').replace(/\s+\n/g, '\n').trim()),
     money(oddCliente(b.odd)),
     money(b.val),
     b.st,

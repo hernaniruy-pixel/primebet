@@ -3,6 +3,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { FechCliResp } from './types';
+import { wa } from '@/lib/pdf-winansi';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const safe = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -26,7 +27,7 @@ export interface PdfFechamentoGeralOpts {
 
 /**
  * REGRA DO LUCRO (confirmada pelo dono em 15/07/2026):
- *   Lucro = Comissão ganha − Comissão dos afiliados − Despesas
+ *   Lucro = Comissao ganha - Comissao dos afiliados - Despesas
  *
  * A PrimeBet só lucra em bilhete GREEN: o percentual dela incide sobre cada green,
  * e quando o cliente perde ela não ganha comissão. O resultado da aposta em si não
@@ -36,6 +37,7 @@ export const lucroPeriodo = (comissao: number, comissaoAfiliado: number, despesa
   comissao - comissaoAfiliado - despesas;
 
 export function gerarPdfFechamentoGeral({ banca = 'PrimeBet', g, despesas, dt1, dt2 }: PdfFechamentoGeralOpts) {
+  banca = wa(banca);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const M = 40;
@@ -86,8 +88,8 @@ export function gerarPdfFechamentoGeral({ banca = 'PrimeBet', g, despesas, dt1, 
     head: [['Apuração do lucro', 'Valor']],
     body: [
       ['Comissão ganha (receita)', `R$ ${money(g.cm)}`],
-      ['(−) Comissão dos afiliados', `R$ ${money(g.caf)}`],
-      ['(−) Despesas do período', `R$ ${money(despesas)}`],
+      ['(-) Comissão dos afiliados', `R$ ${money(g.caf)}`],
+      ['(-) Despesas do período', `R$ ${money(despesas)}`],
     ],
     foot: [['LUCRO DO PERÍODO', `R$ ${money(lucro)}`]],
     margin: { left: M, right: M },
@@ -116,7 +118,7 @@ export function gerarPdfFechamentoGeral({ banca = 'PrimeBet', g, despesas, dt1, 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(120, 120, 120);
-  doc.text('Lucro = Comissão ganha − Comissão dos afiliados − Despesas.', M, y2);
+  doc.text('Lucro = Comissão ganha - Comissão dos afiliados - Despesas.', M, y2);
   doc.text('A comissão incide sobre cada bilhete GREEN; em bilhete perdido não há comissão.', M, y2 + 12);
 
   const sufixo = temIntervalo ? `${brDate(dt1)}_A_${brDate(dt2)}` : 'TODO_O_PERIODO';

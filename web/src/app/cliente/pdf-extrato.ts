@@ -4,6 +4,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Reg } from '../admin/types';
+import { wa } from '@/lib/pdf-winansi';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const safe = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -15,7 +16,9 @@ const dataLinha = (s: string): string => {
 };
 
 // O jogo vem com quebras de linha; no PDF vira uma linha só, sem poluir a célula.
-const jogoLinha = (s: string): string => String(s || '').split('\n').map((l) => l.trim()).filter(Boolean).join(' · ');
+// wa() no fim: o texto do jogo é transcrito por IA e pode trazer setas/emoji que
+// quebrariam a linha inteira do PDF.
+const jogoLinha = (s: string): string => wa(String(s || '').split('\n').map((l) => l.trim()).filter(Boolean).join(' · '));
 
 export interface StatusResumo { st: string; qtd: number; val: number; sl: number }
 
@@ -34,7 +37,9 @@ export interface PdfExtratoOpts {
 }
 
 export function gerarPdfExtrato(o: PdfExtratoOpts): { blob: Blob; nome: string } {
-  const banca = o.banca ?? 'PrimeBet';
+  const banca = wa(o.banca ?? 'PrimeBet');
+  const cliente = wa(o.cliente);
+  const periodo = wa(o.periodo);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const M = 40;
@@ -55,11 +60,11 @@ export function gerarPdfExtrato(o: PdfExtratoOpts): { blob: Blob; nome: string }
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(15, 23, 42);
-  doc.text(o.cliente, M, 80);
+  doc.text(cliente, M, 80);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
-  doc.text(o.periodo, M, 96);
+  doc.text(periodo, M, 96);
   doc.text(`${o.rows.length} aposta(s) · calção R$ ${money(o.calcao)}`, M, 110);
 
   // ── Resumo do período ──
@@ -172,7 +177,12 @@ export function gerarPdfExtrato(o: PdfExtratoOpts): { blob: Blob; nome: string }
 export async function entregarPdf(blob: Blob, nome: string, texto: string): Promise<'compartilhado' | 'baixado'> {
   const file = new File([blob], nome, { type: 'application/pdf' });
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-  if (typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) {
+  // Só compartilhar no CELULAR: no Windows/Chrome do desktop o canShare({files})
+  // também dá true e abria o menu do sistema em vez de baixar — no computador o
+  // esperado é baixar o arquivo. Ponteiro grosso (touch) = celular/tablet.
+  const ehCelular = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    && window.matchMedia('(pointer: coarse)').matches;
+  if (ehCelular && typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: nome, text: texto });
       return 'compartilhado';
@@ -180,9 +190,13 @@ export async function entregarPdf(blob: Blob, nome: string, texto: string): Prom
       // Cancelou o menu ou o app recusou: cai para o download, nunca fica em silêncio.
     }
   }
+  // Download: alguns navegadores (Firefox) só disparam com o <a> preso ao DOM.
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = nome; a.click();
+  a.href = url; a.download = nome; a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
   return 'baixado';
 }

@@ -3,6 +3,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { SemanaDespesas } from './types';
+import { wa } from '@/lib/pdf-winansi';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const safe = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -26,6 +27,7 @@ export interface PdfDespesasOpts {
 }
 
 export function gerarPdfDespesas({ banca = 'PrimeBet', sem }: PdfDespesasOpts) {
+  banca = wa(banca);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const M = 40;
@@ -57,7 +59,7 @@ export function gerarPdfDespesas({ banca = 'PrimeBet', sem }: PdfDespesasOpts) {
   doc.text(`${sem.rows.length} lançamento(s)`, M, 110);
 
   // ── Tabela: cada despesa discriminada ──
-  const body = sem.rows.map((d) => [dataLinha(d.data), d.descricao, `R$ ${money(d.valor)}`]);
+  const body = sem.rows.map((d) => [dataLinha(d.data), wa(d.descricao), `R$ ${money(d.valor)}`]);
 
   autoTable(doc, {
     startY: 126,
