@@ -8,17 +8,27 @@ import { contestarAposta, sairCliente } from './actions';
 import { renderJogoLinhas } from './render';
 import type { Reg } from '../admin/types';
 
+// Mesmas cores de status do painel admin — o cliente e o operador têm que estar
+// olhando para a mesma coisa quando falam ao telefone.
 const STPILL: Record<string, string> = {
-  'EM ABERTO': 'bg-blue-100 text-blue-700',
-  'GREEN': 'bg-green-100 text-green-700',
-  'MEIO GREEN': 'bg-green-50 text-green-600',
-  'MEIO RED': 'bg-red-50 text-red-600',
-  'RED': 'bg-red-100 text-red-700',
-  'REEMBOLSO': 'bg-yellow-100 text-yellow-700',
+  'EM ABERTO': 'bg-violet-200 text-violet-900',
+  'GREEN': 'bg-green-600 text-white',
+  'MEIO GREEN': 'bg-green-300 text-green-900',
+  'MEIO RED': 'bg-red-300 text-red-900',
+  'RED': 'bg-red-600 text-white',
+  'REEMBOLSO': 'bg-yellow-400 text-yellow-900',
+};
+
+// Selo do card: fundo e contorno na mesma família (igual ao painel).
+const CARD_COR: Record<string, string> = {
+  slate: 'border-slate-300 bg-slate-100 text-slate-600',
+  blue: 'border-blue-300 bg-blue-100 text-blue-600',
+  violet: 'border-violet-300 bg-violet-100 text-violet-600',
+  destaque: 'border-amber-400 bg-amber-200/60 text-amber-700',
 };
 
 const brl = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const clr = (n: number) => (n > 0 ? 'text-green-600' : n < 0 ? 'text-red-600' : 'text-slate-500');
+const clr = (n: number) => (n > 0 ? 'text-emerald-600' : n < 0 ? 'text-rose-600' : 'text-slate-900');
 
 // Status que o cliente pode apontar como correto ao contestar (sem "EM ABERTO").
 const STATUS_OPCOES = ['GREEN', 'MEIO GREEN', 'MEIO RED', 'RED', 'REEMBOLSO'];
@@ -73,34 +83,80 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
       </header>
 
       <div className="mx-auto max-w-4xl px-4 py-5">
-        {/* Resumo */}
+        {/* Resumo — mesmas cores do painel: azul = entrada, roxo = em aberto,
+            dourado = o número que o cliente abre a tela para ver. */}
         <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Card titulo="Calção" valor={brl(dados.cliente.cal)} cor="text-slate-700" />
-          <Card titulo="Entradas (semana)" valor={brl(sem.entradas)} cor="text-slate-700" />
-          <Card titulo="Em aberto" valor={String(sem.abertas)} cor="text-blue-600" />
-          <Card titulo="Saldo da semana" valor={brl(sem.saldo)} cor={clr(sem.saldo)} />
+          <Card icone="💰" cor="slate" titulo="Calção" valor={brl(dados.cliente.cal)} valorCls="text-slate-900" />
+          <Card icone="⇄" cor="blue" titulo="Entradas (semana)" valor={brl(sem.entradas)} valorCls={sem.entradas ? 'text-blue-600' : 'text-slate-900'} />
+          <Card icone="🕐" cor="violet" titulo="Em aberto" valor={String(sem.abertas)} valorCls={sem.abertas ? 'text-violet-700' : 'text-slate-900'} />
+          <Card icone="★" cor="destaque" destaque titulo="Saldo da semana" valor={brl(sem.saldo)} valorCls={clr(sem.saldo)} />
         </div>
 
-        {/* Abas semana */}
-        <div className="mb-3 flex w-fit items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
-          {(['atual', 'passada'] as const).map((k) => (
-            <button
-              key={k}
-              onClick={() => setAba(k)}
-              className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
-                aba === k ? 'bg-[#13200a] text-[#DAA520]' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {k === 'atual' ? 'Semana atual' : 'Semana passada'}
-            </button>
-          ))}
-          <span className="ml-2 pr-2 text-[11px] text-slate-400">
+        {/* Abas semana. No celular o período ia na mesma linha dos dois botões e
+            empurrava a largura da página; agora ele quebra para baixo. */}
+        <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+            {(['atual', 'passada'] as const).map((k) => (
+              <button
+                key={k}
+                onClick={() => setAba(k)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition sm:px-4 ${
+                  aba === k ? 'bg-[#13200a] text-[#DAA520]' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {k === 'atual' ? 'Semana atual' : 'Semana passada'}
+              </button>
+            ))}
+          </div>
+          <span className="text-[11px] text-slate-400">
             {fmtDia(sem.d1)} a {fmtDia(sem.d2)}
           </span>
         </div>
 
-        {/* Tabela */}
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        {/* MOBILE: um card por bilhete. A tabela tem 7 colunas e min-w 640px —
+            num celular de 375px ela virava uma gaveta horizontal onde o cliente
+            só via "Data" e precisava arrastar para achar o próprio saldo. */}
+        <div className="space-y-2 sm:hidden">
+          {sem.rows.map((r) => (
+            <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-xs text-slate-500">{r.dt}</span>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${STPILL[r.st] ?? 'bg-slate-100 text-slate-600'}`}>{r.st}</span>
+              </div>
+
+              {r.ct && <span className="mb-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">⚠️ Contestada</span>}
+              <div className="break-words font-mono text-[11px] leading-snug">{renderJogoLinhas(r.jogo)}</div>
+
+              <div className="mt-2.5 grid grid-cols-3 gap-2 border-t border-slate-100 pt-2 text-center">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-slate-400">Odd</div>
+                  <div className="tabular-nums text-slate-800">{r.odd ? brl(oddDoCliente(r.odd)) : '—'}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-slate-400">Valor</div>
+                  <div className="tabular-nums text-slate-800">{r.val ? brl(r.val) : <span className="text-slate-400">aberto</span>}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-slate-400">Saldo</div>
+                  <div className={`font-semibold tabular-nums ${clr(r.sl)}`}>{brl(r.sl)}</div>
+                </div>
+              </div>
+
+              {r.st !== 'EM ABERTO' && !r.ct && (
+                <button onClick={() => abrirContestacao(r)} className="mt-2.5 w-full rounded-lg border border-slate-300 py-2 text-xs font-medium text-slate-600 active:bg-slate-50">
+                  Contestar
+                </button>
+              )}
+              {r.ct && <div className="mt-2 text-center text-[11px] text-rose-500">em análise</div>}
+            </div>
+          ))}
+          {sem.rows.length === 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white px-3 py-10 text-center text-slate-400">Nenhuma aposta nesta semana.</div>
+          )}
+        </div>
+
+        {/* DESKTOP: a tabela de sempre */}
+        <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white sm:block">
           <table className="w-full min-w-[640px] text-sm text-slate-800">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-400">
@@ -118,7 +174,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
                 <tr key={r.id} className="border-b-2 border-slate-200 align-top">
                   <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500">{r.dt}</td>
                   <td className="px-3 py-2">
-                    <div className="max-w-[300px] text-xs leading-snug">
+                    <div className="max-w-[340px] font-mono text-[11px] leading-snug">
                       {r.ct && <span className="mr-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">⚠️ Contestada</span>}
                       {renderJogoLinhas(r.jogo)}
                     </div>
@@ -203,11 +259,17 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
   );
 }
 
-function Card({ titulo, valor, cor }: { titulo: string; valor: string; cor: string }) {
+function Card({ icone, cor, titulo, valor, valorCls, destaque }: {
+  icone: string; cor: keyof typeof CARD_COR; titulo: string; valor: string; valorCls: string; destaque?: boolean;
+}) {
+  const selo = CARD_COR[cor] ?? CARD_COR.slate;
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{titulo}</div>
-      <div className={`mt-1 text-lg font-semibold tabular-nums ${cor}`}>{valor}</div>
+    <div className={`rounded-xl border border-amber-400 bg-white p-3 ${destaque ? 'ring-1 ring-amber-400/30' : ''}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className={`inline-block rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${selo}`}>{titulo}</div>
+        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[11px] ${selo}`}>{icone}</span>
+      </div>
+      <div className={`mt-1 tabular-nums ${destaque ? 'text-xl font-bold' : 'text-lg font-semibold'} ${valorCls}`}>{valor}</div>
     </div>
   );
 }
