@@ -20,6 +20,7 @@ Regras de leitura:
 - Em valores monetários, remova "R$" e separadores de milhar (ex.: "R$ 1.200,00" -> 1200).
 - Para combinadas (múltiplas seleções), numere cada jogo ("1) ...", "2) ...") e use "• " antes de cada mercado, separando por \\n.
 - Preserve os nomes dos times exatamente como aparecem.
+- NUNCA inclua a data nem o horário da partida em "jogo" (ex.: "Qua 15 Jul 16:00", "15/07 21:30", "Hoje às 16:00"). A data da aposta vem do WhatsApp, não do bilhete. Transcreva só times e mercados.
 - "casa" é a CASA DE APOSTA (ex.: BET365, BETANO, SPORTINGBET, SUPERBET, PIXBET). NUNCA use nome de time, jogador, campeonato ou liga como casa. Se você não reconhecer uma casa de aposta conhecida na imagem, use null.
 - VALOR: leia o valor apostado que aparece NA IMAGEM. Converta para número (remova "R$" e separadores de milhar). Se não houver valor visível na imagem, use null. (O valor final pode ser ajustado depois pelo texto da mensagem — você apenas transcreve o que vê na imagem.)
 - Não invente dados: se a odd, o valor ou a casa não estiverem visíveis, use null.
@@ -47,6 +48,48 @@ async function transcreverImagem(base64, mediaType = 'image/jpeg') {
   }
 }
 
+// ── Data/hora da PARTIDA não entra na descrição do jogo ────────────────────────
+// O bilhete impresso traz "Qua 15 Jul 16:00" embaixo dos times, e a IA copiava
+// junto (#17888). A data da aposta é a do print no WhatsApp — essa linha só
+// polui a coluna e ainda confunde quem lê, sugerindo uma data que não é a do
+// lançamento. O prompt pede para omitir, mas modelo de visão não é determinístico:
+// este filtro garante. Só apaga a linha quando ela é SOMENTE data/hora — se tiver
+// qualquer palavra de time ou mercado junto, a linha fica intacta.
+// Sem \b nas pontas: no JS o \b não enxerga letra acentuada como letra, então
+// "\bamanhã\b" nunca casa e "\bàs\b" nunca casa. Usamos limite explícito.
+const B0 = '(?<![\\p{L}])'; const B1 = '(?![\\p{L}])';
+const DIA_SEMANA = '(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo|seg|ter|qua|qui|sex|s[áa]b|dom|hoje|amanh[ãa]|ontem)';
+const MES = '(?:jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zç]*';
+const HORA = /\b\d{1,2}\s*[:h]\s*\d{2}\b/;
+const DATA = /\b\d{1,2}\s*\/\s*\d{1,2}(?:\s*\/\s*\d{2,4})?\b/;
+
+function ehSoDataHora(linha) {
+  const t = linha.replace(/^[•\-•·]\s*/, '').trim();
+  if (!t) return false;
+  // Sem nenhum sinal de data/hora, nem olha o resto.
+  if (!(HORA.test(t) || DATA.test(t) || new RegExp(`${B0}${DIA_SEMANA}${B1}`, 'iu').test(t))) return false;
+  const resto = t
+    .replace(new RegExp(`${B0}${DIA_SEMANA}${B1}`, 'giu'), ' ')
+    .replace(new RegExp(`${B0}${MES}${B1}`, 'giu'), ' ')
+    .replace(new RegExp(HORA.source, 'g'), ' ')
+    .replace(new RegExp(DATA.source, 'g'), ' ')
+    .replace(new RegExp(`${B0}(?:[àa]s|de|hrs?|horas?)${B1}`, 'giu'), ' ')
+    .replace(/\b\d{1,4}\b/g, ' ')
+    .replace(/[,.\-–—|()]/g, ' ')
+    .trim();
+  return resto === '';
+}
+
+/** Tira da descrição as linhas que são só data/hora da partida. */
+function limparJogo(jogo) {
+  return String(jogo || '')
+    .split('\n')
+    .filter((l) => !ehSoDataHora(l))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 /**
  * Monta o resultado final a partir do que a IA leu na imagem (`dados`), da `legenda` da
  * mensagem e do `emoji` da reação. Regras de VALOR (dinheiro — nunca confiar na IA p/ isto):
@@ -56,7 +99,7 @@ async function transcreverImagem(base64, mediaType = 'image/jpeg') {
  */
 function aplicaRegra(dados, emoji, legenda = '') {
   const regra = regraPorEmoji(emoji);
-  const out = { jogo: dados.jogo || '', odd: dados.odd ?? null, valor: dados.valor ?? null, casa: dados.casa ?? null };
+  const out = { jogo: limparJogo(dados.jogo), odd: dados.odd ?? null, valor: dados.valor ?? null, casa: dados.casa ?? null };
 
   // Valor: legenda tem prioridade sobre a imagem.
   const valorLegenda = parseValor(legenda);
@@ -77,4 +120,4 @@ async function transcreverBilhete(base64, emoji, mediaType = 'image/jpeg', legen
   return { bruto: dados, final, emoji: regra.emoji, regra, usage, modelo };
 }
 
-module.exports = { transcreverBilhete, transcreverImagem, aplicaRegra };
+module.exports = { transcreverBilhete, transcreverImagem, aplicaRegra, limparJogo };
