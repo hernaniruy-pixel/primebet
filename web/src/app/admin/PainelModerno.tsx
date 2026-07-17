@@ -433,14 +433,18 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     <div className={dark ? 'dark' : ''}>
       <style>{`@keyframes pbAlertPulse{0%,100%{border-color:#ef4444}50%{border-color:#fecaca}} tr.pb-alert>td{border-width:2px;animation:pbAlertPulse 1.1s ease-in-out infinite} @keyframes pbFlash{0%{background-color:rgba(34,197,94,.45)}100%{background-color:transparent}} tr.pb-flash>td{animation:pbFlash 1.6s ease-out}
 
-/* ── Faixa cósmica do topo — MESMO vocabulário do login (galaxy + verde + dourado).
-   Cobre resumo + abas + filtros num bloco só: o erro da vez passada foi um cartão
-   escuro isolado no meio dos brancos. Aqui a área inteira tem a mesma tonalidade,
-   e a TABELA continua clara — quem confere bilhete o dia todo precisa disso. */
-.pb-cosmic{position:relative;overflow:hidden;border-radius:18px;background:#08120a;border:1px solid rgba(120,160,50,.34);box-shadow:0 20px 60px rgba(0,0,0,.35),0 0 45px rgba(90,140,40,.14)}
-.pb-cosmic::before{content:'';position:absolute;inset:0;z-index:0;background:#08120a url('/galaxy.jpg') center/cover no-repeat;filter:brightness(.42) saturate(.55) hue-rotate(65deg)}
-.pb-cosmic::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(60% 60% at 50% 0%,rgba(84,168,84,.22),transparent 62%),radial-gradient(48% 60% at 88% 10%,rgba(218,165,32,.12),transparent 62%),linear-gradient(rgba(6,14,8,.62),rgba(5,11,6,.9))}
-.pb-cosmic>*{position:relative;z-index:2}
+/* ── Fundo cósmico da PÁGINA — mesmo vocabulário do login (galaxy + verde + dourado).
+   Era uma caixa verde flutuando no branco: a moldura clara em volta brigava com ela.
+   Agora o cósmico é o fundo de tudo, e só a TABELA fica clara — quem confere bilhete
+   o dia todo precisa de fundo claro ali. position:fixed deixa a galáxia parada na
+   rolagem (e evita repetir a imagem numa página longa). */
+.pb-page{position:relative;background:#08120a}
+.pb-page::before{content:'';position:fixed;inset:0;z-index:0;background:#08120a url('/galaxy.jpg') center/cover no-repeat;filter:brightness(.42) saturate(.55) hue-rotate(65deg)}
+.pb-page::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(70% 55% at 50% 0%,rgba(84,168,84,.20),transparent 62%),radial-gradient(50% 45% at 86% 6%,rgba(218,165,32,.11),transparent 62%),linear-gradient(rgba(6,14,8,.62),rgba(5,11,6,.92))}
+.pb-page>header{z-index:40}
+.pb-page>main{position:relative;z-index:10}
+/* O que era a faixa agora é só o escopo escuro — sem caixa própria. */
+.pb-cosmic{position:relative}
 
 /* Vidro esverdeado dos cartões/caixas dentro da faixa (igual à caixa do login). */
 .pb-cosmic .pb-glass{background:linear-gradient(180deg,rgba(26,40,15,.84),rgba(13,21,8,.72))!important;border-color:rgba(120,160,50,.34)!important;backdrop-filter:blur(12px)}
@@ -463,7 +467,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
 .pb-btn-gold:hover{filter:brightness(1.08)}
 .pb-btn-ghost{background:rgba(9,16,6,.55);border:1px solid rgba(120,160,50,.34);color:#cfe0ac;transition:.15s}
 .pb-btn-ghost:hover{border-color:#DAA520;background:rgba(9,16,6,.8);color:#f0e6c8}`}</style>
-      <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <div className="pb-page min-h-screen text-slate-900 dark:text-slate-100">
         {/* TOPBAR */}
         {/* min-w-0 + nav rolável: no celular os 9 itens não cabem numa linha. Sem isto
             eles esticavam a página, criavam rolagem lateral e apareciam as bordas pretas. */}
@@ -504,10 +508,10 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
 
         <main className="w-full px-4 py-5 sm:px-6">
 
-          {/* CABEÇA DO PAINEL (resumo + abas + filtros) na identidade da PrimeBet.
+          {/* CABEÇA DO PAINEL (resumo + abas + filtros) sobre o fundo cósmico.
               `dark` no wrapper: os números já têm cores próprias para fundo escuro
               (dark:), então reaproveitamos a regra em vez de inventar outra. */}
-          <div className="dark pb-cosmic mb-4 p-4">
+          <div className="dark pb-cosmic">
 
           {/* RESUMO DO PERÍODO — o lucro é o número que importa, então ele manda na tela.
               O resto é o caminho até ele: o que entrou, o que a banca ganhou, o que saiu. */}
@@ -615,12 +619,13 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             </div>
           </div>
 
-          </div>{/* fim da faixa cósmica */}
+          </div>{/* fim do escopo escuro */}
 
-          <div className="mb-2 text-xs text-slate-400">{total} aposta(s) · página {pageSafe}/{totalPages} · exibindo {total ? start + 1 : 0}–{start + regs.length}</div>
+          <div className="mb-2 text-xs text-slate-300/80">{total} aposta(s) · página {pageSafe}/{totalPages} · exibindo {total ? start + 1 : 0}–{start + regs.length}</div>
 
-          {/* TABELA */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          {/* TABELA — a ÚNICA parte clara da tela, de propósito: é onde se lê bilhete
+              o dia todo. A borda dourada costura ela ao fundo cósmico. */}
+          <div className="overflow-hidden rounded-xl border border-amber-500/30 bg-white shadow-[0_20px_60px_rgba(0,0,0,.35)] dark:border-slate-800 dark:bg-slate-900">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-200 dark:[&_td]:border-slate-700 dark:[&_th]:border-slate-700">
                 <thead>
