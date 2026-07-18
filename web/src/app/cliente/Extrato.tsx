@@ -7,7 +7,7 @@ import type { ExtratoResp, SemanaExtrato } from './types';
 import { contestarAposta, sairCliente } from './actions';
 import { renderJogoLinhas } from './render';
 import type { Reg } from '../admin/types';
-import { partesTs } from '../admin/types';
+import { partesTs, statusContestacao } from '../admin/types';
 
 // Mesmas cores de status do painel admin — o cliente e o operador têm que estar
 // olhando para a mesma coisa quando falam ao telefone.
@@ -308,9 +308,9 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
                       <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${STPILL[r.st] ?? 'bg-slate-100 text-slate-600'}`}>{r.st}</span>
                     </div>
 
-                    {r.ct
+                    {(() => { const c = statusContestacao(r); return r.ct
                       ? <span className="mb-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⚠️ Contestada</span>
-                      : r.ctResolvidaEm ? <div className="mb-1"><SeloCt desfecho={r.ctDesfecho} quando={r.ctResolvidaEm} /></div> : null}
+                      : c.resolvida ? <div className="mb-1"><SeloCt desfecho={c.desfecho} quando={c.quando} /></div> : null; })()}
                     <div className="break-words font-mono text-[11px] leading-snug">{renderJogoLinhas(r.jogo)}</div>
 
                     <div className="mt-2.5 grid grid-cols-3 gap-2 border-t border-slate-100 pt-2 text-center dark:border-slate-800">
@@ -328,7 +328,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
                       </div>
                     </div>
 
-                    {r.st !== 'EM ABERTO' && !r.ct && !r.ctResolvidaEm && (
+                    {r.st !== 'EM ABERTO' && !r.ct && !statusContestacao(r).resolvida && (
                       <button onClick={() => abrirContestacao(r)} className="mt-2.5 w-full rounded-lg border border-slate-300 py-2 text-xs font-medium text-slate-600 active:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:active:bg-slate-800">
                         Contestar
                       </button>
@@ -367,7 +367,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
                         <td className="px-3 py-2">
                           <div className="max-w-[340px] font-mono text-[11px] leading-snug">
                             {r.ct && <span className="mr-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⚠️ Contestada</span>}
-                            {!r.ct && r.ctResolvidaEm && <span className="mr-1"><SeloCt desfecho={r.ctDesfecho} quando={r.ctResolvidaEm} /></span>}
+                            {(() => { const c = statusContestacao(r); return !r.ct && c.resolvida && <span className="mr-1"><SeloCt desfecho={c.desfecho} quando={c.quando} /></span>; })()}
                             {renderJogoLinhas(r.jogo)}
                           </div>
                         </td>
@@ -378,7 +378,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
                         </td>
                         <td className={`px-3 py-2 text-right font-semibold tabular-nums ${clr(r.sl)}`}>{brl(r.sl)}</td>
                         <td className="px-3 py-2 text-center">
-                          {r.st !== 'EM ABERTO' && !r.ct && !r.ctResolvidaEm && (
+                          {r.st !== 'EM ABERTO' && !r.ct && !statusContestacao(r).resolvida && (
                             <button onClick={() => abrirContestacao(r)} className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:border-rose-400 hover:text-rose-600 dark:border-slate-700 dark:text-slate-300">
                               Contestar
                             </button>

@@ -101,6 +101,21 @@ export function mapCliente(r: ClienteRow, afNome: Record<number, string>): Clien
   };
 }
 
+// Estado da contestação de uma aposta JÁ resolvida (fora da fila). Funciona mesmo
+// sem a migração 019: como as ações de resolver PRESERVAM o motivo e o status
+// sugerido, "foi contestada" é detectado por esses campos; o desfecho vem da coluna
+// (se a 019 rodou) ou é inferido — aceita quando o status atual == o sugerido.
+export function statusContestacao(r: Reg): { resolvida: boolean; desfecho: 'aceita' | 'recusada' | ''; quando: string } {
+  if (r.ct) return { resolvida: false, desfecho: '', quando: '' };
+  const foi = !!(r.ctResolvidaEm || r.ctMotivo || r.ctStatus);
+  if (!foi) return { resolvida: false, desfecho: '', quando: '' };
+  const desfecho: 'aceita' | 'recusada' =
+    r.ctDesfecho === 'aceita' || r.ctDesfecho === 'recusada'
+      ? r.ctDesfecho
+      : (r.ctStatus && r.st === r.ctStatus ? 'aceita' : 'recusada');
+  return { resolvida: true, desfecho, quando: r.ctResolvidaEm };
+}
+
 export const mapAposta = (r: ApostaRow): Reg => ({
   id: r.id, dt: fmtTs(r.data), cId: r.cliente_id, jogo: r.jogo, odd: num(r.odd), val: num(r.valor),
   st: r.status, dc: r.casa ?? '', sb: num(r.saldo_bruto), cm: num(r.comissao), caf: num(r.comissao_afiliado),

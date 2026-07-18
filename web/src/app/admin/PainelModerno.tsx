@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow } from './types';
-import { partesTs } from './types';
+import { partesTs, statusContestacao } from './types';
 import {
   criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao, aceitarContestacao,
   criarCliente, atualizarCliente, excluirCliente, criarAfiliado, atualizarAfiliado, excluirAfiliado,
@@ -666,14 +666,14 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                             </span>
                           )}
                           {/* Registro PERMANENTE: já foi contestada e resolvida (selo fica no bilhete). */}
-                          {!r.ct && r.ctResolvidaEm && (
+                          {(() => { const c = statusContestacao(r); return c.resolvida && (
                             <span
-                              title={`Contestação ${r.ctDesfecho || 'resolvida'}${r.ctResolvidaEm !== 'agora' ? ` em ${r.ctResolvidaEm}` : ''}${r.ctStatus ? ` · cliente sugeriu ${r.ctStatus}` : ''}${r.ctMotivo ? ` · motivo: ${r.ctMotivo}` : ''}`}
-                              className={`mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.ctDesfecho === 'aceita' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}
+                              title={`Contestação ${c.desfecho}${c.quando && c.quando !== 'agora' ? ` em ${c.quando}` : ''}${r.ctStatus ? ` · cliente sugeriu ${r.ctStatus}` : ''}${r.ctMotivo ? ` · motivo: ${r.ctMotivo}` : ''}`}
+                              className={`mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.desfecho === 'aceita' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}
                             >
-                              🏷️ contestada{r.ctDesfecho ? ` · ${r.ctDesfecho}` : ''}
+                              🏷️ contestada · {c.desfecho}
                             </span>
-                          )}
+                          ); })()}
                           {renderJogo(r.jogo)}
                         </div></td>
                         <td className="px-2 py-1.5 text-center">
