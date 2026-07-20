@@ -38,12 +38,30 @@ async function acharGrupo(client) {
   return grupoAvisosId;
 }
 
-/** Envia um aviso ao grupo AVISOS/ALERTA (melhor esforço). Retorna {ok, motivo}. */
-async function avisar(client, texto) {
+// Anti-flood: mesmo aviso repetido em sequência (ex.: "sem crédito" a cada reação)
+// enche o grupo e ensina todo mundo a ignorar. Guardamos o horário do último envio
+// de cada texto e só reenviamos o mesmo depois da janela.
+const ultimoAviso = new Map(); // texto -> ts
+const JANELA_AVISO_MS = 10 * 60 * 1000;
+
+/** Envia um aviso ao grupo AVISOS/ALERTA (melhor esforço). Retorna {ok, motivo}.
+ *  Avisos idênticos são silenciados por 10min (a menos que forçado). */
+async function avisar(client, texto, { forcar = false } = {}) {
+  const agora = Date.now();
+  if (!forcar) {
+    const anterior = ultimoAviso.get(texto);
+    if (anterior && agora - anterior < JANELA_AVISO_MS) {
+      console.log('   (aviso repetido silenciado — mesma mensagem há <10min)');
+      return { ok: true, silenciado: true };
+    }
+  }
   try {
     const id = await acharGrupo(client);
     if (!id) { console.log('   (grupo AVISOS/ALERTA não encontrado — o bot está nesse grupo?)'); return { ok: false, motivo: 'grupo nao encontrado (o bot esta no grupo ALERTA/AVISOS?)' }; }
     await client.sendMessage(id, texto);
+    ultimoAviso.set(texto, agora);
+    // Limpa entradas velhas para o Map não crescer sem fim.
+    if (ultimoAviso.size > 200) for (const [k, t] of ultimoAviso) if (agora - t > JANELA_AVISO_MS) ultimoAviso.delete(k);
     console.log('   📣 aviso enviado:', texto);
     return { ok: true };
   } catch (e) {

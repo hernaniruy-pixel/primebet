@@ -509,9 +509,16 @@ async function iniciarWhatsApp() {
         console.log('   ↳ lido:', JSON.stringify(bruto));
         console.log(`   ✅ aposta #${aposta.id} gravada (odd ${aposta.odd}, valor ${aposta.valor}, casa "${aposta.casa}", EM ABERTO)`);
       } catch (e) {
-        console.error('❌ Erro ao processar reação:', e && e.message);
+        const msg = String((e && e.message) || e);
+        console.error('❌ Erro ao processar reação:', msg);
         // Nunca falhar em silêncio: o operador reagiu esperando a transcrição.
-        try { await avisar(cliente, `⚠️ Não consegui transcrever um bilhete reagido: ${String(e && e.message).slice(0, 150)}. Reaja de novo ou lance pelo painel.`); } catch { /* silencioso */ }
+        // Sem crédito é uma falha SISTÊMICA (afeta todos) — mensagem clara e acionável,
+        // em vez do JSON cru; o anti-flood do avisar evita repetir a cada reação.
+        const semCredito = /credit balance is too low|Plans & Billing/i.test(msg);
+        const aviso = semCredito
+          ? '⛔ Transcrições PARADAS: a conta da Anthropic está SEM CRÉDITO. Recarregue em console.anthropic.com (Plans & Billing). Nenhum bilhete reagido será lido até lá.'
+          : `⚠️ Não consegui transcrever um bilhete reagido: ${msg.slice(0, 150)}. Reaja de novo ou lance pelo painel.`;
+        try { await avisar(cliente, aviso); } catch { /* silencioso */ }
       }
     }
   });
