@@ -142,6 +142,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [novoCli, setNovoCli] = useState({ open: false, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '', grupoLink: '' });
   const [novoAf, setNovoAf] = useState({ open: false, nome: '', com: '0' });
   const [obsModal, setObsModal] = useState<{ id: number; text: string } | null>(null);
+  // Editor do TEXTO do bilhete (jogo) — abre pelo lápis no canto da aposta.
+  const [jogoModal, setJogoModal] = useState<{ id: number; text: string } | null>(null);
   const [fech, setFech] = useState(() => { const p = periodDates('semana_ant'); return { dt1: p.d1, dt2: p.d2, period: 'semana_ant' }; }); // fechamento é sempre da semana passada
   const [faf, setFaf] = useState({ dt1: semana.d1, dt2: semana.d2, period: 'semana' });
   const [fechRes, setFechRes] = useState<FechCliResp | null>(null);
@@ -401,6 +403,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   async function sair() { const s = createClient(); await s.auth.signOut(); router.replace('/login'); }
   async function salvarObs() { if (!obsModal) return; const t = obsModal.text.trim(); await patchReg(obsModal.id, { obs: t, adv: t.length > 0 }); setObsModal(null); toast(t ? 'Advertência salva.' : 'Advertência removida.'); }
   async function resolverObs() { if (!obsModal) return; await patchReg(obsModal.id, { adv: false }); setObsModal(null); toast('Advertência resolvida.'); }
+  async function salvarJogo() { if (!jogoModal) return; await patchReg(jogoModal.id, { jogo: jogoModal.text }); setJogoModal(null); toast(`Bilhete #${jogoModal.id} atualizado.`); }
 
   // clientes
   function updCli(id: number, patch: Partial<Cliente>) { setClientes((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c))); }
@@ -673,7 +676,9 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         </td>
                         {/* Fonte monoespaçada (como no JM): alinha as linhas do bilhete e
                             deixa números/odds na mesma largura — muito mais fácil de conferir. */}
-                        <td className="px-2 py-1.5"><div className="max-w-[340px] font-mono text-[11px] leading-snug">
+                        <td className="px-2 py-1.5"><div className="relative max-w-[340px] pr-6 font-mono text-[11px] leading-snug">
+                          {/* Lápis: edita o texto do bilhete (corrige time/handicap que a IA não pegou). */}
+                          <button onClick={() => setJogoModal({ id: r.id, text: r.jogo })} title="Editar o texto do bilhete" className="absolute right-0 top-0 rounded p-1 text-slate-300 transition hover:bg-amber-50 hover:text-amber-600 dark:text-slate-500 dark:hover:bg-amber-500/10 dark:hover:text-amber-400">✏️</button>
                           {r.ct && (
                             <span className="mb-1 flex flex-wrap items-center gap-1">
                               <span title={r.ctMotivo || 'Contestada pelo cliente'} className="inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⚠️ Contestada</span>
@@ -972,6 +977,22 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                 <button onClick={() => setObsModal(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button>
                 <button onClick={resolverObs} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Resolvido</button>
                 <button onClick={salvarObs} className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">Salvar</button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* EDITAR TEXTO DO BILHETE */}
+        {jogoModal && (
+          <Modal onClose={() => setJogoModal(null)} max="max-w-lg" title={`Editar bilhete — aposta #${jogoModal.id}`}>
+            <div className="flex flex-col gap-3">
+              <div><span className={lbl}>Texto do bilhete (times, mercados, handicap…)</span>
+                <textarea rows={8} className={`${inp} font-mono text-[12px] leading-snug`} value={jogoModal.text} onChange={(e) => setJogoModal((m) => (m ? { ...m, text: e.target.value } : m))} autoFocus />
+              </div>
+              <p className="text-[11px] text-slate-400">Use para corrigir o que a transcrição não pegou (nome do time, handicap, seleções). Uma linha por seleção.</p>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setJogoModal(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button>
+                <button onClick={salvarJogo} className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">Salvar</button>
               </div>
             </div>
           </Modal>
