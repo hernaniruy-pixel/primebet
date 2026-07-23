@@ -54,6 +54,9 @@ async function registrarBilhete(final, { clienteId, grupoId = null, enviadoEm = 
     casa: final.casa || '',
     origem: 'whatsapp',
     grupo_id: grupoId,
+    // Tabela de odds marcada à mão: sinaliza p/ o operador conferir a seleção/odd no
+    // print (a leitura de círculo torto não é confiável) em vez de deixar passar errado.
+    ...(final.revisar ? { advertido: true, advertencia: '⚠️ Tabela de odds marcada à mão — confira a SELEÇÃO e a ODD no print antes de concluir.' } : {}),
     ...(enviadoEm ? { data: enviadoEm } : {}),
   };
   const { data, error } = await sb.from('apostas').insert(row).select().single();

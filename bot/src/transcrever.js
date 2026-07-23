@@ -12,7 +12,8 @@ Leia a imagem e devolva SOMENTE um JSON válido (sem markdown, sem comentários,
   "jogo": "string",      // descrição da aposta preservando as linhas, ex: "1) Time A x Time B\\n• Mercado / seleção"
   "odd": number | null,  // odd TOTAL do bilhete (se combinada, a odd final). Use ponto decimal. null se não aparecer.
   "valor": number | null,// valor apostado em R$ (somente o número). null se não aparecer.
-  "casa": string | null  // CASA DE APOSTA / descarrego. null se não identificar.
+  "casa": string | null, // CASA DE APOSTA / descarrego. null se não identificar.
+  "revisar": boolean     // true SÓ quando for uma TABELA de odds marcada à mão (ver regra). false para cupom/bilhete normal.
 }
 
 Regras de leitura:
@@ -23,6 +24,7 @@ Regras de leitura:
 - MERCADO + SELEÇÃO (não descarte a linha de baixo): cada seleção costuma ter DUAS partes — a escolha em destaque/negrito (ex.: "Mais de 12.5 - Sim", "Menos de 4.5 Gols", "Vencedor") e, logo ABAIXO dela, em letra menor/mais clara, o NOME DO MERCADO que dá sentido à escolha (ex.: "Cada Equipe Mais de X Desarmes", "Partida - Gols", "Handicap Asiático", "Resultado Final"). Transcreva SEMPRE as DUAS juntas na mesma linha "• ", no formato "• <nome do mercado> — <seleção>" (ex.: "• Cada Equipe Mais de X Desarmes — Mais de 12.5 (Sim)"). NUNCA jogue fora a linha de baixo: sozinha, "Mais de 12.5 - Sim" não diz do que se trata.
 - DUPLA CHANCE e seleções com "ou": muitas seleções têm DOIS lados ligados por "ou" — dupla chance ("Empate ou Cumbaya", "San Antonio FC ou Empate", "Casa ou Fora") ou "ambas as equipes". Transcreva a seleção INTEIRA, com os dois lados: NUNCA corte para só um lado (ex.: nunca reduza "Empate ou Cumbaya" a "Empate"). O nome do time depois do "ou" faz parte da aposta.
 - MARCAÇÃO DO CLIENTE (círculo/seta/rabisco): quando a imagem for uma TABELA de mercados (várias linhas de odds) e o cliente tiver DESENHADO à mão um círculo, seta ou rabisco em volta de uma opção, transcreva SOMENTE a(s) opção(ões) marcada(s) — é a aposta escolhida. Leia o NOME DO MERCADO daquela opção (o título em destaque/negrito da seção, ex.: "Chance Dupla", "Resultado Final") e a seleção completa com a odd. Ignore as outras linhas não marcadas da tabela.
+- CAMPO "revisar": é uma trava de segurança. Marque revisar=true QUANDO, E SOMENTE QUANDO, a imagem for uma TABELA de odds / quadro de mercados (várias linhas de cotações, tipo a aba "Popular"/"Resultado Final"/"Chance Dupla" da casa) em que o cliente DESENHOU à mão um círculo/seta/rabisco para escolher — ou seja, quando a seleção depende de INTERPRETAR um desenho. Nesse caso, ainda faça seu melhor palpite (jogo/seleção/odd), mas ponha revisar=true para o operador confirmar. Para CUPOM / BILHETE já montado ("Aposta Feita", "Cupom de Apostas", "Criar Aposta", "Reutilizar seleções") — mesmo com valor escrito — use revisar=false (é confiável, não precisa conferir).
 - CÍRCULO QUE ENCOSTA EM DUAS OPÇÕES: um círculo feito à mão costuma ser torto e RASPAR opções vizinhas (ex.: o traço toca de leve na odd do "Empate" da linha de cima, mas o CORPO do círculo está todo em volta de "Empate ou Cumbaya" embaixo). A aposta é onde o desenho está mais CONCENTRADO — a opção que fica DENTRO/no CENTRO do círculo, com a maior parte do traço ao redor dela — NÃO a que o traço apenas tangencia de passagem. Se o círculo abraça uma seleção e só encosta na odd de outra acima, a marcada é a que está ABRAÇADA. Na dúvida, prefira a seleção cujo TEXTO (nome + odd) está mais cercado pelo desenho.
 - HANDICAP / LINHA: quando a seleção tiver um número de handicap ou linha, ele faz PARTE da seleção e NUNCA pode ser omitido: "-0.25", "+1.5", "-0.5", "Menos de 4.5", "Mais de 3.5", "Handicap Asiático -0.25". Transcreva o número exatamente como aparece junto do mercado (ex.: "• Handicap Asiático -0.25 — Sampaio Correa RJ").
 - VENCEDOR / RESULTADO FINAL: nesses mercados diga QUAL time foi selecionado — nunca escreva só "Vencedor" ou "Resultado Final" sozinho. Use o time destacado/selecionado (ex.: "• Vencedor: QUINTESSENCIA", "• Resultado Final: Lanús").
@@ -108,11 +110,16 @@ function limparJogo(jogo) {
  */
 function aplicaRegra(dados, emoji, legenda = '') {
   const regra = regraPorEmoji(emoji);
-  const out = { jogo: limparJogo(dados.jogo), odd: dados.odd ?? null, valor: dados.valor ?? null, casa: dados.casa ?? null };
+  const out = { jogo: limparJogo(dados.jogo), odd: dados.odd ?? null, valor: dados.valor ?? null, casa: dados.casa ?? null, revisar: dados.revisar === true };
 
   // Valor: legenda tem prioridade sobre a imagem.
   const valorLegenda = parseValor(legenda);
   if (valorLegenda != null) out.valor = valorLegenda;
+
+  // Tabela de odds marcada à mão: caso ambíguo por natureza (o círculo torto pode
+  // apontar a linha errada). Não arrisca a odd — zera p/ a aposta cair EM ABERTO e o
+  // operador confirmar a seleção olhando o print. A seleção-palpite fica no jogo.
+  if (out.revisar) out.odd = null;
 
   // Emoji: zera (em aberto) os campos correspondentes — vence tudo.
   if (regra && regra.mascara.includes('odd')) out.odd = null;
