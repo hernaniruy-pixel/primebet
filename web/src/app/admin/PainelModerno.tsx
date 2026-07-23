@@ -307,9 +307,27 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     const resolvida = !!statusEfetivo && statusEfetivo !== 'EM ABERTO';
 
     if (filtros.aba === 'pend' && !resolvida) {
-      // Ainda EM ABERTO (nenhum status resolvedor escolhido): não há o que concluir.
-      toast('Selecione um status (GREEN, RED…) e clique em Salvar para concluir a aposta.');
-      return; // mantém eventuais rascunhos visíveis
+      // Ainda EM ABERTO. NÃO conclui (segue na fila), mas se o operador ajustou
+      // odd/valor/jogo, isso PRECISA ser salvo — antes o Salvar voltava sem gravar
+      // e a edição se perdia ("travava"). Persiste mantendo EM ABERTO e na fila.
+      const editouConteudo = d.dt !== undefined || d.odd !== undefined || d.val !== undefined || d.jogo !== undefined;
+      if (!editouConteudo) {
+        toast('Selecione um status (GREEN, RED…) para concluir — ou ajuste odd/valor e salve.');
+        return;
+      }
+      const draftAntesEd = drafts[id];
+      setDrafts((dr) => { const c = { ...dr }; delete c[id]; return c; });
+      try {
+        const rr = await atualizarAposta(id, patch);
+        setRegs((rs) => rs.map((r) => (r.id === id ? rr : r))); // atualiza a linha, sem tirar da fila
+        toast(`Aposta #${id} atualizada (segue EM ABERTO).`);
+      } catch (e) {
+        if (draftAntesEd) setDrafts((dr) => ({ ...dr, [id]: draftAntesEd }));
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error('saveReg (EM ABERTO) falhou:', e);
+        alert(`⚠️ A aposta #${id} NÃO foi salva.\n\nMotivo: ${msg}\n\nA edição foi mantida. Tente de novo.`);
+      }
+      return;
     }
 
     // Concluir exige odd E entrada. Sem isso a aposta vira lixo: GREEN com valor 0 dá

@@ -23,8 +23,9 @@ Regras de leitura:
 - Preserve os nomes dos times exatamente como aparecem.
 - NUNCA inclua a data nem o horário da partida em "jogo" (ex.: "Qua 15 Jul 16:00", "15/07 21:30", "Hoje às 16:00"). A data da aposta vem do WhatsApp, não do bilhete. Transcreva só times e mercados.
 - "casa" é a CASA DE APOSTA (ex.: BET365, BETANO, SPORTINGBET, SUPERBET, PIXBET). NUNCA use nome de time, jogador, campeonato ou liga como casa. Se você não reconhecer uma casa de aposta conhecida na imagem, use null.
-- VALOR: leia o valor apostado que aparece NA IMAGEM. Converta para número (remova "R$" e separadores de milhar). Se não houver valor visível na imagem, use null. (O valor final pode ser ajustado depois pelo texto da mensagem — você apenas transcreve o que vê na imagem.)
-- Não invente dados: se a odd, o valor ou a casa não estiverem visíveis, use null.
+- ODD: use a odd TOTAL/final do bilhete (nas combinadas, a odd final multiplicada). NUNCA invente, calcule ou estime uma odd — se a odd total não estiver CLARAMENTE impressa na imagem, use null (o operador preenche). É melhor null do que um número inventado.
+- VALOR: leia o VALOR APOSTADO / ENTRADA / STAKE — o quanto foi apostado (rótulos como "Aposta", "Valor da aposta", "Stake", "Entrada"). NUNCA use o RETORNO / GANHO POTENCIAL / "possível retorno" / "prêmio" no lugar do valor apostado. Se na imagem só aparecer o retorno potencial e não o valor apostado, use null. Converta para número (remova "R$" e separadores de milhar).
+- NÃO invente dados: se a odd, o valor ou a casa não estiverem visíveis com clareza, use null. Chutar um número errado é pior do que devolver null.
 - Responda APENAS com o JSON.`;
 
 /** Chama o modelo de visão e devolve o JSON bruto transcrito a partir da IMAGEM apenas. */
