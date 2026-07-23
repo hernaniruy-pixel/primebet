@@ -68,8 +68,12 @@ function destacarJogador(texto: string, k: number) {
 function renderJogo(jogo: string) {
   return (jogo || '').split('\n').map((line, i) => {
     const t = line.trimStart();
-    // Linha de jogo = começa com "N)" OU contém "(Odd ...)"; linhas de mercado ("•") ficam normais.
-    const isGame = /^\d+\)/.test(t) || (/\(odd/i.test(line) && !t.startsWith('•'));
+    // Linha de jogo (times) = começa com "N)", OU contém "(Odd ...)", OU é um confronto
+    // "Time A x Time B" (separador x / v / vs / ×). Nos bilhetes de um jogo só, a IA não
+    // numera — então sem detectar o "x" o nome das equipes ficava sem o destaque laranja.
+    // Linhas de mercado ("•") nunca são cabeçalho, mesmo que citem um "x".
+    const isVersus = !t.startsWith('•') && /\s(?:x|v|vs|×)\s/i.test(t);
+    const isGame = /^\d+\)/.test(t) || (/\(odd/i.test(line) && !t.startsWith('•')) || isVersus;
     if (isGame) {
       const pm = line.match(/^(\s*\d+\)\s*)?([\s\S]*)$/);
       const pref = pm?.[1] ?? '';
