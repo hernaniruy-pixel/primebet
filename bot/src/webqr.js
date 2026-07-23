@@ -2,6 +2,9 @@ const http = require('http');
 const QR = require('qrcode');
 
 const BOOT = Date.now(); // para medir uptime via /health (diagnóstico de reinícios)
+// Commit em produção — a Railway injeta RAILWAY_GIT_COMMIT_SHA no deploy. Expor no
+// /health tira a adivinhação de "o deploy novo já subiu?": basta comparar o SHA.
+const COMMIT = (process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT || 'dev').slice(0, 7);
 
 // Estado atual do pareamento, alimentado pelos eventos do WhatsApp.
 let estado = { qr: null, pronto: false };
@@ -39,7 +42,7 @@ function iniciarWebQR() {
       // a Railway acharia o container quebrado e entraria em laço de reinício.
       const up = Math.floor((Date.now() - BOOT) / 1000);
       res.writeHead(200, { 'Content-Type': 'text/plain', ...cors });
-      return res.end(`ok up=${up}s pronto=${estado.pronto}`);
+      return res.end(`ok up=${up}s pronto=${estado.pronto} commit=${COMMIT}`);
     }
 
     // /ready: para monitor externo (UptimeRobot e afins). 200 = WhatsApp conectado,
