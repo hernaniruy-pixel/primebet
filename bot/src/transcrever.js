@@ -1,7 +1,7 @@
 const _SDK = require('@anthropic-ai/sdk');
 const Anthropic = _SDK.Anthropic || _SDK.default || _SDK;
 const { ANTHROPIC_API_KEY, MODELO, regraPorEmoji } = require('./config');
-const { parseValor } = require('./valor');
+const { valorDaLegenda } = require('./valor');
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
@@ -112,8 +112,10 @@ function aplicaRegra(dados, emoji, legenda = '') {
   const regra = regraPorEmoji(emoji);
   const out = { jogo: limparJogo(dados.jogo), odd: dados.odd ?? null, valor: dados.valor ?? null, casa: dados.casa ?? null, revisar: dados.revisar === true };
 
-  // Valor: legenda tem prioridade sobre a imagem.
-  const valorLegenda = parseValor(legenda);
+  // Valor: legenda tem prioridade sobre a imagem — MAS só quando a legenda é mesmo um
+  // valor. Link de compartilhamento ("...bet365.../899A-...") não é valor: valorDaLegenda
+  // remove urls e exige que a sobra seja um número de aposta, senão vale o da imagem.
+  const valorLegenda = valorDaLegenda(legenda);
   if (valorLegenda != null) out.valor = valorLegenda;
 
   // Tabela de odds marcada à mão: caso ambíguo por natureza (o círculo torto pode

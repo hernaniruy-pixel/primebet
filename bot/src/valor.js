@@ -46,7 +46,27 @@ function parseValorMensagem(texto) {
   return parseValor(t.replace(/^\s*(?:valor|entrada|apostado?|stake)\s*:?\s*/i, ''));
 }
 
-module.exports = { parseValor, parseValorMensagem };
+/**
+ * Valor a partir da LEGENDA da imagem, com prioridade sobre a odd lida na foto.
+ * A legenda de prints ENCAMINHADOS costuma ser o LINK de compartilhamento da casa
+ * ("Adicionar ao Seu Cupom - https://www.bet365.bet.br/s/r/Ws7cf", ".../899A-EV59LV").
+ * O parseValor guloso pegava "365" (de bet365) ou "899" (do código do link) como se
+ * fosse o valor apostado — leituras completamente erradas (#bug 23/07). Aqui: primeiro
+ * REMOVE urls/domínios; depois só aceita se o que sobrou for DE FATO um valor (regra
+ * estrita), senão devolve null e o valor da IMAGEM prevalece.
+ */
+function valorDaLegenda(texto) {
+  if (texto == null) return null;
+  const semUrl = String(texto)
+    .replace(/https?:\/\/\S+/gi, ' ')                       // urls completas
+    .replace(/\b[\w-]+\.(?:com|br|net|org|bet|app|io)\S*/gi, ' ') // domínios soltos (bet365.bet.br/…)
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!semUrl) return null;
+  return parseValorMensagem(semUrl); // estrito: a sobra tem que SER um valor, nada de dígito no meio de texto
+}
+
+module.exports = { parseValor, parseValorMensagem, valorDaLegenda };
 
 // Autoteste: node src/valor.js
 if (require.main === module) {
@@ -67,4 +87,14 @@ if (require.main === module) {
   let ok = 0;
   for (const [inp, esp] of casos) { const r = parseValor(inp); const pass = r === esp; if (pass) ok++; console.log(`${pass ? '✓' : '✗'} ${JSON.stringify(inp)} -> ${r}${pass ? '' : ' (esperava ' + esp + ')'}`); }
   console.log(`\n${ok}/${casos.length} OK`);
+
+  console.log('\n— valorDaLegenda (ignora links de compartilhamento) —');
+  const legs = [
+    ['Adicionar ao Seu Cupom de Apostas - https://www.bet365.bet.br/s/r/Ws7cf', null], // NÃO pode virar 365
+    ['https://superbet.bet.br/bilhete-compartilhado/899A-EV59LV', null],               // NÃO pode virar 899
+    ['1500', 1500], ['R$ 1.441,00', 1441], ['2,5k', 2500], ['valor 500', 500], ['bom dia', null], ['', null],
+  ];
+  let okL = 0;
+  for (const [inp, esp] of legs) { const r = valorDaLegenda(inp); const pass = r === esp; if (pass) okL++; console.log(`${pass ? '✓' : '✗'} ${JSON.stringify(inp).slice(0, 55)} -> ${r}${pass ? '' : ' (esperava ' + esp + ')'}`); }
+  console.log(`${okL}/${legs.length} OK`);
 }
