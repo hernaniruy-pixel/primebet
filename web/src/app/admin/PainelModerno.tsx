@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow } from './types';
@@ -149,6 +149,10 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [pdfBusy, setPdfBusy] = useState<number | null>(null); // id do cliente cujo PDF está sendo gerado
   const [filtros, setFiltros] = useState({ ...filtrosVazios, dt1: semana.d1, dt2: semana.d2, period: 'semana' });
   const [debFiltros, setDebFiltros] = useState(filtros);
+  // Quanto esperar antes de disparar a busca: campos de TEXTO (jogo, id…) esperam
+  // 400ms pra não buscar a cada tecla; SELECTS (cliente, status, período…) aplicam
+  // na hora (0ms) — não há o que "terminar de digitar", então o delay só atrapalha.
+  const debMs = useRef(400);
   const [page, setPage] = useState(1);
   const [toastMsg, setToastMsg] = useState('');
   const [flashId, setFlashId] = useState<number | null>(null); // linha recém-atualizada (flash verde)
@@ -169,11 +173,12 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const cliDesc = useMemo(() => Object.fromEntries(clientes.map((c) => [c.id, c.desc])) as Record<number, number>, [clientes]);
 
   function toast(m: string) { setToastMsg(m); window.clearTimeout((toast as unknown as { _h?: number })._h); (toast as unknown as { _h?: number })._h = window.setTimeout(() => setToastMsg(''), 2600); }
-  function setF<K extends keyof typeof filtros>(k: K, v: (typeof filtros)[K]) { setFiltros((f) => ({ ...f, [k]: v })); setPage(1); }
-  function applyPeriod(v: string) { const p = periodDates(v); setFiltros((f) => ({ ...f, period: v, dt1: p.d1, dt2: p.d2 })); setPage(1); }
-  function limpar() { setFiltros({ ...filtrosVazios }); setPage(1); }
+  // `instant` = aplica sem o debounce de 400ms (use nos SELECTS: cliente, status…).
+  function setF<K extends keyof typeof filtros>(k: K, v: (typeof filtros)[K], instant = false) { debMs.current = instant ? 0 : 400; setFiltros((f) => ({ ...f, [k]: v })); setPage(1); }
+  function applyPeriod(v: string) { debMs.current = 0; const p = periodDates(v); setFiltros((f) => ({ ...f, period: v, dt1: p.d1, dt2: p.d2 })); setPage(1); }
+  function limpar() { debMs.current = 0; setFiltros({ ...filtrosVazios }); setPage(1); }
 
-  useEffect(() => { const t = setTimeout(() => setDebFiltros(filtros), 400); return () => clearTimeout(t); }, [filtros]);
+  useEffect(() => { const t = setTimeout(() => setDebFiltros(filtros), debMs.current); return () => clearTimeout(t); }, [filtros]);
 
   useEffect(() => {
     let alive = true;
@@ -568,7 +573,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             {([['pend', 'Pendentes'], ['todas', 'Todas']] as const).map(([k, label]) => (
               <button
                 key={k}
-                onClick={() => setF('aba', k)}
+                onClick={() => setF('aba', k, true)}
                 className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
                   filtros.aba === k
                     ? 'bg-amber-500 text-white shadow-sm'
@@ -592,13 +597,13 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
           <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <div><span className={lbl}>Cliente</span>
-                <select className={inp} value={filtros.nome} onChange={(e) => setF('nome', e.target.value)}>
+                <select className={inp} value={filtros.nome} onChange={(e) => setF('nome', e.target.value, true)}>
                   <option value="">Todos</option>
                   {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
               </div>
               <div><span className={lbl}>Status</span>
-                <select className={inp} value={filtros.st} onChange={(e) => setF('st', e.target.value)}>
+                <select className={inp} value={filtros.st} onChange={(e) => setF('st', e.target.value, true)}>
                   <option value="">Todos</option>
                   {STS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -613,7 +618,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                 </select>
               </div>
               <div><span className={lbl}>Ordenação</span>
-                <select className={inp} value={filtros.ord} onChange={(e) => setF('ord', e.target.value)}>
+                <select className={inp} value={filtros.ord} onChange={(e) => setF('ord', e.target.value, true)}>
                   <option value="data_desc">data ↓</option><option value="data_asc">data ↑</option><option value="val_desc">entradas ↓</option><option value="val_asc">entradas ↑</option>
                 </select>
               </div>
@@ -622,9 +627,9 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               <div><span className={lbl}>Odd máx</span><input type="number" step="0.01" className={inp} value={filtros.oddMax} onChange={(e) => setF('oddMax', e.target.value)} /></div>
               <div><span className={lbl}>Entradas mín</span><input type="number" className={inp} value={filtros.valMin} onChange={(e) => setF('valMin', e.target.value)} /></div>
               <div><span className={lbl}>Entradas máx</span><input type="number" className={inp} value={filtros.valMax} onChange={(e) => setF('valMax', e.target.value)} /></div>
-              <div><span className={lbl}>Baixa liquidez</span><select className={inp} value={filtros.bl} onChange={(e) => setF('bl', e.target.value)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
-              <div><span className={lbl}>Advertido</span><select className={inp} value={filtros.adv} onChange={(e) => setF('adv', e.target.value)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
-              <div><span className={lbl}>Irregular</span><select className={inp} value={filtros.irr} onChange={(e) => setF('irr', e.target.value)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
+              <div><span className={lbl}>Baixa liquidez</span><select className={inp} value={filtros.bl} onChange={(e) => setF('bl', e.target.value, true)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
+              <div><span className={lbl}>Advertido</span><select className={inp} value={filtros.adv} onChange={(e) => setF('adv', e.target.value, true)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
+              <div><span className={lbl}>Irregular</span><select className={inp} value={filtros.irr} onChange={(e) => setF('irr', e.target.value, true)}><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
             </div>
             <div className="mt-3 flex flex-wrap justify-end gap-2">
               <button onClick={limpar} title="Limpar todos os filtros" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">🗑️ Limpar</button>
