@@ -644,7 +644,14 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             </div>
           </div>
 
-          <div className="mb-2 mt-4 text-xs text-slate-400">{total} aposta(s) · página {pageSafe}/{totalPages} · exibindo {total ? start + 1 : 0}–{start + regs.length}</div>
+          {/* Paginação TOPO (espelha a de baixo) — evita rolar até o fim da tabela só pra virar a página. */}
+          <div className="mb-2 mt-4 flex items-center justify-between gap-3">
+            <span className="text-xs text-slate-400">{total} aposta(s) · página {pageSafe}/{totalPages} · exibindo {total ? start + 1 : 0}–{start + regs.length}</span>
+            <div className="flex gap-2">
+              <button disabled={pageSafe <= 1} onClick={() => setPage((p) => p - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm transition enabled:hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:enabled:hover:bg-slate-800">Anterior</button>
+              <button disabled={pageSafe >= totalPages} onClick={() => setPage((p) => p + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm transition enabled:hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:enabled:hover:bg-slate-800">Próxima</button>
+            </div>
+          </div>
 
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <div className="overflow-x-auto">
