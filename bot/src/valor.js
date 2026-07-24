@@ -61,7 +61,10 @@ function valorDaLegenda(texto) {
     .replace(/https?:\/\/\S+/gi, ' ')                       // urls completas
     .replace(/\b[\w-]+\.(?:com|br|net|org|bet|app|io)\S*/gi, ' ') // domínios soltos (bet365.bet.br/…)
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    // Notação "valor @ odd" que o cliente usa ("500 @ 2.37" = apostar 500 na odd 2.37):
+    // o valor é o número ANTES do @. Corta o "@ odd" do fim p/ sobrar só o valor.
+    .replace(/\s*@\s*[\d.,]+\s*$/, '');
   if (!semUrl) return null;
   return parseValorMensagem(semUrl); // estrito: a sobra tem que SER um valor, nada de dígito no meio de texto
 }
@@ -93,6 +96,7 @@ if (require.main === module) {
     ['Adicionar ao Seu Cupom de Apostas - https://www.bet365.bet.br/s/r/Ws7cf', null], // NÃO pode virar 365
     ['https://superbet.bet.br/bilhete-compartilhado/899A-EV59LV', null],               // NÃO pode virar 899
     ['1500', 1500], ['R$ 1.441,00', 1441], ['2,5k', 2500], ['valor 500', 500], ['bom dia', null], ['', null],
+    ['500 @ 2.37', 500], ['1.500 @ 1,90', 1500], ['2k @ 3.10', 2000], // notação valor @ odd
   ];
   let okL = 0;
   for (const [inp, esp] of legs) { const r = valorDaLegenda(inp); const pass = r === esp; if (pass) okL++; console.log(`${pass ? '✓' : '✗'} ${JSON.stringify(inp).slice(0, 55)} -> ${r}${pass ? '' : ' (esperava ' + esp + ')'}`); }
