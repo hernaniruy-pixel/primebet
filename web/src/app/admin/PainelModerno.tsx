@@ -92,10 +92,13 @@ function renderJogo(jogo: string) {
 }
 function periodDates(v: string): { d1: string; d2: string } {
   const today = new Date();
+  // Dias desde a segunda-feira: Dom=6, Seg=0, ..., Sáb=5. Sem isto, no DOMINGO
+  // (getDay()==0) "esta semana" pulava para a semana SEGUINTE e a fila esvaziava.
+  const desdeSeg = (today.getDay() + 6) % 7;
   if (v === 'hoje') { const d = fmtDate(today); return { d1: d, d2: d }; }
   if (v === 'ontem') { const d = new Date(today); d.setDate(d.getDate() - 1); const s = fmtDate(d); return { d1: s, d2: s }; }
-  if (v === 'semana') { const mon = new Date(today); mon.setDate(today.getDate() - today.getDay() + 1); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return { d1: fmtDate(mon), d2: fmtDate(sun) }; }
-  if (v === 'semana_ant') { const mon = new Date(today); mon.setDate(today.getDate() - today.getDay() - 6); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return { d1: fmtDate(mon), d2: fmtDate(sun) }; }
+  if (v === 'semana') { const mon = new Date(today); mon.setDate(today.getDate() - desdeSeg); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return { d1: fmtDate(mon), d2: fmtDate(sun) }; }
+  if (v === 'semana_ant') { const mon = new Date(today); mon.setDate(today.getDate() - desdeSeg - 7); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return { d1: fmtDate(mon), d2: fmtDate(sun) }; }
   return { d1: '', d2: '' };
 }
 

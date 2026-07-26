@@ -28,7 +28,10 @@ export interface FechAfResp { rows: FechAfRow[]; g: { logins: number; val: numbe
 export function weekRange(): { d1: string; d2: string } {
   const fmt = (d: Date) => d.toISOString().split('T')[0];
   const today = new Date();
-  const mon = new Date(today); mon.setDate(today.getDate() - today.getDay() + 1);
+  // Dias desde segunda (Dom=6, Seg=0…): no domingo o cálculo antigo pulava p/ a semana
+  // seguinte e o painel aparecia vazio.
+  const desdeSeg = (today.getDay() + 6) % 7;
+  const mon = new Date(today); mon.setDate(today.getDate() - desdeSeg);
   const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
   return { d1: fmt(mon), d2: fmt(sun) };
 }
