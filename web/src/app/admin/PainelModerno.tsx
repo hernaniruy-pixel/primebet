@@ -155,6 +155,8 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [obsModal, setObsModal] = useState<{ id: number; text: string } | null>(null);
   // Editor do TEXTO do bilhete (jogo) — abre pelo lápis no canto da aposta.
   const [jogoModal, setJogoModal] = useState<{ id: number; text: string } | null>(null);
+  // Editor de DATA/HORA da aposta — abre pelo lápis na coluna de data.
+  const [dtModal, setDtModal] = useState<{ id: number; date: string; time: string } | null>(null);
   const [fech, setFech] = useState(() => { const p = periodDates('semana_ant'); return { dt1: p.d1, dt2: p.d2, period: 'semana_ant' }; }); // fechamento é sempre da semana passada
   const [faf, setFaf] = useState({ dt1: semana.d1, dt2: semana.d2, period: 'semana' });
   const [fechRes, setFechRes] = useState<FechCliResp | null>(null);
@@ -415,6 +417,19 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   async function salvarObs() { if (!obsModal) return; const t = obsModal.text.trim(); await patchReg(obsModal.id, { obs: t, adv: t.length > 0 }); setObsModal(null); toast(t ? 'Advertência salva.' : 'Advertência removida.'); }
   async function resolverObs() { if (!obsModal) return; await patchReg(obsModal.id, { adv: false }); setObsModal(null); toast('Advertência resolvida.'); }
   async function salvarJogo() { if (!jogoModal) return; await patchReg(jogoModal.id, { jogo: jogoModal.text }); setJogoModal(null); toast(`Bilhete #${jogoModal.id} atualizado.`); }
+  // Abre o editor de data/hora a partir do 'HH:mm DD/MM/AA' exibido (partesTs).
+  function abrirDt(r: Reg) {
+    const p = partesTs(r.dt); const [dd, mm, aa] = (p.data || '').split('/');
+    const date = dd && mm && aa ? `20${aa}-${mm}-${dd}` : '';
+    setDtModal({ id: r.id, date, time: p.hora || '' });
+  }
+  async function salvarDt() {
+    if (!dtModal || !dtModal.date || !dtModal.time) { toast('Preencha data e hora.'); return; }
+    const [y, m, d] = dtModal.date.split('-');
+    const dt = `${dtModal.time} ${d}/${m}/${y.slice(2)}`; // volta ao formato 'HH:mm DD/MM/AA' que o parseTs entende
+    await patchReg(dtModal.id, { dt });
+    setDtModal(null); toast(`Data/hora da aposta #${dtModal.id} atualizada.`);
+  }
 
   // clientes
   function updCli(id: number, patch: Partial<Cliente>) { setClientes((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c))); }
@@ -686,10 +701,14 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                         {/* Hora em cima, data embaixo: a hora é o que identifica o
                             print no grupo, e empilhado a coluna deixa de esticar. */}
                         <td className="whitespace-nowrap px-2 py-1.5 text-xs leading-tight text-slate-500">
-                          {(() => { const p = partesTs(r.dt); return (<>
-                            <div className="font-medium text-slate-700 dark:text-slate-300">{p.hora}</div>
-                            <div className="text-[11px] text-slate-400">{p.data}</div>
-                          </>); })()}
+                          <div className="group/dt relative pr-5">
+                            {(() => { const p = partesTs(r.dt); return (<>
+                              <div className="font-medium text-slate-700 dark:text-slate-300">{p.hora}</div>
+                              <div className="text-[11px] text-slate-400">{p.data}</div>
+                            </>); })()}
+                            {/* Lápis: corrige data/hora (ex.: print reenviado noutro dia). */}
+                            <button onClick={() => abrirDt(r)} title="Editar data e hora" className="absolute right-0 top-0 rounded p-0.5 text-slate-300 opacity-0 transition hover:bg-amber-50 hover:text-amber-600 group-hover/dt:opacity-100 dark:text-slate-500 dark:hover:bg-amber-500/10 dark:hover:text-amber-400">✏️</button>
+                          </div>
                         </td>
                         <td className="px-2 py-1.5">
                           <select value={String(r.cId)} onChange={(e) => patchReg(r.id, { cId: Number(e.target.value) })} className={`${cinp} w-36 font-mono text-[11px] font-medium`}>{cliSorted.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select>
@@ -1075,6 +1094,27 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               <div className="flex justify-end gap-2">
                 <button onClick={() => setJogoModal(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button>
                 <button onClick={salvarJogo} className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">Salvar</button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* EDITAR DATA/HORA */}
+        {dtModal && (
+          <Modal onClose={() => setDtModal(null)} max="max-w-sm" title={`Editar data e hora — aposta #${dtModal.id}`}>
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className={lbl}>Data</span>
+                  <input type="date" className={inp} value={dtModal.date} onChange={(e) => setDtModal((m) => (m ? { ...m, date: e.target.value } : m))} autoFocus />
+                </div>
+                <div><span className={lbl}>Hora</span>
+                  <input type="time" className={inp} value={dtModal.time} onChange={(e) => setDtModal((m) => (m ? { ...m, time: e.target.value } : m))} />
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-400">A data da aposta é a do momento em que o cliente mandou o print. Corrija aqui se o horário ficou errado.</p>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setDtModal(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button>
+                <button onClick={salvarDt} className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">Salvar</button>
               </div>
             </div>
           </Modal>
