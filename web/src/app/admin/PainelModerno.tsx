@@ -10,6 +10,7 @@ import {
   criarCliente, atualizarCliente, excluirCliente, criarAfiliado, atualizarAfiliado, excluirAfiliado,
   fechamentoClientes, fechamentoAfiliados, bilhetesCliente, listarDespesasPeriodo,
   statusBot, type BotStatus,
+  lerPlano, atualizarPlano, zerarContadorCota, type PlanoConfig, type UsoCota,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
@@ -144,7 +145,11 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [clientes, setClientes] = useState<Cliente[]>(clientesIni);
   const [afiliados, setAfiliados] = useState<Afiliado[]>(afiliadosIni);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
-  const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp'>(null);
+  const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp' | 'plano'>(null);
+  // Plano/cota de transcrições (config da banca + uso ao vivo).
+  const [plano, setPlano] = useState<{ config: PlanoConfig; uso: UsoCota } | null>(null);
+  const [planoDraft, setPlanoDraft] = useState<PlanoConfig | null>(null);
+  const [planoBusy, setPlanoBusy] = useState(false);
   const [wpp, setWpp] = useState({ cId: '', jogo: '', odd: '', val: '', dc: '' });
   const [novoCli, setNovoCli] = useState({ open: false, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '', grupoLink: '' });
   const [novoAf, setNovoAf] = useState({ open: false, nome: '', com: '0' });
@@ -477,9 +482,25 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     finally { setPdfGeralBusy(false); }
   }
   function loadFaf(d1: string, d2: string) { fechamentoAfiliados(d1 || null, d2 || null).then(setFafRes).catch(() => toast('Erro no fechamento.')); }
+  function loadPlano() { lerPlano().then((p) => { setPlano(p); setPlanoDraft(p.config); }).catch(() => toast('Erro ao carregar o plano.')); }
+  async function salvarPlano() {
+    if (!planoDraft) return;
+    setPlanoBusy(true);
+    try { const p = await atualizarPlano(planoDraft); setPlano(p); setPlanoDraft(p.config); toast('Plano atualizado.'); }
+    catch { toast('Erro ao salvar o plano.'); }
+    finally { setPlanoBusy(false); }
+  }
+  async function zerarContador() {
+    if (!window.confirm('Zerar o contador de bilhetes deste ciclo? A cota passa a contar do zero a partir de agora. Não apaga nenhuma aposta.')) return;
+    setPlanoBusy(true);
+    try { const p = await zerarContadorCota(); setPlano(p); setPlanoDraft(p.config); toast('Contador zerado.'); }
+    catch { toast('Erro ao zerar o contador.'); }
+    finally { setPlanoBusy(false); }
+  }
   useEffect(() => {
     if (modal === 'fech') loadFech(fech.dt1, fech.dt2);
     if (modal === 'faf') loadFaf(faf.dt1, faf.dt2);
+    if (modal === 'plano') loadPlano();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modal]);
   const fechData = fechRes ?? { rows: [], g: { cal: 0, saldoCal: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 } };
@@ -529,6 +550,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             <button onClick={() => setModal('af')} className={navBtn}>🤝 Afiliados</button>
             <button onClick={() => setModal('fech')} className={navBtn}>📊 Fechamento</button>
             <button onClick={() => setModal('faf')} className={navBtn}>📈 Fech. afiliado</button>
+            <button onClick={() => setModal('plano')} className={navBtn} title="Plano e cota de transcrições da banca">📦 Plano</button>
             <a href="/admin/contas" className={navBtn} title="Contas usadas para replicar as apostas (controle dos donos)">💳 Contas</a>
             <a href="/admin/conferencia" className={navBtn} title="Conferência de grupos (imagens recebidas × transcritas)">🗂 Conferência</a>
             <a href="/admin/despesas" className={navBtn} title="Despesas (lançadas pelo grupo despesa)">💸 Despesas</a>
@@ -946,6 +968,73 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
               {fafData.rows.length === 0 && <tr><td colSpan={8} className="px-2 py-8 text-center text-slate-400">Nenhum supervisor com movimento.</td></tr>}
               </tbody>
             </table></div>
+          </Modal>
+        )}
+
+        {/* PLANO / COTA DE TRANSCRIÇÕES */}
+        {modal === 'plano' && (
+          <Modal onClose={() => setModal(null)} max="max-w-xl" title="📦 Plano e cota de transcrições">
+            {!plano ? (
+              <div className="px-2 py-10 text-center text-slate-400">Carregando…</div>
+            ) : (() => {
+              const u = plano.uso;
+              const pctFill = Math.min(u.pct, 100);
+              const nivel = u.pct >= 100 ? 'cheio' : u.pct >= 80 ? 'alerta' : 'ok';
+              const barColor = nivel === 'cheio' ? 'bg-rose-500' : nivel === 'alerta' ? 'bg-amber-500' : 'bg-emerald-500';
+              const cicloIni = u.cicloInicio ? new Date(u.cicloInicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—';
+              return (
+                <div className="flex flex-col gap-5">
+                  {/* MEDIDOR */}
+                  <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+                    <div className="mb-2 flex items-baseline justify-between">
+                      <span className="text-sm font-medium">Bilhetes transcritos no ciclo</span>
+                      <span className="font-mono text-lg font-bold tabular-nums">{u.usados.toLocaleString('pt-BR')}<span className="text-slate-400"> / {u.cota.toLocaleString('pt-BR')}</span></span>
+                    </div>
+                    <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pctFill}%` }} />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-[12px] text-slate-400">
+                      <span>Ciclo desde {cicloIni} · renova todo dia {plano.config.renovaDia}</span>
+                      <span className="font-mono tabular-nums">{u.pct.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}%</span>
+                    </div>
+                    {nivel === 'alerta' && <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">⚠️ Chegando no limite da cota ({u.pct.toFixed(0)}%). Fique de olho — ao passar de 100% começa a contar excedente.</div>}
+                    {nivel === 'cheio' && <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-[12px] text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">🔴 Cota atingida. Não travou nada — segue transcrevendo. O excedente abaixo entra na próxima mensalidade.</div>}
+                  </div>
+
+                  {/* EXCEDENTE */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
+                      <div className="text-[11px] text-slate-400">Excedente</div>
+                      <div className="font-mono text-lg font-bold tabular-nums">{u.excedente.toLocaleString('pt-BR')} <span className="text-[12px] font-normal text-slate-400">bilhetes</span></div>
+                    </div>
+                    <div className={`rounded-xl p-3 ${u.valorExcedente > 0 ? 'bg-rose-50 dark:bg-rose-500/10' : 'bg-slate-50 dark:bg-slate-800/50'}`}>
+                      <div className="text-[11px] text-slate-400">A cobrar (excedente × R$ {u.precoExcedente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</div>
+                      <div className={`font-mono text-lg font-bold tabular-nums ${u.valorExcedente > 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>R$ {fmt(u.valorExcedente)}</div>
+                    </div>
+                  </div>
+
+                  {/* CONFIG */}
+                  {planoDraft && (
+                    <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+                      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Configuração do plano</div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><span className={lbl}>Nome do plano</span><input className={inp} value={planoDraft.nome} onChange={(e) => setPlanoDraft((d) => d && { ...d, nome: e.target.value })} /></div>
+                        <div><span className={lbl}>Cota mensal (bilhetes)</span><input type="number" min={0} className={inp} value={planoDraft.cota} onChange={(e) => setPlanoDraft((d) => d && { ...d, cota: Number(e.target.value) })} /></div>
+                        <div><span className={lbl}>Preço do excedente (R$/bilhete)</span><input type="number" min={0} step="0.01" className={inp} value={planoDraft.precoExcedente} onChange={(e) => setPlanoDraft((d) => d && { ...d, precoExcedente: Number(e.target.value) })} /></div>
+                        <div><span className={lbl}>Dia de renovação (1–28)</span><input type="number" min={1} max={28} className={inp} value={planoDraft.renovaDia} onChange={(e) => setPlanoDraft((d) => d && { ...d, renovaDia: Number(e.target.value) })} /></div>
+                      </div>
+                      <div className="mt-4 flex items-center justify-between gap-3">
+                        <button onClick={zerarContador} disabled={planoBusy} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800" title="Passa a contar do zero a partir de agora. Não apaga apostas.">↺ Zerar contador</button>
+                        <button onClick={salvarPlano} disabled={planoBusy} className="rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50">{planoBusy ? 'Salvando…' : 'Salvar'}</button>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-[11px] leading-relaxed text-slate-400">
+                    A contagem é <b>ao vivo</b>: conta os bilhetes transcritos do ciclo. Correção do mesmo bilhete não conta 2×, e bilhete excluído sai da conta. Grupo de despesa e grupos <b>&ldquo;Teste print…&rdquo;</b> não entram na cota.
+                  </p>
+                </div>
+              );
+            })()}
           </Modal>
         )}
 

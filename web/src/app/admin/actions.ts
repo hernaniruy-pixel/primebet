@@ -341,6 +341,71 @@ export async function statusBot(): Promise<BotStatus> {
   }
 }
 
+// ═══════════════════ PLANO / COTA DE TRANSCRIÇÕES ═══════════════════
+export interface PlanoConfig {
+  nome: string; cota: number; precoExcedente: number; renovaDia: number;
+}
+export interface UsoCota {
+  cicloInicio: string; usados: number; cota: number; excedente: number;
+  valorExcedente: number; precoExcedente: number; pct: number;
+}
+
+/** Config do plano + uso ao vivo (consulta na função uso_cota). */
+export async function lerPlano(): Promise<{ config: PlanoConfig; uso: UsoCota }> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const id = await bancaId(db);
+  const { data: b } = await db.from('bancas')
+    .select('plano_nome,cota_mensal,preco_excedente,renova_dia').eq('id', id).single();
+  const { data: u, error } = await db.rpc('uso_cota', { p_banca_id: id });
+  if (error) throw error;
+  const r = (Array.isArray(u) ? u[0] : u) ?? {};
+  return {
+    config: {
+      nome: b?.plano_nome ?? 'Pro',
+      cota: Number(b?.cota_mensal ?? 0),
+      precoExcedente: Number(b?.preco_excedente ?? 1),
+      renovaDia: Number(b?.renova_dia ?? 1),
+    },
+    uso: {
+      cicloInicio: r.ciclo_inicio ?? '',
+      usados: Number(r.usados ?? 0),
+      cota: Number(r.cota ?? 0),
+      excedente: Number(r.excedente ?? 0),
+      valorExcedente: Number(r.valor_excedente ?? 0),
+      precoExcedente: Number(r.preco_excedente ?? 1),
+      pct: Number(r.pct ?? 0),
+    },
+  };
+}
+
+/** Edita a config do plano. Devolve o uso recalculado. */
+export async function atualizarPlano(patch: Partial<PlanoConfig>): Promise<{ config: PlanoConfig; uso: UsoCota }> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const id = await bancaId(db);
+  const up: Record<string, unknown> = {};
+  if (patch.nome !== undefined) up.plano_nome = patch.nome;
+  if (patch.cota !== undefined) up.cota_mensal = Math.max(0, Math.round(patch.cota));
+  if (patch.precoExcedente !== undefined) up.preco_excedente = Math.max(0, patch.precoExcedente);
+  if (patch.renovaDia !== undefined) up.renova_dia = Math.min(28, Math.max(1, Math.round(patch.renovaDia)));
+  if (Object.keys(up).length) {
+    const { error } = await db.from('bancas').update(up).eq('id', id);
+    if (error) throw error;
+  }
+  return lerPlano();
+}
+
+/** Zera o contador: passa a contar só o que vier a partir de agora (reset manual). */
+export async function zerarContadorCota(): Promise<{ config: PlanoConfig; uso: UsoCota }> {
+  await exigirSessao();
+  const db = createAdminClient();
+  const id = await bancaId(db);
+  const { error } = await db.from('bancas').update({ contador_zerado_em: new Date().toISOString() }).eq('id', id);
+  if (error) throw error;
+  return lerPlano();
+}
+
 // ─────────── Auth: só equipe logada pode mutar ───────────
 async function exigirSessao() {
   const supabase = await createClient();

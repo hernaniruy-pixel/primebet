@@ -42,7 +42,7 @@ async function listarClientes(limit = 20) {
  * now() do INSERT, ou seja, a hora em que o operador reagiu — e a aposta ficava com
  * a hora errada (vimos 76 min de diferença). A aposta pertence ao momento do bilhete.
  */
-async function registrarBilhete(final, { clienteId, grupoId = null, enviadoEm = null }) {
+async function registrarBilhete(final, { clienteId, grupoId = null, enviadoEm = null, teste = false }) {
   if (!clienteId) throw new Error('registrarBilhete: clienteId é obrigatório');
   const row = {
     banca_id: await bancaPadrao(),
@@ -54,6 +54,8 @@ async function registrarBilhete(final, { clienteId, grupoId = null, enviadoEm = 
     casa: final.casa || '',
     origem: 'whatsapp',
     grupo_id: grupoId,
+    // Bilhete de grupo "Teste print …": não conta na cota do cliente.
+    teste: !!teste,
     // Tabela de odds marcada à mão: sinaliza p/ o operador conferir a seleção/odd no
     // print (a leitura de círculo torto não é confiável) em vez de deixar passar errado.
     ...(final.revisar ? { advertido: true, advertencia: '⚠️ Tabela de odds marcada à mão — confira a SELEÇÃO e a ODD no print antes de concluir.' } : {}),

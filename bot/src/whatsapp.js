@@ -330,13 +330,18 @@ function parseOdd(t) {
   return isNaN(n) ? null : n;
 }
 
+// Grupo de TESTE do cliente: "Teste print NOMECLIENTE". O bilhete é transcrito
+// (custa API, como qualquer print), mas marcado teste=true para NÃO entrar na cota
+// do cliente. Detecção pelo início do nome, tolerando acentos/espaços extras.
+const ehGrupoTeste = (nome) => /^\s*teste\s+print\b/i.test(String(nome || ''));
+
 async function lancarAposta({ sock, base64, mime, emoji, legenda = '', oddManual = null, valorManual = null, clienteId, grupoId, grupoNome, msgId, keyParaReagir = null, enviadoEm = null }) {
   const regra = regraPorEmoji(emoji) || { emoji, mascara: [] };
   const { bruto, final } = await transcreverBilhete(base64, '⚪', mime, legenda);
   if (regra.mascara.includes('odd')) final.odd = parseOdd(oddManual);
   if (regra.mascara.includes('valor')) final.valor = parseValor(valorManual);
   // A aposta é do momento em que o cliente mandou o print — não de quando o operador reagiu.
-  const aposta = await registrarBilhete(final, { clienteId, grupoId, enviadoEm });
+  const aposta = await registrarBilhete(final, { clienteId, grupoId, enviadoEm, teste: ehGrupoTeste(grupoNome) });
   await marcarReagida(msgId, { apostaId: aposta.id, emoji: regra.emoji, grupoId, grupoNome, clienteId });
   if (keyParaReagir && sock) {
     try { await sock.sendMessage(grupoId, { react: { text: regra.emoji, key: keyParaReagir } }); }
