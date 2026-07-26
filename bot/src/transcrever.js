@@ -49,7 +49,12 @@ async function transcreverImagem(base64, mediaType = 'image/jpeg', promptOverrid
 
   const resp = await client.messages.create({
     model: modelOverride || MODELO,
-    max_tokens: 1024,
+    // Folga p/ o raciocínio + o JSON caberem sem truncar (o thinking conta no output).
+    max_tokens: 2048,
+    // NÃO passamos 'thinking': no Sonnet 5, omitir = raciocínio adaptativo LIGADO, que
+    // é o que leva de 14/16 (desligado) a 16/16 nos bilhetes reais (medido no banco de
+    // teste). Passar {type:'adaptive'} explícito dá 400 nesta versão do SDK — por isso
+    // omitimos. Em Haiku, omitir = sem raciocínio (comportamento antigo).
     messages: [{ role: 'user', content }],
   });
   const txt = resp.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();

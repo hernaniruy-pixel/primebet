@@ -33,7 +33,7 @@ module.exports = {
   // produção, que causaria "hoje lê bem, amanhã não"). Haiku 4.5 = mais barato/rápido;
   // claude-sonnet-5 = leitura de imagem bem mais assertiva (decisão medida no banco de
   // teste: node tests/comparar-modelos.js). Trocável por env sem mexer no código.
-  MODELO: process.env.MODELO_TRANSCRICAO || 'claude-haiku-4-5-20251001',
+  MODELO: process.env.MODELO_TRANSCRICAO || 'claude-sonnet-5',
   EMOJI_REGRAS,
   EMOJIS_ATIVOS: Object.keys(EMOJI_REGRAS),
   regraPorEmoji,
