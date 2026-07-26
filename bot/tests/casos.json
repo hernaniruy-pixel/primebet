@@ -1,0 +1,19 @@
+[
+  { "img": 2401, "nota": "Nemesis vs Astralis - Partida Vencedor 2 Opcoes (bet365)",
+    "odd": 2.25, "contem": ["Nemesis", "Astralis", "Vencedor"] },
+
+  { "img": 2340, "nota": "Cumberland x Heidelberg - Ambos Marcam Sim (bet365)",
+    "odd": 2.0, "contem": ["Cumberland", "Heidelberg", "Ambos Marcam", "Sim"] },
+
+  { "img": 2702, "nota": "MIBR Academy x QUINTESSENCIA - Vencedor",
+    "odd": 2.82, "contem": ["MIBR", "QUINTESSENCIA", "Vencedor"] },
+
+  { "img": 2700, "nota": "Aurora x Nemesis - Handicap de Mapas 1.5",
+    "odd": 1.87, "contem": ["Aurora", "Nemesis", "Handicap"] },
+
+  { "img": 2704, "nota": "Independiente x Vasco - Cada Equipe Mais de X Desarmes (Superbet)",
+    "odd": 1.8, "contem": ["Independiente", "Vasco", "Desarmes"] },
+
+  { "img": 2712, "nota": "Internacional x Cruzeiro - combinada (Superbet), valor 1441",
+    "odd": 1.6, "valor": 1441, "contem": ["Internacional", "Cruzeiro"] }
+]

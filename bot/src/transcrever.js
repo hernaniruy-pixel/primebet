@@ -37,12 +37,13 @@ Regras de leitura:
 - NÃO invente dados: se a odd, o valor ou a casa não estiverem visíveis com clareza, use null. Chutar um número errado é pior do que devolver null.
 - Responda APENAS com o JSON.`;
 
-/** Chama o modelo de visão e devolve o JSON bruto transcrito a partir da IMAGEM apenas. */
-async function transcreverImagem(base64, mediaType = 'image/jpeg') {
+/** Chama o modelo de visão e devolve o JSON bruto transcrito a partir da IMAGEM apenas.
+ *  `promptOverride` permite ao banco de teste comparar versões do prompt no mesmo print. */
+async function transcreverImagem(base64, mediaType = 'image/jpeg', promptOverride = null) {
   if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY não configurada (.env).');
   const content = [
     { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-    { type: 'text', text: PROMPT },
+    { type: 'text', text: promptOverride || PROMPT },
   ];
 
   const resp = await client.messages.create({
@@ -138,4 +139,4 @@ async function transcreverBilhete(base64, emoji, mediaType = 'image/jpeg', legen
   return { bruto: dados, final, emoji: regra.emoji, regra, usage, modelo };
 }
 
-module.exports = { transcreverBilhete, transcreverImagem, aplicaRegra, limparJogo };
+module.exports = { transcreverBilhete, transcreverImagem, aplicaRegra, limparJogo, PROMPT };
