@@ -1,0 +1,18 @@
+[
+  { "img": 3079, "tipo": "quadro circulado", "odd": 1.875, "contem": ["ABB", "San Antonio", "Menos"] },
+  { "img": 3076, "tipo": "cupom limpo", "odd": 1.72, "valor": 1000, "contem": ["Corinthians", "Vit", "Menos de 4.5"] },
+  { "img": 3073, "tipo": "cupom limpo", "odd": 1.62, "valor": 450, "contem": ["Vasco", "Mirassol", "Escanteios", "9.5"] },
+  { "img": 3070, "tipo": "combinada (parcial)", "odd": 91.58, "contem": ["Remo", "Vit"] },
+  { "img": 3067, "tipo": "combinada 4 jogos", "odd": 32.86, "contem": ["Van Assche", "FCSB", "Coritiba", "Sigma Olomouc"] },
+  { "img": 3064, "tipo": "bet builder", "odd": 1.57, "contem": ["Bogota", "America de Cali", "Sim", "Menos de 4.5"] },
+  { "img": 3061, "tipo": "combinada 4 jogos", "odd": 72.15, "valor": 32.81, "contem": ["Cascavel", "Joinville", "Carlos Barbosa", "Marreco"] },
+  { "img": 3058, "tipo": "cupom limpo (ao-vivo)", "odd": 2.25, "valor": 225, "contem": ["Weston Bears", "Melbourne City", "Handicap"] },
+  { "img": 3055, "tipo": "quadro + cupom", "odd": 1.53, "valor": 2000, "contem": ["Montreal", "Inter Miami", "Escanteios", "10"] },
+  { "img": 3052, "tipo": "NAO-bilhete (Pix)", "odd": null, "contem": [] },
+  { "img": 3049, "tipo": "combinada duplas", "valor": 20, "contem": ["Santos", "Chapecoense", "Athletico Paranaense", "Internacional"] },
+  { "img": 3046, "tipo": "cupom limpo", "odd": 1.80, "valor": 400, "contem": ["River Plate", "Barracas Central", "Handicap", "-0.75"] },
+  { "img": 3043, "tipo": "cupom limpo", "odd": 5.00, "valor": 75, "contem": ["Santos", "Chapecoense", "Resultado Final"] },
+  { "img": 3040, "tipo": "quadro + cupom", "odd": 1.75, "valor": 1000, "contem": ["Red Bulls", "Charlotte", "Escanteios", "6.5"] },
+  { "img": 3037, "tipo": "selecao unica", "odd": 1.83, "contem": ["Fuerza Regia", "Soles de Mexicali", "157.5"] },
+  { "img": 3034, "tipo": "selecao unica", "odd": 1.87, "contem": ["Cruzeiro", "Botafogo", "448.5"] }
+]
