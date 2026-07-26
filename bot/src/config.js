@@ -29,11 +29,13 @@ function regraPorEmoji(emoji) {
 
 module.exports = {
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-  // Modelo de transcrição FIXADO numa versão (evita mudança silenciosa do modelo em
-  // produção, que causaria "hoje lê bem, amanhã não"). Haiku 4.5 = mais barato/rápido;
-  // claude-sonnet-5 = leitura de imagem bem mais assertiva (decisão medida no banco de
-  // teste: node tests/comparar-modelos.js). Trocável por env sem mexer no código.
-  MODELO: process.env.MODELO_TRANSCRICAO || 'claude-sonnet-5',
+  // Modelo de transcrição FIXADO NO CÓDIGO (versionado, auditável). NÃO lemos mais de
+  // variável de ambiente: uma MODELO_TRANSCRICAO=haiku parada na Railway estava vencendo
+  // a troca pro Sonnet EM SILÊNCIO (26/07/2026) — o "config fantasma" que num sistema com
+  // dinheiro a gente tem que evitar. Sonnet 5 escolhido por medição (node tests/
+  // estabilidade.js: Sonnet 16/16 estável vs Haiku 14/16). Trocar modelo = mudar aqui e
+  // commitar (fica no histórico do git).
+  MODELO: 'claude-sonnet-5',
   EMOJI_REGRAS,
   EMOJIS_ATIVOS: Object.keys(EMOJI_REGRAS),
   regraPorEmoji,
