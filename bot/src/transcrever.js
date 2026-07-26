@@ -42,9 +42,14 @@ Regras de leitura:
  *  e de MODELO no mesmo print (produção usa o PROMPT e o MODELO fixados). */
 async function transcreverImagem(base64, mediaType = 'image/jpeg', promptOverride = null, modelOverride = null) {
   if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY não configurada (.env).');
+  // PROMPT CACHE: o prompt é FIXO (~2k tokens, igual todo bilhete) e vem PRIMEIRO,
+  // marcado com cache_control -> vira um prefixo estável que o Anthropic guarda e
+  // recobra a 10% nas próximas leituras (corta ~⅓ do custo de entrada). A imagem, que
+  // MUDA a cada bilhete, fica DEPOIS do prefixo — se viesse antes, o prefixo nunca
+  // seria igual e o cache nunca acertaria. Ordem medida no tests/estabilidade.js.
   const content = [
+    { type: 'text', text: promptOverride || PROMPT, cache_control: { type: 'ephemeral' } },
     { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-    { type: 'text', text: promptOverride || PROMPT },
   ];
 
   const resp = await client.messages.create({
