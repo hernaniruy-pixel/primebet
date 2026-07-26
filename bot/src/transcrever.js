@@ -38,8 +38,9 @@ Regras de leitura:
 - Responda APENAS com o JSON.`;
 
 /** Chama o modelo de visão e devolve o JSON bruto transcrito a partir da IMAGEM apenas.
- *  `promptOverride` permite ao banco de teste comparar versões do prompt no mesmo print. */
-async function transcreverImagem(base64, mediaType = 'image/jpeg', promptOverride = null) {
+ *  `promptOverride`/`modelOverride` deixam o banco de teste comparar versões de prompt
+ *  e de MODELO no mesmo print (produção usa o PROMPT e o MODELO fixados). */
+async function transcreverImagem(base64, mediaType = 'image/jpeg', promptOverride = null, modelOverride = null) {
   if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY não configurada (.env).');
   const content = [
     { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
@@ -47,7 +48,7 @@ async function transcreverImagem(base64, mediaType = 'image/jpeg', promptOverrid
   ];
 
   const resp = await client.messages.create({
-    model: MODELO,
+    model: modelOverride || MODELO,
     max_tokens: 1024,
     messages: [{ role: 'user', content }],
   });

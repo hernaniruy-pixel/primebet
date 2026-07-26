@@ -29,8 +29,11 @@ function regraPorEmoji(emoji) {
 
 module.exports = {
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-  // Começamos no Haiku (mais barato). Troque por claude-sonnet-4-6 / claude-opus-4-8 se precisar de mais precisão.
-  MODELO: process.env.MODELO_TRANSCRICAO || 'claude-haiku-4-5',
+  // Modelo de transcrição FIXADO numa versão (evita mudança silenciosa do modelo em
+  // produção, que causaria "hoje lê bem, amanhã não"). Haiku 4.5 = mais barato/rápido;
+  // claude-sonnet-5 = leitura de imagem bem mais assertiva (decisão medida no banco de
+  // teste: node tests/comparar-modelos.js). Trocável por env sem mexer no código.
+  MODELO: process.env.MODELO_TRANSCRICAO || 'claude-haiku-4-5-20251001',
   EMOJI_REGRAS,
   EMOJIS_ATIVOS: Object.keys(EMOJI_REGRAS),
   regraPorEmoji,
