@@ -10,7 +10,7 @@ import {
   criarCliente, atualizarCliente, excluirCliente, criarAfiliado, atualizarAfiliado, excluirAfiliado,
   fechamentoClientes, fechamentoAfiliados, bilhetesCliente, listarDespesasPeriodo,
   statusBot, type BotStatus,
-  lerPlano, atualizarPlano, zerarContadorCota, type PlanoConfig, type UsoCota,
+  lerPlano, type PlanoConfig, type UsoCota,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
@@ -146,10 +146,9 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [afiliados, setAfiliados] = useState<Afiliado[]>(afiliadosIni);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp' | 'plano'>(null);
-  // Plano/cota de transcrições (config da banca + uso ao vivo).
+  // Plano/cota de transcrições — SOMENTE LEITURA neste painel (é do dono da banca).
+  // A configuração (cota, preço, renovação, zerar) fica no admin MASTER do Tracker.
   const [plano, setPlano] = useState<{ config: PlanoConfig; uso: UsoCota } | null>(null);
-  const [planoDraft, setPlanoDraft] = useState<PlanoConfig | null>(null);
-  const [planoBusy, setPlanoBusy] = useState(false);
   const [wpp, setWpp] = useState({ cId: '', jogo: '', odd: '', val: '', dc: '' });
   const [novoCli, setNovoCli] = useState({ open: false, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '', grupoLink: '' });
   const [novoAf, setNovoAf] = useState({ open: false, nome: '', com: '0' });
@@ -482,21 +481,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
     finally { setPdfGeralBusy(false); }
   }
   function loadFaf(d1: string, d2: string) { fechamentoAfiliados(d1 || null, d2 || null).then(setFafRes).catch(() => toast('Erro no fechamento.')); }
-  function loadPlano() { lerPlano().then((p) => { setPlano(p); setPlanoDraft(p.config); }).catch(() => toast('Erro ao carregar o plano.')); }
-  async function salvarPlano() {
-    if (!planoDraft) return;
-    setPlanoBusy(true);
-    try { const p = await atualizarPlano(planoDraft); setPlano(p); setPlanoDraft(p.config); toast('Plano atualizado.'); }
-    catch { toast('Erro ao salvar o plano.'); }
-    finally { setPlanoBusy(false); }
-  }
-  async function zerarContador() {
-    if (!window.confirm('Zerar o contador de bilhetes deste ciclo? A cota passa a contar do zero a partir de agora. Não apaga nenhuma aposta.')) return;
-    setPlanoBusy(true);
-    try { const p = await zerarContadorCota(); setPlano(p); setPlanoDraft(p.config); toast('Contador zerado.'); }
-    catch { toast('Erro ao zerar o contador.'); }
-    finally { setPlanoBusy(false); }
-  }
+  function loadPlano() { lerPlano().then(setPlano).catch(() => toast('Erro ao carregar o plano.')); }
   useEffect(() => {
     if (modal === 'fech') loadFech(fech.dt1, fech.dt2);
     if (modal === 'faf') loadFaf(faf.dt1, faf.dt2);
@@ -1013,22 +998,16 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
                     </div>
                   </div>
 
-                  {/* CONFIG */}
-                  {planoDraft && (
-                    <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
-                      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Configuração do plano</div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div><span className={lbl}>Nome do plano</span><input className={inp} value={planoDraft.nome} onChange={(e) => setPlanoDraft((d) => d && { ...d, nome: e.target.value })} /></div>
-                        <div><span className={lbl}>Cota mensal (bilhetes)</span><input type="number" min={0} className={inp} value={planoDraft.cota} onChange={(e) => setPlanoDraft((d) => d && { ...d, cota: Number(e.target.value) })} /></div>
-                        <div><span className={lbl}>Preço do excedente (R$/bilhete)</span><input type="number" min={0} step="0.01" className={inp} value={planoDraft.precoExcedente} onChange={(e) => setPlanoDraft((d) => d && { ...d, precoExcedente: Number(e.target.value) })} /></div>
-                        <div><span className={lbl}>Dia de renovação (1–28)</span><input type="number" min={1} max={28} className={inp} value={planoDraft.renovaDia} onChange={(e) => setPlanoDraft((d) => d && { ...d, renovaDia: Number(e.target.value) })} /></div>
-                      </div>
-                      <div className="mt-4 flex items-center justify-between gap-3">
-                        <button onClick={zerarContador} disabled={planoBusy} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800" title="Passa a contar do zero a partir de agora. Não apaga apostas.">↺ Zerar contador</button>
-                        <button onClick={salvarPlano} disabled={planoBusy} className="rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50">{planoBusy ? 'Salvando…' : 'Salvar'}</button>
-                      </div>
+                  {/* PLANO (somente leitura — configuração fica no admin master) */}
+                  <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+                    <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Seu plano</div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
+                      <div><div className="text-[11px] text-slate-400">Plano</div><div className="font-semibold">{plano.config.nome}</div></div>
+                      <div><div className="text-[11px] text-slate-400">Cota mensal</div><div className="font-semibold tabular-nums">{plano.config.cota.toLocaleString('pt-BR')}</div></div>
+                      <div><div className="text-[11px] text-slate-400">Excedente</div><div className="font-semibold tabular-nums">R$ {plano.config.precoExcedente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}<span className="text-[11px] font-normal text-slate-400">/bilhete</span></div></div>
+                      <div><div className="text-[11px] text-slate-400">Renovação</div><div className="font-semibold">todo dia {plano.config.renovaDia}</div></div>
                     </div>
-                  )}
+                  </div>
                   <p className="text-[11px] leading-relaxed text-slate-400">
                     A contagem é <b>ao vivo</b>: conta os bilhetes transcritos do ciclo. Correção do mesmo bilhete não conta 2×, e bilhete excluído sai da conta. Grupo de despesa e grupos <b>&ldquo;Teste print…&rdquo;</b> não entram na cota.
                   </p>
