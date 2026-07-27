@@ -123,7 +123,45 @@ async function salvarGrupoId(clienteId, grupoId) {
   await sb.from('clientes').update({ grupo_id: grupoId }).eq('id', clienteId);
 }
 
+/**
+ * Aprende o grupo_id de um cliente a partir de uma MENSAGEM REAL do grupo.
+ *
+ * Motivo: o vínculo original depende do groupGetInviteInfo(link), que passou a FALHAR
+ * no WhatsApp novo — dezenas de clientes ficavam presos em "vinculando" (grupo_id nulo),
+ * e como o bot só lê/reage em grupo com grupo_id, as reações desses clientes eram
+ * ignoradas em silêncio. Mas o bot JÁ recebe as mensagens do grupo (tem o jid na mão);
+ * então aprendemos o grupo_id direto da mensagem, sem depender da API que quebrou.
+ *
+ * Segurança (é o pipeline de dinheiro): só age em cliente ATIVO, com link colado e
+ * grupo_id nulo (o operador QUIS vincular), casando pelo NOME (mesmo critério do
+ * acharClientePorGrupo — nome do cliente contido no nome do grupo, preferindo o mais
+ * específico). Recusa em caso de EMPATE (ambíguo) ou se o grupo já pertence a outro
+ * cliente (evita vínculo duplicado). Devolve o cliente vinculado ou null.
+ */
+async function aprenderGrupoPorMensagem(jid, nomeGrupo) {
+  const alvo = normNome(nomeGrupo);
+  if (!jid || !alvo) return null;
+  // Grupo já é de alguém? Não é caso de aprender (não cria vínculo duplicado).
+  const { data: jaTem } = await sb.from('clientes').select('id').eq('grupo_id', jid).limit(1);
+  if (jaTem && jaTem.length) return null;
+  // Candidatos: ativos, com link colado, ainda sem grupo_id.
+  const { data: cands } = await sb.from('clientes')
+    .select('id,nome').eq('ativo', true).not('grupo_link', 'is', null).is('grupo_id', null).limit(2000);
+  let best = null; let empate = false;
+  for (const c of (cands || [])) {
+    const n = normNome(c.nome);
+    if (!n || !alvo.includes(n)) continue;
+    const nb = best ? normNome(best.nome).length : -1;
+    if (n.length > nb) { best = c; empate = false; }
+    else if (n.length === nb) empate = true; // dois nomes igualmente específicos: ambíguo
+  }
+  if (!best || empate) return null;
+  await salvarGrupoId(best.id, jid);
+  return best;
+}
+
 module.exports = {
   sb, bancaPadrao, buscarClientePorNome, listarClientes, registrarBilhete,
   acharClientePorGrupo, acharCliente, vinculosPendentes, salvarGrupoId, gruposDeClientes,
+  aprenderGrupoPorMensagem,
 };

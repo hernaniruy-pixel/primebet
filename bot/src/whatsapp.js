@@ -21,7 +21,7 @@ const qrcode = require('qrcode-terminal');
 const { AUTH_PATH, regraPorEmoji, OPERADORES, GRUPO_AVISOS_LINK } = require('./config');
 const { transcreverBilhete } = require('./transcrever');
 const { parseValor, parseValorMensagem } = require('./valor');
-const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId, gruposDeClientes } = require('./ingest');
+const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId, gruposDeClientes, aprenderGrupoPorMensagem } = require('./ingest');
 const {
   registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido,
   baixarThumbBase64, thumbPathPorMsg, legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg, enviadoEmPorMsg,
@@ -123,6 +123,33 @@ function registrarIgnorado(jid, nome) {
   if (e) { e.msgs++; return; }
   ignorados.set(jid, { nome: nome || jid, msgs: 1 });
   console.log(`🚫 grupo fora da lista, ignorado: "${nome || jid}" (cadastre o link no cliente para ativar)`);
+}
+
+// Grupos já checados p/ auto-vínculo e que NÃO casaram com nenhum cliente vinculando:
+// evita reconsultar o banco a cada mensagem dos MUITOS grupos que não são de cliente.
+const semVinculo = new Map(); // jid -> ts da última checagem
+const SEMVINCULO_TTL = 20 * 60 * 1000;
+
+/**
+ * Grupo fora da lista mandou mensagem: tenta APRENDER o grupo_id pelo nome (contorna o
+ * groupGetInviteInfo que quebrou). Usa o nome já em cache (sem chamar a API do WhatsApp).
+ * Devolve o cliente recém-vinculado (e já refresca a lista de permitidos) ou null.
+ */
+async function tentarAprenderGrupo(jid) {
+  const agora = Date.now();
+  const visto = semVinculo.get(jid);
+  if (visto && agora - visto < SEMVINCULO_TTL) return null; // já checado há pouco, não casou
+  const nome = nomeCache.get(jid) || '';
+  const cli = nome ? await aprenderGrupoPorMensagem(jid, nome) : null;
+  if (cli) {
+    await gruposPermitidos(true);       // passa a ler o grupo AGORA
+    semVinculo.delete(jid);
+    ignorados.delete(jid);
+    console.log(`🔗 grupo aprendido pela mensagem | cliente #${cli.id} ${cli.nome} -> ${jid}`);
+    return cli;
+  }
+  semVinculo.set(jid, agora);
+  return null;
 }
 
 // ─────────── store próprio de imagens ───────────
@@ -430,8 +457,13 @@ async function iniciarWhatsApp() {
         const jid = m.key && m.key.remoteJid;
         if (!ehGrupo(jid)) continue;
 
-        // PORTEIRO: fora da lista, nada acontece — sem API, sem download, sem banco.
-        if (!(await gruposPermitidos()).has(jid)) { registrarIgnorado(jid, nomeCache.get(jid)); continue; }
+        // PORTEIRO: fora da lista, tenta APRENDER o grupo pelo nome (contorna a API de
+        // convite que quebrou). Se aprendeu, segue o fluxo e já processa esta mensagem;
+        // se não, ignora (sem API, sem download, sem banco).
+        if (!(await gruposPermitidos()).has(jid)) {
+          const aprendido = await tentarAprenderGrupo(jid);
+          if (!aprendido) { registrarIgnorado(jid, nomeCache.get(jid)); continue; }
+        }
 
         const nomeGrupo = await nomeDoGrupo(sock, jid);
 
@@ -467,7 +499,11 @@ async function iniciarWhatsApp() {
         const regra = regraPorEmoji(emoji);
         if (!regra) { console.log(`   ↳ ignorada: "${emoji}" não é gatilho (use ⚪ ⚫ 🔵 ⚠️)`); continue; }
         if (!ehGrupo(jid)) { console.log('   ↳ ignorada: não é grupo'); continue; }
-        if (!(await gruposPermitidos()).has(jid)) { console.log('   ↳ ignorada: grupo fora da lista'); continue; }
+        if (!(await gruposPermitidos()).has(jid)) {
+          // Grupo ainda sem grupo_id: tenta aprender pelo nome antes de descartar a reação.
+          const aprendido = await tentarAprenderGrupo(jid);
+          if (!aprendido) { console.log('   ↳ ignorada: grupo fora da lista'); continue; }
+        }
 
         // O WhatsApp migrou os participantes de grupo para @lid (id interno, DIFERENTE
         // do telefone). Quando o reator vem como @lid não há como comparar com
@@ -493,8 +529,11 @@ async function iniciarWhatsApp() {
 
         const { base64, mime, fonte, orig } = await imagemParaTranscrever(sock, jid, msgId);
         if (!base64) {
-          console.log('ℹ️  Sem imagem para transcrever. Ignorado.');
-          await avisar(cliente, `⚠️ Reação em "${nomeGrupo}" (${cli.nome}): não recuperei a imagem do bilhete (o WhatsApp negou a mídia). Reenvie o print e reaja de novo.`);
+          // Causa nº 1 (comum): reagiram num CARD/LINK de bookingcode (Betano etc.), que
+          // NÃO é foto — o bot não lê card. Causa nº 2: era foto, mas o WhatsApp negou a
+          // mídia. A mensagem cobre as duas e diz o que fazer (mandar o PRINT como foto).
+          console.log('ℹ️  Sem imagem para transcrever (card/link ou mídia negada). Ignorado.');
+          await avisar(cliente, `⚠️ Reação em "${nomeGrupo}" (${cli.nome}): não consegui ler o bilhete. Se você reagiu num CARD/LINK (ex.: bookingcode da Betano), isso não funciona — peça o PRINT do bilhete e mande como FOTO. Se já era foto, reenvie e reaja de novo.`);
           continue;
         }
         console.log('   imagem:', fonte);
