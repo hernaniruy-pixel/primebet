@@ -155,7 +155,7 @@ export default function LoginPage() {
           </form>
 
           <div style={{ fontSize: 11.5, textAlign: 'center', marginTop: 22, lineHeight: 1.75 }}>
-            <div style={{ color: '#cdb15f', fontWeight: 700 }}>© 2026 WorldNexus</div>
+            <div style={{ color: '#cdb15f', fontWeight: 700 }}>© 2026 Tracker Tipster</div>
             <div style={{ color: '#8ba468' }}>Desenvolvedora de Softwares e Automações</div>
             <a
               href="https://wa.me/5567991995885"
@@ -164,6 +164,14 @@ export default function LoginPage() {
               style={{ color: '#a9bd82', textDecoration: 'none', display: 'inline-block', marginTop: 3 }}
             >
               Contato: (67) 99199-5885
+            </a>
+            <a
+              href="https://trackertipster.site/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#a9bd82', textDecoration: 'none', display: 'block', marginTop: 3 }}
+            >
+              www.trackertipster.site
             </a>
           </div>
         </div>
