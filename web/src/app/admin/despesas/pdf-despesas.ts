@@ -85,6 +85,9 @@ export function gerarPdfDespesas({ banca = 'PrimeBet', sem }: PdfDespesasOpts) {
       doc.setTextColor(160, 160, 160);
       doc.text(`${banca} — gerado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, M, ph - 18);
       doc.text(`Pág. ${doc.getCurrentPageInfo().pageNumber}/${doc.getNumberOfPages()}`, W - M, ph - 18, { align: 'right' });
+      doc.setFontSize(7);
+      doc.setTextColor(150, 160, 175);
+      doc.text('desenvolvido por www.trackertipster.site', M, ph - 9);
     },
   });
 

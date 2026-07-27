@@ -136,6 +136,9 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0
       doc.text(`${banca} — gerado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, M, ph - 18);
       const pg = doc.getNumberOfPages();
       doc.text(`Pág. ${doc.getCurrentPageInfo().pageNumber}/${pg}`, W - M, ph - 18, { align: 'right' });
+      doc.setFontSize(7);
+      doc.setTextColor(150, 160, 175);
+      doc.text('desenvolvido por www.trackertipster.site', M, ph - 9);
     },
   });
 
