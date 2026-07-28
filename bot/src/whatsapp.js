@@ -38,17 +38,71 @@ const log = pino({ level: 'silent' }); // a Baileys é verbosa; nossos logs são
 // ─────────── helpers de mensagem (Baileys) ───────────
 const ehGrupo = (jid) => String(jid || '').endsWith('@g.us');
 
-/** Texto da mensagem, seja conversa simples, texto estendido ou legenda de imagem. */
+/**
+ * Muitos bilhetes chegam EMBRULHADOS: mensagem efêmera, visualização única, documento
+ * com legenda… O conteúdo útil fica um nível (ou dois) para dentro. Este helper
+ * desembrulha até achar o miolo — sem ele, o card parecia "não ser foto" e era ignorado.
+ */
+function conteudoInterno(m) {
+  let msg = (m && m.message) || {};
+  for (let i = 0; i < 4; i++) {
+    if (msg.ephemeralMessage) { msg = msg.ephemeralMessage.message || {}; continue; }
+    if (msg.viewOnceMessage) { msg = msg.viewOnceMessage.message || {}; continue; }
+    if (msg.viewOnceMessageV2) { msg = msg.viewOnceMessageV2.message || {}; continue; }
+    if (msg.viewOnceMessageV2Extension) { msg = msg.viewOnceMessageV2Extension.message || {}; continue; }
+    if (msg.documentWithCaptionMessage) { msg = msg.documentWithCaptionMessage.message || {}; continue; }
+    break;
+  }
+  return msg;
+}
+
+/** Texto da mensagem, seja conversa simples, texto estendido ou legenda de imagem/documento. */
 function textoDaMsg(m) {
-  const msg = (m && m.message) || {};
+  const msg = conteudoInterno(m);
   return (
     msg.conversation ||
     (msg.extendedTextMessage && msg.extendedTextMessage.text) ||
     (msg.imageMessage && msg.imageMessage.caption) ||
+    (msg.documentMessage && msg.documentMessage.caption) ||
     ''
   );
 }
-const ehImagem = (m) => !!(m && m.message && m.message.imageMessage);
+
+/**
+ * Nó de imagem da mensagem, MESMO quando aninhado. Cobre: foto normal, CARD de app de
+ * aposta (mensagem interativa/template com imagem no cabeçalho — ex.: cupom com botão
+ * "CASH OUT") e documento image/*. Devolve { tipo:'image'|'document', node } ou null.
+ * Caso real: bilhete do cliente compartilhado direto do app da casa chegava como card,
+ * o bot dizia "não é foto" e o operador ficava sem o lançamento.
+ */
+function noDeImagem(m) {
+  const msg = conteudoInterno(m);
+  if (msg.imageMessage) return { tipo: 'image', node: msg.imageMessage };
+  const inter = msg.interactiveMessage;
+  if (inter && inter.header && inter.header.imageMessage) return { tipo: 'image', node: inter.header.imageMessage };
+  const tpl = msg.templateMessage && (msg.templateMessage.hydratedTemplate || msg.templateMessage.hydratedFourRowTemplate);
+  if (tpl && tpl.imageMessage) return { tipo: 'image', node: tpl.imageMessage };
+  if (msg.buttonsMessage && msg.buttonsMessage.imageMessage) return { tipo: 'image', node: msg.buttonsMessage.imageMessage };
+  const doc = msg.documentMessage;
+  if (doc && /^image\//i.test(doc.mimetype || '')) return { tipo: 'document', node: doc };
+  return null;
+}
+
+/** Miniatura EMBUTIDA na própria mensagem (preview de link/card) — último recurso
+ *  quando não há mídia baixável. Vem inline, não precisa de download. */
+function thumbEmbutida(m) {
+  const msg = conteudoInterno(m);
+  const th = (msg.extendedTextMessage && msg.extendedTextMessage.jpegThumbnail)
+    || (msg.interactiveMessage && msg.interactiveMessage.header && msg.interactiveMessage.header.jpegThumbnail)
+    || (msg.templateMessage && msg.templateMessage.hydratedTemplate && msg.templateMessage.hydratedTemplate.jpegThumbnail);
+  if (!th) return null;
+  if (typeof th === 'string') return th; // já veio base64
+  // Buffer revivido de JSON (msg_json do banco): { type:'Buffer', data:[...] }
+  if (th.type === 'Buffer' && Array.isArray(th.data)) return th.data.length ? Buffer.from(th.data).toString('base64') : null;
+  return th.length ? Buffer.from(th).toString('base64') : null;
+}
+
+const ehImagem = (m) => !!noDeImagem(m);
 /** messageTimestamp vem em segundos (às vezes como Long) -> ISO. */
 function tsIso(m) {
   const t = m && m.messageTimestamp;
@@ -194,14 +248,21 @@ async function baixarBase64(sock, m) {
     const buf = await downloadMediaMessage(msg, 'buffer', {}, { logger: log, reuploadRequest: sock.updateMediaMessage });
     return Buffer.isBuffer(buf) ? buf.toString('base64') : null;
   };
+  // Imagem ANINHADA (card de app/template/documento-imagem): a downloadMediaMessage não
+  // enxerga o cabeçalho do card — baixamos um "clone" com o nó de mídia no lugar padrão.
+  let alvo = m;
+  if (!(m.message && m.message.imageMessage)) {
+    const info = noDeImagem(m);
+    if (info) alvo = { key: m.key, message: info.tipo === 'document' ? { documentMessage: info.node } : { imageMessage: info.node } };
+  }
   try {
-    return await baixar(m);
+    return await baixar(alvo);
   } catch (e) {
     const st = (e && (e.output && e.output.statusCode)) || (e && e.message) || '';
     console.log(`   (download falhou: ${e.message} — pedindo reenvio da mídia ao WhatsApp…)`);
     try {
-      const atualizada = await sock.updateMediaMessage(m);
-      return await baixar(atualizada || m);
+      const atualizada = await sock.updateMediaMessage(alvo === m ? m : alvo);
+      return await baixar(atualizada || alvo);
     } catch (e2) {
       console.log(`   (reenvio também falhou: ${e2.message}${st ? ` | 1ª: ${st}` : ''})`);
       throw e;
@@ -220,16 +281,23 @@ async function baixarBase64(sock, m) {
  * valor 18,5). A miniatura serve para CONFERIR com o olho, não para a IA transcrever.
  */
 async function imagemParaTranscrever(sock, jid, msgId) {
+  // mime do nó de imagem, mesmo quando aninhado (card de app/documento-imagem)
+  const mimeDe = (m) => { const i = noDeImagem(m); return (i && i.node && i.node.mimetype) || 'image/jpeg'; };
+
   const orig = acharImagem(jid, msgId);
   if (orig) {
     const base64 = await baixarBase64(sock, orig).catch((e) => { console.log('   (falha ao baixar da memória:', e.message, ')'); return null; });
-    if (base64) return { base64, mime: (orig.message.imageMessage && orig.message.imageMessage.mimetype) || 'image/jpeg', fonte: 'original (memória)', orig };
+    if (base64) return { base64, mime: mimeDe(orig), fonte: 'original (memória)', orig };
+    const emb = thumbEmbutida(orig);
+    if (emb) return { base64: emb, mime: 'image/jpeg', fonte: 'miniatura embutida do card (memória)', orig };
   }
 
   const salva = await msgJsonPorMsg(msgId);
   if (salva) {
     const base64 = await baixarBase64(sock, salva).catch((e) => { console.log('   (falha ao rebaixar a original:', e.message, ')'); return null; });
-    if (base64) return { base64, mime: (salva.message && salva.message.imageMessage && salva.message.imageMessage.mimetype) || 'image/jpeg', fonte: 'original (rebaixada do WhatsApp)', orig: salva };
+    if (base64) return { base64, mime: mimeDe(salva), fonte: 'original (rebaixada do WhatsApp)', orig: salva };
+    const emb = thumbEmbutida(salva);
+    if (emb) return { base64: emb, mime: 'image/jpeg', fonte: 'miniatura embutida do card (banco)', orig: salva };
   }
 
   const base64 = await baixarThumbBase64(await thumbPathPorMsg(msgId));
@@ -314,7 +382,19 @@ function escolherLegendaDaImagem(jid, legendaPropria) {
 
 // ─────────── conferência (imagens) ───────────
 async function registrarImagemDeMsg(sock, m, jid, nomeGrupo) {
-  if (!ehImagem(m)) return false;
+  // Vale registrar: foto/card com imagem baixável OU card com miniatura embutida
+  // (preview). Card de bilhete compartilhado do app entra por aqui — antes era
+  // descartado como "não-imagem" e a reação não tinha o que ler.
+  const soThumb = !ehImagem(m) ? thumbEmbutida(m) : null;
+  if (!ehImagem(m) && !soThumb) {
+    // Diagnóstico: card interativo sem imagem nem miniatura — loga a estrutura p/
+    // sabermos QUAL formato a casa usa e cobrirmos (aparece no log da Railway).
+    const miolo = conteudoInterno(m);
+    if (miolo.interactiveMessage || miolo.templateMessage || miolo.buttonsMessage || miolo.productMessage) {
+      console.log(`🧩 card não-suportado no grupo "${nomeGrupo}" | tipos: ${Object.keys(miolo).join(',')}`);
+    }
+    return false;
+  }
   guardarImagem(jid, m.key.id, m); // para a reação achar a original depois
   const cli = await acharCliente(jid, nomeGrupo);
   const { legenda, veioDeAntes } = escolherLegendaDaImagem(jid, textoDaMsg(m) || '');
@@ -322,7 +402,8 @@ async function registrarImagemDeMsg(sock, m, jid, nomeGrupo) {
   // O download PODE falhar (o WhatsApp às vezes nega a mídia com 403). Isso não pode
   // custar o bilhete: gravamos a linha de qualquer jeito, com a mensagem guardada.
   // Assim o print aparece na Conferência e a reação tenta baixar de novo depois.
-  const base64 = await baixarBase64(sock, m).catch(() => null);
+  // Card sem mídia baixável usa a miniatura embutida da própria mensagem.
+  const base64 = (await baixarBase64(sock, m).catch(() => null)) || soThumb || thumbEmbutida(m);
 
   await registrarImagemRecebida({
     grupoId: jid, grupoNome: nomeGrupo,
