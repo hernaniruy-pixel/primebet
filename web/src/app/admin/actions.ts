@@ -16,7 +16,7 @@ import { limparEquipeCookie } from '@/lib/equipe-session';
 
 // ═══════════════════ LISTAGEM / FECHAMENTO (paginação no servidor) ═══════════════════
 export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
-  await exigirSessao();
+  const ator = await exigir('operador');
   const db = createAdminClient();
   const { data, error } = await db.rpc('controle_listar', {
     p_dt1: f.dt1 || null, p_dt2: f.dt2 || null,
@@ -30,11 +30,17 @@ export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
   });
   if (error) throw error;
   const j = data as { rows: ApostaRow[]; total: number; totals: Totals };
-  return { rows: (j.rows ?? []).map(mapAposta), total: j.total ?? 0, totals: j.totals };
+  const rows = (j.rows ?? []).map(mapAposta);
+  if (ator.tipo === 'operador') {
+    // Zera o financeiro da banca no bilhete (comissão + saldos). A UI também esconde as colunas.
+    for (const r of rows) { r.sb = 0; r.cm = 0; r.caf = 0; r.sl = 0; }
+    return { rows, total: j.total ?? 0, totals: totaisSemFinanceiro(j.totals) };
+  }
+  return { rows, total: j.total ?? 0, totals: j.totals };
 }
 
 export async function fechamentoClientes(dt1?: string | null, dt2?: string | null): Promise<FechCliResp> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { data, error } = await db.rpc('fechamento_clientes', { p_dt1: dt1 || null, p_dt2: dt2 || null });
   if (error) throw error;
@@ -42,7 +48,7 @@ export async function fechamentoClientes(dt1?: string | null, dt2?: string | nul
 }
 
 export async function fechamentoAfiliados(dt1?: string | null, dt2?: string | null): Promise<FechAfResp> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { data, error } = await db.rpc('fechamento_afiliados', { p_dt1: dt1 || null, p_dt2: dt2 || null });
   if (error) throw error;
@@ -51,7 +57,7 @@ export async function fechamentoAfiliados(dt1?: string | null, dt2?: string | nu
 
 // Todos os bilhetes de um cliente no período (para o PDF de fechamento). Sem paginar.
 export async function bilhetesCliente(clienteId: number, dt1?: string | null, dt2?: string | null): Promise<Reg[]> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { data, error } = await db.rpc('controle_listar', {
     p_dt1: dt1 || null, p_dt2: dt2 || null,
@@ -68,7 +74,7 @@ export async function bilhetesCliente(clienteId: number, dt1?: string | null, dt
 
 // ═══════════════════ CONFERÊNCIA DE GRUPOS ═══════════════════
 export async function listarConfGrupos(dt1?: string | null, dt2?: string | null): Promise<ConfGrupo[]> {
-  await exigirSessao();
+  await exigir('operador');
   const db = createAdminClient();
   const { data, error } = await db.rpc('conferencia_grupos', { p_dt1: dt1 || null, p_dt2: dt2 || null });
   if (error) throw error;
@@ -76,7 +82,7 @@ export async function listarConfGrupos(dt1?: string | null, dt2?: string | null)
 }
 
 export async function listarConfImagens(f: ConfFiltro): Promise<ConfImagensResp> {
-  await exigirSessao();
+  await exigir('operador');
   const db = createAdminClient();
   const per = 48;
   const page = f.page || 1;
@@ -108,7 +114,7 @@ export async function listarConfImagens(f: ConfFiltro): Promise<ConfImagensResp>
 }
 
 export async function ignorarImagem(id: number, ignorar = true): Promise<void> {
-  await exigirSessao();
+  await exigir('operador');
   const db = createAdminClient();
   const { error } = await db.from('imagens_recebidas').update({ ignorada: ignorar }).eq('id', id);
   if (error) throw error;
@@ -116,7 +122,7 @@ export async function ignorarImagem(id: number, ignorar = true): Promise<void> {
 
 /** Enfileira um pedido de "lançar" (reagir) direto do painel. O bot processa e transcreve. */
 export async function lancarImagem(id: number, emoji: string, odd?: string, valor?: string): Promise<{ ok: boolean; erro?: string }> {
-  await exigirSessao();
+  await exigir('operador');
   const db = createAdminClient();
   const { data: img } = await db.from('imagens_recebidas').select('cliente_id,reagida').eq('id', id).single();
   if (!img) return { ok: false, erro: 'Imagem não encontrada.' };
@@ -144,7 +150,7 @@ async function despesasDaSemana(db: ReturnType<typeof createAdminClient>, mon: D
 }
 
 export async function listarDespesas(): Promise<DespesasResp> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { atual, passada } = semanasBR();
   const [a, p] = await Promise.all([
@@ -156,7 +162,7 @@ export async function listarDespesas(): Promise<DespesasResp> {
 
 /** Despesas por período arbitrário (datas vazias = todo o histórico). */
 export async function listarDespesasPeriodo(dt1?: string | null, dt2?: string | null): Promise<SemanaDespesas> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   let q = db.from('despesas').select('id,descricao,valor,data,grupo_nome').order('data', { ascending: false });
   if (dt1) q = q.gte('data', `${dt1}T00:00:00-03:00`);
@@ -170,7 +176,7 @@ export async function listarDespesasPeriodo(dt1?: string | null, dt2?: string | 
 }
 
 export async function excluirDespesa(id: number): Promise<void> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { error } = await db.from('despesas').delete().eq('id', id);
   if (error) throw error;
@@ -192,7 +198,7 @@ function mapConta(r: ContaRow): Conta {
 }
 
 export async function listarContas(): Promise<Conta[]> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { data, error } = await db.from('contas').select('*').order('casa', { ascending: true }).order('id', { ascending: true });
   if (error) throw error;
@@ -227,7 +233,7 @@ async function registrarMovimentos(
 }
 
 export async function criarConta(input: NovaConta): Promise<Conta> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { data, error } = await db.from('contas').insert({
     banca_id: await bancaId(db),
@@ -244,7 +250,7 @@ export async function criarConta(input: NovaConta): Promise<Conta> {
 }
 
 export async function atualizarConta(id: number, patch: PatchConta): Promise<Conta> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   // Estado atual, para saber o que mudou e registrar no histórico.
   const { data: antes } = await db.from('contas').select('*').eq('id', id).maybeSingle();
@@ -280,7 +286,7 @@ export async function lancarMovimentoConta(
   valor: number,
   ajustarSaldo = true,
 ): Promise<Conta> {
-  await exigirSessao();
+  await exigir('gestor');
   if (!(valor > 0)) throw new Error('Informe um valor maior que zero.');
   const db = createAdminClient();
   const { data: antes, error: e1 } = await db.from('contas').select('*').eq('id', contaId).maybeSingle();
@@ -305,7 +311,7 @@ export async function lancarMovimentoConta(
 
 /** Histórico de movimentação de uma conta (mais recente primeiro). */
 export async function listarMovimentosConta(contaId: number): Promise<MovimentoConta[]> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { data, error } = await db.from('contas_movimentos')
     .select('id,conta_id,tipo,valor,de,para,criado_em')
@@ -321,7 +327,7 @@ export async function listarMovimentosConta(contaId: number): Promise<MovimentoC
 }
 
 export async function excluirConta(id: number): Promise<void> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { error } = await db.from('contas').delete().eq('id', id);
   if (error) throw error;
@@ -330,7 +336,7 @@ export async function excluirConta(id: number): Promise<void> {
 // ═══════════════════ STATUS DO BOT (health da Railway) ═══════════════════
 export type BotStatus = { ok: boolean; pronto: boolean; upS: number };
 export async function statusBot(): Promise<BotStatus> {
-  await exigirSessao();
+  await exigir('operador');
   const urlBot = process.env.BOT_HEALTH_URL || 'https://primebet-production.up.railway.app/health';
   try {
     const r = await fetch(urlBot, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
@@ -353,7 +359,7 @@ export interface UsoCota {
 
 /** Config do plano + uso ao vivo (consulta na função uso_cota). */
 export async function lerPlano(): Promise<{ config: PlanoConfig; uso: UsoCota }> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const id = await bancaId(db);
   const { data: b } = await db.from('bancas')
@@ -382,7 +388,7 @@ export async function lerPlano(): Promise<{ config: PlanoConfig; uso: UsoCota }>
 
 /** Edita a config do plano. Devolve o uso recalculado. */
 export async function atualizarPlano(patch: Partial<PlanoConfig>): Promise<{ config: PlanoConfig; uso: UsoCota }> {
-  await exigirSessao();
+  await exigir('admin');
   const db = createAdminClient();
   const id = await bancaId(db);
   const up: Record<string, unknown> = {};
@@ -399,7 +405,7 @@ export async function atualizarPlano(patch: Partial<PlanoConfig>): Promise<{ con
 
 /** Zera o contador: passa a contar só o que vier a partir de agora (reset manual). */
 export async function zerarContadorCota(): Promise<{ config: PlanoConfig; uso: UsoCota }> {
-  await exigirSessao();
+  await exigir('admin');
   const db = createAdminClient();
   const id = await bancaId(db);
   const { error } = await db.from('bancas').update({ contador_zerado_em: new Date().toISOString() }).eq('id', id);
@@ -413,6 +419,20 @@ async function exigirSessao(): Promise<Ator> {
   const ator = await atorAtual();
   if (!ator) throw new Error('Não autenticado.');
   return ator;
+}
+
+// Mínimo de papel por ação. admin(3) > gestor(2) > operador(1). A trava é AQUI (servidor):
+// esconder no front não basta — o operador não pode nem CONSEGUIR chamar o que é financeiro.
+const NIVEL: Record<Ator['tipo'], number> = { operador: 1, gestor: 2, admin: 3 };
+async function exigir(min: Ator['tipo']): Promise<Ator> {
+  const ator = await exigirSessao();
+  if (NIVEL[ator.tipo] < NIVEL[min]) throw new Error('Sem permissão para esta ação.');
+  return ator;
+}
+
+// Operador não vê o financeiro da banca: zera comissão/saldos nos totais (a UI também esconde).
+function totaisSemFinanceiro(t: Totals): Totals {
+  return { ...t, saldo_bruto: 0, comissao: 0, comissao_afiliado: 0, saldo_liquido: 0 };
 }
 
 /** Logout da equipe (gestor/operador): limpa o cookie assinado. */
@@ -438,7 +458,7 @@ async function afNomeMap(db: ReturnType<typeof createAdminClient>): Promise<Reco
 export interface NovaAposta { cId: number; jogo: string; odd: number; val: number; st: string; dc: string }
 
 export async function criarAposta(input: NovaAposta): Promise<Reg> {
-  await exigirSessao();
+  await exigir('operador');
   const db = createAdminClient();
   const { data: cli } = await db.from('clientes').select('banca_id').eq('id', input.cId).single();
   const { data, error } = await db.from('apostas').insert({
@@ -456,7 +476,7 @@ export interface PatchAposta {
 }
 
 export async function atualizarAposta(id: number, patch: PatchAposta): Promise<Reg> {
-  await exigirSessao();
+  await exigir('operador');
   const db = createAdminClient();
   const upd: Record<string, unknown> = {};
   if (patch.dt !== undefined) upd.data = parseTs(patch.dt);
@@ -491,7 +511,7 @@ export async function atualizarAposta(id: number, patch: PatchAposta): Promise<R
 }
 
 export async function excluirAposta(id: number): Promise<void> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { error } = await db.from('apostas').delete().eq('id', id);
   if (error) throw error;
@@ -521,7 +541,7 @@ async function gravarResolucaoCt(
 /** RECUSA a contestação: encerra SEM mudar o status (cliente estava errado). Tira da
  *  fila mantendo o registro de que a aposta foi contestada. */
 export async function resolverContestacao(id: number): Promise<Reg> {
-  await exigirSessao();
+  await exigir('operador');
   const db = createAdminClient();
   return gravarResolucaoCt(db, id, { contestada: false, contestada_em: null }, 'recusada');
 }
@@ -529,7 +549,7 @@ export async function resolverContestacao(id: number): Promise<Reg> {
 /** ACEITA a contestação: aplica o status que o cliente sugeriu. O trigger recalcula
  *  o saldo. Encerra a contestação mantendo o registro (motivo/status/desfecho). */
 export async function aceitarContestacao(id: number, novoStatus: string): Promise<Reg> {
-  await exigirSessao();
+  await exigir('operador');
   const db = createAdminClient();
   return gravarResolucaoCt(db, id, { status: novoStatus, contestada: false, contestada_em: null }, 'aceita');
 }
@@ -542,7 +562,7 @@ export interface NovoClienteInput {
 const gerarSlug = () => Math.random().toString(36).slice(2, 8);
 
 export async function criarCliente(input: NovoClienteInput): Promise<Cliente> {
-  await exigirSessao();
+  await exigir('admin');
   const db = createAdminClient();
   const nome = input.nome.toUpperCase().trim();
 
@@ -575,7 +595,7 @@ export interface PatchCliente {
  * dele (toca atualizado_em para disparar o trigger). Devolve cliente + apostas afetadas.
  */
 export async function atualizarCliente(id: number, patch: PatchCliente): Promise<{ cliente: Cliente; regs: Reg[] }> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
 
   const upd: Record<string, unknown> = {};
@@ -616,7 +636,7 @@ export async function atualizarCliente(id: number, patch: PatchCliente): Promise
  * histórico/fechamento dele. Nesse caso o certo é desativar (campo "Ativo").
  */
 export async function excluirCliente(id: number): Promise<{ ok: boolean; erro?: string }> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { count } = await db.from('apostas').select('id', { count: 'exact', head: true }).eq('cliente_id', id);
   if ((count ?? 0) > 0) {
@@ -629,7 +649,7 @@ export async function excluirCliente(id: number): Promise<{ ok: boolean; erro?: 
 
 // ═══════════════════ AFILIADOS ═══════════════════
 export async function criarAfiliado(nome: string, com = 0): Promise<Afiliado> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { data, error } = await db.from('afiliados').insert({ banca_id: await bancaId(db), nome, comissao_pct: com }).select('*').single();
   if (error) throw error;
@@ -641,7 +661,7 @@ export async function criarAfiliado(nome: string, com = 0): Promise<Afiliado> {
  * apagar deixaria esses clientes órfãos e bagunçaria o fechamento de afiliado.
  */
 export async function excluirAfiliado(id: number): Promise<{ ok: boolean; erro?: string }> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const { count } = await db.from('clientes').select('id', { count: 'exact', head: true }).eq('afiliado_id', id);
   if ((count ?? 0) > 0) {
@@ -653,7 +673,7 @@ export async function excluirAfiliado(id: number): Promise<{ ok: boolean; erro?:
 }
 
 export async function atualizarAfiliado(id: number, patch: { nome?: string; com?: number }): Promise<Afiliado> {
-  await exigirSessao();
+  await exigir('gestor');
   const db = createAdminClient();
   const upd: Record<string, unknown> = {};
   if (patch.nome !== undefined) upd.nome = patch.nome;
