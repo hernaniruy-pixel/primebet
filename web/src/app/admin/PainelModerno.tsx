@@ -162,7 +162,11 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
   const [fechRes, setFechRes] = useState<FechCliResp | null>(null);
   const [fafRes, setFafRes] = useState<FechAfResp | null>(null);
   const [pdfBusy, setPdfBusy] = useState<number | null>(null); // id do cliente cujo PDF está sendo gerado
-  const [filtros, setFiltros] = useState({ ...filtrosVazios, dt1: semana.d1, dt2: semana.d2, period: 'semana' });
+  // Filtro inicial SEM data: tem que bater com o que o servidor renderizou
+  // (listarApostas({ pend:true }) — fila pendente inteira). Antes forçava "esta semana"
+  // aqui, então ao hidratar o cliente rebuscava só a semana e os bilhetes do backlog
+  // SUMIAM da tela segundos após o login. O período segue disponível no filtro.
+  const [filtros, setFiltros] = useState({ ...filtrosVazios });
   const [debFiltros, setDebFiltros] = useState(filtros);
   // Quanto esperar antes de disparar a busca: campos de TEXTO (jogo, id…) esperam
   // 400ms pra não buscar a cada tecla; SELECTS (cliente, status, período…) aplicam
@@ -209,8 +213,9 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       dt1: f.dt1 || null, dt2: f.dt2 || null, ord: f.ord, page,
       pend: f.aba === 'pend' ? true : null,
     };
-    // O período vale também na fila Pendentes: ao entrar, mostra só a SEMANA ATUAL.
-    // Para ver pendentes antigas, limpe as datas no filtro.
+    // Ao entrar, mostra a fila pendente INTEIRA (igual ao SSR) — sem filtro de data
+    // forçado, pra os bilhetes não sumirem após a hidratação. O período é opcional,
+    // aplicado só quando o operador escolhe no filtro.
     listarApostas(params)
       .then((r) => { if (alive) { setRegs(r.rows); setTotal(r.total); setTotals(r.totals); } })
       .catch(() => { if (alive) toast('Erro ao carregar apostas.'); });
