@@ -112,6 +112,7 @@ const filtrosVazios = {
   id: '', nome: '', st: '', jogo: '', dc: '', oddMin: '', oddMax: '', valMin: '', valMax: '',
   bl: '', adv: '', irr: '', dt1: '', dt2: '', period: '', ord: 'data_desc',
   aba: 'pend',  // 'pend' = fila pendente (EM ABERTO + contestadas) | 'todas' = histórico completo
+  porLancamento: false, // false = filtra pela data do PRINT (padrão); true = pela data de LANÇAMENTO
 };
 
 const inp = 'w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-sm text-slate-800 dark:text-slate-100 outline-none transition focus:border-marca-500 focus:ring-2 focus:ring-marca-500/20';
@@ -235,6 +236,7 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
       irr: f.irr === 'sim' ? true : f.irr === 'nao' ? false : null,
       dt1: f.dt1 || null, dt2: f.dt2 || null, ord: f.ord, page,
       pend: f.aba === 'pend' ? true : null,
+      porLancamento: !!f.porLancamento,
     };
     // Ao entrar, mostra a fila pendente INTEIRA (igual ao SSR) — sem filtro de data
     // forçado, pra os bilhetes não sumirem após a hidratação. O período é opcional,
@@ -785,6 +787,11 @@ ${MARCA.equipe}`);
               <div><span className={lbl}>Período rápido</span>
                 <select className={inp} value={filtros.period} onChange={(e) => applyPeriod(e.target.value)}>
                   <option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta semana</option><option value="semana_ant">Semana passada</option>
+                </select>
+              </div>
+              <div><span className={lbl}>Contar data por</span>
+                <select className={inp} value={filtros.porLancamento ? 'lanc' : 'print'} onChange={(e) => setF('porLancamento', e.target.value === 'lanc', true)} title="Print = data em que o cliente mandou o bilhete (regra do fechamento). Lançamento = data em que o operador reagiu/lançou.">
+                  <option value="print">Data do print (padrão)</option><option value="lanc">Data de lançamento</option>
                 </select>
               </div>
               <div><span className={lbl}>Ordenação</span>

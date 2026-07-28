@@ -26,7 +26,10 @@ export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
     const piso = pisoDuasSemanas();
     dt1 = (!dt1 || dt1 < piso) ? piso : dt1;
   }
-  const { data, error } = await db.rpc('controle_listar', {
+  // Monta os args base. p_por_lancamento só é incluído quando LIGADO: assim, se a
+  // migração 024 ainda não tiver sido aplicada, o PostgREST casa a assinatura antiga
+  // e a listagem padrão (por data do print) continua funcionando sem quebrar.
+  const rpcArgs: Record<string, unknown> = {
     p_dt1: dt1, p_dt2: f.dt2 || null,
     p_id: f.id || null, p_cliente: f.cId ?? null,
     p_status: f.st || null, p_jogo: f.jogo || null, p_descarrego: f.dc || null,
@@ -35,7 +38,9 @@ export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
     p_bl: f.bl ?? null, p_adv: f.adv ?? null, p_irr: f.irr ?? null,
     p_sort: f.ord || 'data_desc', p_page: f.page || 1, p_per: 20,
     p_pendentes: f.pend ?? null,
-  });
+  };
+  if (f.porLancamento) rpcArgs.p_por_lancamento = true;
+  const { data, error } = await db.rpc('controle_listar', rpcArgs);
   if (error) throw error;
   const j = data as { rows: ApostaRow[]; total: number; totals: Totals };
   const rows = (j.rows ?? []).map(mapAposta);
