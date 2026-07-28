@@ -30,7 +30,7 @@ export interface PdfFechamentoOpts {
   desc?: number; // desconto do cliente — a odd sai do PDF já descontada
 }
 
-export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0 }: PdfFechamentoOpts) {
+export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0 }: PdfFechamentoOpts, baixar = true): { blob: Blob; nome: string } {
   banca = wa(banca);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
@@ -143,5 +143,6 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0
   });
 
   const nome = `FECHAMENTO_-_${safe(resumo.nome)}_-_${brDate(dt1)}_A_${brDate(dt2)}.pdf`;
-  doc.save(nome);
+  if (baixar) doc.save(nome);
+  return { blob: doc.output('blob'), nome };
 }

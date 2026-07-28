@@ -672,6 +672,27 @@ export async function historicoAposta(apostaId: number): Promise<AuditoriaItem[]
   }));
 }
 
+// ── Envio do PDF de fechamento no grupo do cliente (o BOT é quem manda no WhatsApp) ──
+// O painel gera o PDF, manda o base64 pra cá; subimos no Storage e criamos o pedido.
+export async function enfileirarEnvioPdf(input: { grupoId: string; clienteNome: string; pdfBase64: string; legenda: string }): Promise<{ ok: boolean; erro?: string }> {
+  await exigir('admin');
+  const grupoId = String(input.grupoId || '').trim();
+  if (!grupoId) return { ok: false, erro: 'Cliente sem grupo vinculado — não dá para enviar.' };
+  if (!input.pdfBase64) return { ok: false, erro: 'PDF vazio.' };
+  const db = createAdminClient();
+  const safe = (String(input.clienteNome || 'cliente').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40)) || 'CLIENTE';
+  const path = `${safe}_${Date.now()}.pdf`;
+  const buf = Buffer.from(input.pdfBase64, 'base64');
+  const up = await db.storage.from('fechamentos').upload(path, buf, { contentType: 'application/pdf', upsert: true });
+  if (up.error) return { ok: false, erro: 'Falha ao subir o PDF. Tente de novo.' };
+  const { error } = await db.from('envios_pdf').insert({
+    grupo_id: grupoId, cliente_nome: input.clienteNome || null, storage_path: path,
+    legenda: input.legenda || null, status: 'pendente',
+  });
+  if (error) return { ok: false, erro: 'Falha ao enfileirar o envio.' };
+  return { ok: true };
+}
+
 // ═══════════════════ CLIENTES ═══════════════════
 export interface NovoClienteInput {
   nome: string; senha?: string; calcao?: number; desconto?: number;

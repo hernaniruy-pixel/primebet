@@ -189,9 +189,32 @@ async function limparImagensAntigas() {
   return data.length;
 }
 
+// ─────────── Envio de PDF de fechamento nos grupos ───────────
+// O painel sobe o PDF no bucket 'fechamentos' e cria o pedido em envios_pdf; aqui o
+// bot lista os pendentes, baixa o PDF e (no whatsapp.js) manda como documento no grupo.
+async function listarEnviosPendentes(limite = 1) {
+  const { data, error } = await sb.from('envios_pdf')
+    .select('id,grupo_id,cliente_nome,storage_path,legenda').eq('status', 'pendente').order('criado_em').limit(limite);
+  if (error) { console.error('   envios pdf:', error.message); return []; }
+  return data || [];
+}
+
+async function baixarPdfEnvio(path) {
+  const { data, error } = await sb.storage.from('fechamentos').download(path);
+  if (error || !data) return null;
+  return Buffer.from(await data.arrayBuffer());
+}
+
+async function marcarEnvio(id, status, erro = null) {
+  const patch = { status, erro };
+  if (status === 'enviado') patch.enviado_em = new Date().toISOString();
+  await sb.from('envios_pdf').update(patch).eq('id', id);
+}
+
 module.exports = {
   registrarImagemRecebida, marcarReagida,
   listarPedidosPendentes, marcarPedido, baixarThumbBase64, thumbPathPorMsg,
   legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg, enviadoEmPorMsg,
   limparImagensAntigas, imagemJaRegistrada,
+  listarEnviosPendentes, baixarPdfEnvio, marcarEnvio,
 };

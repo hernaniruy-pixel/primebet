@@ -25,6 +25,7 @@ const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId, grupos
 const {
   registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido,
   baixarThumbBase64, thumbPathPorMsg, legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg, enviadoEmPorMsg,
+  listarEnviosPendentes, baixarPdfEnvio, marcarEnvio,
 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto, setTeste } = require('./webqr');
@@ -583,6 +584,10 @@ function iniciarPollerPedidos(sock) {
       // A fila do dashboard é local (banco) — pode ser rápida, não fala com o WhatsApp.
       const pendentes = await listarPedidosPendentes();
       for (const p of pendentes) await processarPedido(sock, p);
+      // Envio de PDF de fechamento: UM por ciclo (~5s entre cada) — espaçado p/ não parecer
+      // robô/spam e reduzir risco de ban. O admin enfileira no painel, o bot manda aqui.
+      const envios = await listarEnviosPendentes(1);
+      for (const e of envios) await processarEnvioPdf(sock, e);
       // Já o vínculo consulta a API do WhatsApp: vai devagar.
       if (Date.now() - ultimoVinculo >= VINCULO_INTERVALO) {
         ultimoVinculo = Date.now();
@@ -594,6 +599,22 @@ function iniciarPollerPedidos(sock) {
       pollAtivo = false;
     }
   }, 5000);
+}
+
+// Manda o PDF de fechamento (documento) no grupo do cliente, com a legenda do painel.
+async function processarEnvioPdf(sock, e) {
+  try {
+    if (!e.grupo_id) { await marcarEnvio(e.id, 'erro', 'Pedido sem grupo.'); return; }
+    const buf = await baixarPdfEnvio(e.storage_path);
+    if (!buf) { await marcarEnvio(e.id, 'erro', 'PDF não encontrado no Storage.'); return; }
+    const nome = `Fechamento ${e.cliente_nome || ''}`.trim().replace(/\s+/g, ' ') + '.pdf';
+    await sock.sendMessage(e.grupo_id, { document: buf, mimetype: 'application/pdf', fileName: nome, caption: e.legenda || '' });
+    await marcarEnvio(e.id, 'enviado');
+    console.log(`📤 PDF de fechamento enviado no grupo ${e.grupo_id} (cliente ${e.cliente_nome || '?'})`);
+  } catch (err) {
+    await marcarEnvio(e.id, 'erro', String((err && err.message) || err).slice(0, 200));
+    console.error('   ❌ erro ao enviar PDF:', (err && err.message) || err);
+  }
 }
 
 async function processarPedido(sock, p) {

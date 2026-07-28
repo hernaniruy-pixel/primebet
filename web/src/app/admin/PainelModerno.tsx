@@ -14,6 +14,7 @@ import {
   sairEquipe,
   listarEquipe, criarEquipe, resetarSenhaEquipe, definirAtivoEquipe, type EquipeUser,
   historicoAposta, type AuditoriaItem,
+  enfileirarEnvioPdf,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
@@ -528,6 +529,53 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
     } catch { toast('Erro ao gerar o PDF.'); }
     finally { setPdfGeralBusy(false); }
   }
+  // ── Envio do PDF de fechamento no grupo do cliente (o bot é quem manda). Só admin. ──
+  const [legendaEnvio, setLegendaEnvio] = useState('Segue o fechamento da semana passada ({período}). Qualquer dúvida, estamos à disposição.');
+  const [envRow, setEnvRow] = useState<number | null>(null);
+  const [enviandoTodos, setEnviandoTodos] = useState(false);
+  function periodoTexto() {
+    const br = (d: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? `${m[3]}/${m[2]}` : d; };
+    return fech.dt1 && fech.dt2 ? `${br(fech.dt1)} a ${br(fech.dt2)}` : 'período selecionado';
+  }
+  function blobParaBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => { const s = String(fr.result); resolve(s.slice(s.indexOf(',') + 1)); };
+      fr.onerror = () => reject(new Error('leitura do PDF falhou'));
+      fr.readAsDataURL(blob);
+    });
+  }
+  async function montarEnvio(row: FechCliRow): Promise<{ ok: boolean; erro?: string }> {
+    const cli = clientes.find((c) => c.id === row.id);
+    const grupoId = cli?.grupoId || '';
+    if (!grupoId) return { ok: false, erro: `${row.nome}: sem grupo vinculado.` };
+    const bilhetes = await bilhetesCliente(row.id, fech.dt1 || null, fech.dt2 || null);
+    const { blob } = gerarPdfFechamento({ banca: 'PrimeBet', resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2, desc: cliDesc[row.id] ?? 0 }, false);
+    const pdfBase64 = await blobParaBase64(blob);
+    const legenda = legendaEnvio.replace('{período}', periodoTexto());
+    return enfileirarEnvioPdf({ grupoId, clienteNome: row.nome, pdfBase64, legenda });
+  }
+  async function enviarPdfUm(row: FechCliRow) {
+    if (envRow != null || enviandoTodos) return;
+    setEnvRow(row.id);
+    try { const r = await montarEnvio(row); toast(r.ok ? `📤 Enviado para ${row.nome}.` : (r.erro || 'Erro ao enviar.')); }
+    catch { toast('Erro ao enviar.'); }
+    finally { setEnvRow(null); }
+  }
+  async function enviarPdfTodos() {
+    if (enviandoTodos || envRow != null) return;
+    if (!confirm(`Enviar o PDF do fechamento para TODOS os clientes com grupo? O bot manda espaçado (uns segundos entre cada).`)) return;
+    setEnviandoTodos(true);
+    let ok = 0; let semGrupo = 0; let erros = 0;
+    for (const row of fechData.rows) {
+      const cli = clientes.find((c) => c.id === row.id);
+      if (!cli?.grupoId) { semGrupo++; continue; }
+      try { const r = await montarEnvio(row); if (r.ok) ok++; else erros++; } catch { erros++; }
+      await new Promise((res) => setTimeout(res, 400));
+    }
+    setEnviandoTodos(false);
+    toast(`📤 Enfileirados ${ok}. Sem grupo: ${semGrupo}. Erros: ${erros}. O bot envia espaçado.`);
+  }
   function loadFaf(d1: string, d2: string) { fechamentoAfiliados(d1 || null, d2 || null).then(setFafRes).catch(() => toast('Erro no fechamento.')); }
   function loadPlano() { lerPlano().then(setPlano).catch(() => toast('Erro ao carregar o plano.')); }
   function carregarEquipe() { listarEquipe().then(setEquipe).catch(() => toast('Erro ao carregar usuários.')); }
@@ -1003,6 +1051,17 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
                 {pdfGeralBusy ? 'Gerando…' : '📄 PDF fechamento geral'}
               </button>
             </div>
+            {ehAdmin && (
+              <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 dark:border-emerald-900/50 dark:bg-emerald-900/10">
+                <div className="min-w-[280px] flex-1">
+                  <span className={lbl}>Mensagem enviada com o PDF (<b>{'{período}'}</b> vira as datas do fechamento)</span>
+                  <textarea className={`${inp} min-h-[52px]`} value={legendaEnvio} onChange={(e) => setLegendaEnvio(e.target.value)} />
+                </div>
+                <button onClick={enviarPdfTodos} disabled={enviandoTodos || envRow != null} title="Envia o PDF de cada cliente no grupo dele — o bot manda espaçado" className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50">
+                  {enviandoTodos ? 'Enfileirando…' : '📤 Enviar a todos'}
+                </button>
+              </div>
+            )}
             <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {([['Calção', fechData.g.cal], ['Saldo calção', fechData.g.saldoCal], ['Total apostado', fechData.g.val], ['Em aberto', fechData.g.ab], ['Saldo bruto', fechData.g.sb], ['Comissão', fechData.g.cm], ['Com. afiliado', fechData.g.caf], ['Saldo líquido', fechData.g.sl]] as [string, number][]).map(([l, v]) => (
                 <div key={l} className="rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50"><div className="text-[11px] text-slate-400">{l}</div><div className="text-sm font-semibold tabular-nums">R$ {fmt(v)}</div></div>
@@ -1015,11 +1074,20 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
                   <td className="px-2 py-1.5 font-medium">{r.nome}</td>
                   <td className="px-2 py-1.5 text-right tabular-nums">{fmt(r.cal)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.saldoCal)}`}>{fmt(r.saldoCal)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${entCls(r.val)}`}>{fmt(r.val)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${entCls(r.ab)}`}>{fmt(r.ab)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.caf)}`}>{fmt(r.caf)}</td><td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${clrCls(r.sl)}`}>{fmt(r.sl)}</td>
                   <td className="px-2 py-1.5 text-center sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800">
-                    <button onClick={() => baixarPdfCliente(r)} disabled={pdfBusy != null} title="Baixar PDF do fechamento" className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-emerald-600 disabled:opacity-40 dark:border-slate-700 dark:hover:bg-slate-800">
-                      {pdfBusy === r.id
-                        ? <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 60"/></svg>
-                        : <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
-                    </button>
+                    <div className="flex items-center justify-center gap-1">
+                      <button onClick={() => baixarPdfCliente(r)} disabled={pdfBusy != null} title="Baixar PDF do fechamento" className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-emerald-600 disabled:opacity-40 dark:border-slate-700 dark:hover:bg-slate-800">
+                        {pdfBusy === r.id
+                          ? <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 60"/></svg>
+                          : <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
+                      </button>
+                      {ehAdmin && (
+                        <button onClick={() => enviarPdfUm(r)} disabled={envRow != null || enviandoTodos} title="Enviar este PDF no grupo do cliente (agora)" className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 text-emerald-600 hover:bg-emerald-50 disabled:opacity-40 dark:border-emerald-800 dark:hover:bg-emerald-900/30">
+                          {envRow === r.id
+                            ? <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 60"/></svg>
+                            : <span className="text-sm leading-none">📤</span>}
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
