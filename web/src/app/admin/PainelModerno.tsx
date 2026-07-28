@@ -13,6 +13,7 @@ import {
   lerPlano, type PlanoConfig, type UsoCota,
   sairEquipe,
   listarEquipe, criarEquipe, resetarSenhaEquipe, definirAtivoEquipe, type EquipeUser,
+  historicoAposta, type AuditoriaItem,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
@@ -115,6 +116,14 @@ const inp = 'w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-
 const lbl = 'mb-1 block text-[11px] font-medium text-slate-400 dark:text-slate-500';
 const cinp = 'rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-amber-500';
 
+// Rótulos das ações registradas no histórico (auditoria) do bilhete.
+const ACAO_LABEL: Record<string, string> = {
+  lancamento: 'Lançou o bilhete', status: 'Mudou o status', odd: 'Alterou a odd', valor: 'Alterou o valor',
+  jogo: 'Editou o jogo', data: 'Alterou data/hora', descarrego: 'Mudou o descarrego', baixa_liq: 'Baixa liquidez',
+  advertencia: 'Advertência', irregular: 'Marcou irregular', obs: 'Observação', cliente: 'Trocou o cliente',
+  contestacao: 'Resolveu contestação', exclusao: 'Excluiu o bilhete',
+};
+
 function Modal({ title, onClose, max = 'max-w-3xl', children }: { title: ReactNode; onClose: () => void; max?: string; children: ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4" onClick={onClose}>
@@ -187,6 +196,8 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   const [novoUser, setNovoUser] = useState<{ nome: string; senha: string; papel: 'operador' | 'gestor' }>({ nome: '', senha: '', papel: 'operador' });
   const [userErro, setUserErro] = useState('');
   const [resetUser, setResetUser] = useState<{ id: number; nome: string; senha: string } | null>(null);
+  // Histórico (auditoria) de um bilhete — só gestor/admin abrem.
+  const [histModal, setHistModal] = useState<{ id: number; itens: AuditoriaItem[]; carregando: boolean } | null>(null);
 
   // Status do bot (health da Railway): checa ao abrir e a cada 60s.
   useEffect(() => {
@@ -544,6 +555,12 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
     setEquipe((es) => es.map((x) => (x.id === u.id ? { ...x, ativo: !u.ativo } : x))); // otimista
     try { await definirAtivoEquipe(u.id, !u.ativo); } catch { carregarEquipe(); toast('Erro ao atualizar.'); }
   }
+  function abrirHistorico(id: number) {
+    setHistModal({ id, itens: [], carregando: true });
+    historicoAposta(id)
+      .then((itens) => setHistModal({ id, itens, carregando: false }))
+      .catch(() => { setHistModal(null); toast('Erro ao carregar o histórico.'); });
+  }
   const fechData = fechRes ?? { rows: [], g: { cal: 0, saldoCal: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 } };
   const fafData = fafRes ?? { rows: [], g: { logins: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 } };
 
@@ -754,7 +771,12 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
                     const inc = !(Number(r.odd) > 0) || !(Number(r.val) > 0);
                     return (
                       <tr key={r.id} className={`border-b border-slate-100 align-middle transition hover:bg-slate-50 dark:border-slate-800/70 dark:hover:bg-slate-800/40 ${inc ? 'pb-alert bg-rose-50/60 dark:bg-rose-500/5' : ''} ${flashId === r.id ? 'pb-flash' : ''}`}>
-                        <td className="px-2 py-1.5 font-medium text-slate-500">{r.id}</td>
+                        <td className="px-2 py-1.5 font-medium text-slate-500">
+                          <div>{r.id}</div>
+                          {podeFinanceiro && (
+                            <button onClick={() => abrirHistorico(r.id)} title="Histórico de alterações (quem mexeu no bilhete)" className="mt-0.5 rounded px-1 text-[11px] text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200">🕘</button>
+                          )}
+                        </td>
                         {/* Hora em cima, data embaixo: a hora é o que identifica o
                             print no grupo, e empilhado a coluna deixa de esticar. */}
                         <td className="whitespace-nowrap px-2 py-1.5 text-xs leading-tight text-slate-500">
@@ -1151,6 +1173,38 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
                 ))}
               </div>
             </div>
+          </Modal>
+        )}
+
+        {/* HISTÓRICO DO BILHETE (auditoria) */}
+        {histModal && (
+          <Modal onClose={() => setHistModal(null)} max="max-w-lg" title={`🕘 Histórico — bilhete #${histModal.id}`}>
+            {histModal.carregando ? (
+              <div className="py-8 text-center text-sm text-slate-400">Carregando…</div>
+            ) : histModal.itens.length === 0 ? (
+              <div className="py-8 text-center text-sm text-slate-400">Nenhuma alteração registrada para este bilhete ainda.</div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {histModal.itens.map((it) => (
+                  <div key={it.id} className="rounded-lg border border-slate-200 p-2.5 dark:border-slate-700">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{ACAO_LABEL[it.acao] ?? it.acao}</span>
+                      <span className="shrink-0 text-[11px] tabular-nums text-slate-400">{it.quando}</span>
+                    </div>
+                    {(it.de || it.para) && (
+                      <div className="mt-0.5 text-xs">
+                        {it.de ? <span className="text-rose-500 line-through">{it.de}</span> : null}
+                        {it.de && it.para ? <span className="text-slate-400"> → </span> : null}
+                        {it.para ? <span className="font-medium text-emerald-600 dark:text-emerald-400">{it.para}</span> : null}
+                      </div>
+                    )}
+                    <div className="mt-1 text-[11px] text-slate-400">
+                      por <b className="text-slate-600 dark:text-slate-300">{it.ator}</b> <span className="ml-1 rounded bg-slate-100 px-1 py-0.5 dark:bg-slate-800">{it.papel}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Modal>
         )}
 

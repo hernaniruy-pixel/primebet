@@ -443,6 +443,18 @@ function totaisSemFinanceiro(t: Totals): Totals {
   return { ...t, saldo_bruto: 0, comissao: 0, comissao_afiliado: 0, saldo_liquido: 0 };
 }
 
+// ── Auditoria (histórico do bilhete): registra QUEM alterou o quê ──
+type AuditItem = { acao: string; campo?: string | null; de?: string | null; para?: string | null };
+async function auditar(db: ReturnType<typeof createAdminClient>, apostaId: number, ator: Ator, itens: AuditItem[]): Promise<void> {
+  if (!itens.length) return;
+  const { error } = await db.from('auditoria').insert(itens.map((i) => ({
+    aposta_id: apostaId, ator_tipo: ator.tipo, ator_nome: ator.nome,
+    acao: i.acao, campo: i.campo ?? null, de: i.de ?? null, para: i.para ?? null,
+  })));
+  // Best-effort: o histórico NUNCA pode derrubar a operação principal (só loga a falha).
+  if (error) console.error('auditoria:', error.message);
+}
+
 /** Logout da equipe (gestor/operador): limpa o cookie assinado. */
 export async function sairEquipe(): Promise<void> {
   await limparEquipeCookie();
@@ -517,7 +529,7 @@ async function afNomeMap(db: ReturnType<typeof createAdminClient>): Promise<Reco
 export interface NovaAposta { cId: number; jogo: string; odd: number; val: number; st: string; dc: string }
 
 export async function criarAposta(input: NovaAposta): Promise<Reg> {
-  await exigir('operador');
+  const ator = await exigir('operador');
   const db = createAdminClient();
   const { data: cli } = await db.from('clientes').select('banca_id').eq('id', input.cId).single();
   const { data, error } = await db.from('apostas').insert({
@@ -526,7 +538,9 @@ export async function criarAposta(input: NovaAposta): Promise<Reg> {
     status: input.st, casa: input.dc || '', origem: 'manual',
   }).select('*').single();
   if (error) throw error;
-  return mapAposta(data as ApostaRow);
+  const nova = data as ApostaRow;
+  await auditar(db, nova.id, ator, [{ acao: 'lancamento', para: `manual · odd ${Number(input.odd)} · R$ ${Number(input.val)} · ${input.st}` }]);
+  return mapAposta(nova);
 }
 
 export interface PatchAposta {
@@ -535,8 +549,12 @@ export interface PatchAposta {
 }
 
 export async function atualizarAposta(id: number, patch: PatchAposta): Promise<Reg> {
-  await exigir('operador');
+  const ator = await exigir('operador');
   const db = createAdminClient();
+  // Estado ANTES (para o histórico registrar de→para em cada campo alterado).
+  const { data: antesRaw } = await db.from('apostas').select('*').eq('id', id).maybeSingle();
+  if (!antesRaw) throw new Error(`Aposta #${id} não encontrada.`);
+  const antes = antesRaw as ApostaRow;
   const upd: Record<string, unknown> = {};
   if (patch.dt !== undefined) upd.data = parseTs(patch.dt);
   if (patch.odd !== undefined) upd.odd = patch.odd;
@@ -556,24 +574,43 @@ export async function atualizarAposta(id: number, patch: PatchAposta): Promise<R
 
   // Nada mudou (ex.: clicou "Salvar" sem editar nada). Um UPDATE vazio no PostgREST
   // afeta 0 linhas e quebraria o .single(); então só devolvemos a aposta atual.
-  if (Object.keys(upd).length === 0) {
-    const { data, error } = await db.from('apostas').select('*').eq('id', id).maybeSingle();
-    if (error) throw error;
-    if (!data) throw new Error(`Aposta #${id} não encontrada.`);
-    return mapAposta(data as ApostaRow);
-  }
+  if (Object.keys(upd).length === 0) return mapAposta(antes);
 
   const { data, error } = await db.from('apostas').update(upd).eq('id', id).select('*').maybeSingle();
   if (error) throw error;
   if (!data) throw new Error(`Aposta #${id} não encontrada para atualizar.`);
-  return mapAposta(data as ApostaRow);
+  const depois = data as ApostaRow;
+
+  // Histórico: um item por campo que REALMENTE mudou (antes → depois).
+  const S = (v: unknown) => (v === null || v === undefined ? '' : String(v));
+  const N = (v: unknown) => S(Number(v));
+  const B = (v: unknown) => (v ? 'sim' : 'não');
+  const itens: AuditItem[] = [];
+  if (S(antes.status) !== S(depois.status)) itens.push({ acao: 'status', campo: 'status', de: S(antes.status), para: S(depois.status) });
+  if (N(antes.odd) !== N(depois.odd)) itens.push({ acao: 'odd', campo: 'odd', de: N(antes.odd), para: N(depois.odd) });
+  if (N(antes.valor) !== N(depois.valor)) itens.push({ acao: 'valor', campo: 'valor', de: N(antes.valor), para: N(depois.valor) });
+  if (S(antes.jogo) !== S(depois.jogo)) itens.push({ acao: 'jogo', campo: 'jogo', de: S(antes.jogo).slice(0, 80), para: S(depois.jogo).slice(0, 80) });
+  if (S(antes.data) !== S(depois.data)) itens.push({ acao: 'data', campo: 'data', de: fmtTs(S(antes.data)), para: fmtTs(S(depois.data)) });
+  if (S(antes.casa) !== S(depois.casa)) itens.push({ acao: 'descarrego', campo: 'casa', de: S(antes.casa), para: S(depois.casa) });
+  if (B(antes.baixa_liquidez) !== B(depois.baixa_liquidez)) itens.push({ acao: 'baixa_liq', campo: 'baixa_liquidez', de: B(antes.baixa_liquidez), para: B(depois.baixa_liquidez) });
+  if (B(antes.advertido) !== B(depois.advertido)) itens.push({ acao: 'advertencia', campo: 'advertido', de: B(antes.advertido), para: B(depois.advertido) });
+  if (B(antes.irregular) !== B(depois.irregular)) itens.push({ acao: 'irregular', campo: 'irregular', de: B(antes.irregular), para: B(depois.irregular) });
+  if (S(antes.advertencia) !== S(depois.advertencia)) itens.push({ acao: 'obs', campo: 'advertencia', de: S(antes.advertencia).slice(0, 80), para: S(depois.advertencia).slice(0, 80) });
+  if (S(antes.cliente_id) !== S(depois.cliente_id)) itens.push({ acao: 'cliente', campo: 'cliente_id', de: S(antes.cliente_id), para: S(depois.cliente_id) });
+  await auditar(db, id, ator, itens);
+
+  return mapAposta(depois);
 }
 
 export async function excluirAposta(id: number): Promise<void> {
-  await exigir('gestor');
+  const ator = await exigir('gestor');
   const db = createAdminClient();
+  const { data: antes } = await db.from('apostas').select('jogo,odd,valor,status').eq('id', id).maybeSingle();
   const { error } = await db.from('apostas').delete().eq('id', id);
   if (error) throw error;
+  const a = antes as { jogo?: string; odd?: number | string; valor?: number | string; status?: string } | null;
+  const resumo = a ? `${String(a.jogo || '').slice(0, 60)} · odd ${Number(a.odd)} · R$ ${Number(a.valor)} · ${a.status}` : `#${id}`;
+  await auditar(db, id, ator, [{ acao: 'exclusao', para: resumo }]);
 }
 
 // Grava a resolução de uma contestação preservando o histórico (motivo + status
@@ -600,17 +637,39 @@ async function gravarResolucaoCt(
 /** RECUSA a contestação: encerra SEM mudar o status (cliente estava errado). Tira da
  *  fila mantendo o registro de que a aposta foi contestada. */
 export async function resolverContestacao(id: number): Promise<Reg> {
-  await exigir('operador');
+  const ator = await exigir('operador');
   const db = createAdminClient();
-  return gravarResolucaoCt(db, id, { contestada: false, contestada_em: null }, 'recusada');
+  const reg = await gravarResolucaoCt(db, id, { contestada: false, contestada_em: null }, 'recusada');
+  await auditar(db, id, ator, [{ acao: 'contestacao', para: 'recusada (status mantido)' }]);
+  return reg;
 }
 
 /** ACEITA a contestação: aplica o status que o cliente sugeriu. O trigger recalcula
  *  o saldo. Encerra a contestação mantendo o registro (motivo/status/desfecho). */
 export async function aceitarContestacao(id: number, novoStatus: string): Promise<Reg> {
-  await exigir('operador');
+  const ator = await exigir('operador');
   const db = createAdminClient();
-  return gravarResolucaoCt(db, id, { status: novoStatus, contestada: false, contestada_em: null }, 'aceita');
+  const reg = await gravarResolucaoCt(db, id, { status: novoStatus, contestada: false, contestada_em: null }, 'aceita');
+  await auditar(db, id, ator, [{ acao: 'contestacao', campo: 'status', para: `aceita → ${novoStatus}` }]);
+  return reg;
+}
+
+// ── Histórico do bilhete (para os donos auditarem quem fez o quê) ──
+export type AuditoriaItem = { id: number; ator: string; papel: string; acao: string; campo: string | null; de: string | null; para: string | null; quando: string };
+
+export async function historicoAposta(apostaId: number): Promise<AuditoriaItem[]> {
+  await exigir('gestor'); // o histórico é para os donos (gestor/admin) conferirem
+  const db = createAdminClient();
+  const { data, error } = await db.from('auditoria')
+    .select('id,ator_tipo,ator_nome,acao,campo,de,para,criado_em')
+    .eq('aposta_id', apostaId).order('criado_em', { ascending: false }).limit(200);
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id as number, ator: r.ator_nome as string, papel: r.ator_tipo as string,
+    acao: r.acao as string, campo: (r.campo ?? null) as string | null,
+    de: (r.de ?? null) as string | null, para: (r.para ?? null) as string | null,
+    quando: fmtTs(r.criado_em as string),
+  }));
 }
 
 // ═══════════════════ CLIENTES ═══════════════════
