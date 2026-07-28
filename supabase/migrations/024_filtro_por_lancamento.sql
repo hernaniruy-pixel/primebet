@@ -9,7 +9,18 @@
 --  data compara pela data em que o bilhete foi LANÇADO (apostas.criado_em) em vez
 --  da data do print (apostas.data). NÃO muda fechamento/cobrança — só a listagem.
 --  Padrão = false (comportamento atual idêntico).
+--
+--  ATENÇÃO: como esta versão tem um parâmetro A MAIS, o `create or replace` NÃO
+--  substitui a função de 18 args da migração 023 — ele cria uma SEGUNDA função
+--  (overload), e aí uma chamada sem o parâmetro fica ambígua ("could not choose
+--  the best candidate"). Por isso derrubamos a versão antiga primeiro.
 -- ════════════════════════════════════════════════════════════════
+
+drop function if exists public.controle_listar(
+  date, date, text, bigint, text, text, text,
+  numeric, numeric, numeric, numeric,
+  boolean, boolean, boolean, text, integer, integer, boolean
+);
 
 create or replace function public.controle_listar(
   p_dt1 date default null, p_dt2 date default null,
