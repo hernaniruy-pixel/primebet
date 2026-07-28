@@ -575,6 +575,8 @@ async function iniciarWhatsApp() {
 let pollAtivo = false;
 let ultimoVinculo = 0;
 const VINCULO_INTERVALO = 60 * 1000; // 1x por minuto — não precisa ser a cada 5s
+let ultimoEnvio = 0;
+const ENVIO_INTERVALO = 30 * 1000; // PDF de fechamento: 30s entre um cliente e o próximo (ban-safe)
 
 function iniciarPollerPedidos(sock) {
   setInterval(async () => {
@@ -584,10 +586,13 @@ function iniciarPollerPedidos(sock) {
       // A fila do dashboard é local (banco) — pode ser rápida, não fala com o WhatsApp.
       const pendentes = await listarPedidosPendentes();
       for (const p of pendentes) await processarPedido(sock, p);
-      // Envio de PDF de fechamento: UM por ciclo (~5s entre cada) — espaçado p/ não parecer
-      // robô/spam e reduzir risco de ban. O admin enfileira no painel, o bot manda aqui.
-      const envios = await listarEnviosPendentes(1);
-      for (const e of envios) await processarEnvioPdf(sock, e);
+      // Envio de PDF de fechamento: UM por vez, com 30s entre um cliente e o próximo —
+      // espaçado p/ não parecer robô/spam e reduzir risco de ban. O admin enfileira no
+      // painel, o bot manda aqui. (O 1º de uma leva sai na hora; os seguintes a cada 30s.)
+      if (Date.now() - ultimoEnvio >= ENVIO_INTERVALO) {
+        const envios = await listarEnviosPendentes(1);
+        for (const e of envios) { await processarEnvioPdf(sock, e); ultimoEnvio = Date.now(); }
+      }
       // Já o vínculo consulta a API do WhatsApp: vai devagar.
       if (Date.now() - ultimoVinculo >= VINCULO_INTERVALO) {
         ultimoVinculo = Date.now();

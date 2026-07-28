@@ -564,7 +564,7 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   }
   async function enviarPdfTodos() {
     if (enviandoTodos || envRow != null) return;
-    if (!confirm(`Enviar o PDF do fechamento para TODOS os clientes com grupo? O bot manda espaçado (uns segundos entre cada).`)) return;
+    if (!confirm(`Enviar o PDF do fechamento para TODOS os clientes com grupo? O bot manda espaçado — cerca de 30 segundos entre um cliente e o próximo.`)) return;
     setEnviandoTodos(true);
     let ok = 0; let semGrupo = 0; let erros = 0;
     for (const row of fechData.rows) {
@@ -574,7 +574,7 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
       await new Promise((res) => setTimeout(res, 400));
     }
     setEnviandoTodos(false);
-    toast(`📤 Enfileirados ${ok}. Sem grupo: ${semGrupo}. Erros: ${erros}. O bot envia espaçado.`);
+    toast(`📤 Enfileirados ${ok}. Sem grupo: ${semGrupo}. Erros: ${erros}. O bot envia 1 a cada ~30s.`);
   }
   function loadFaf(d1: string, d2: string) { fechamentoAfiliados(d1 || null, d2 || null).then(setFafRes).catch(() => toast('Erro no fechamento.')); }
   function loadPlano() { lerPlano().then(setPlano).catch(() => toast('Erro ao carregar o plano.')); }
@@ -1060,6 +1060,7 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
                 <button onClick={enviarPdfTodos} disabled={enviandoTodos || envRow != null} title="Envia o PDF de cada cliente no grupo dele — o bot manda espaçado" className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50">
                   {enviandoTodos ? 'Enfileirando…' : '📤 Enviar a todos'}
                 </button>
+                <p className="w-full text-[11px] text-slate-500 dark:text-slate-400">⏱️ No envio em massa, o bot manda para <b>um cliente a cada ~30 segundos</b> (evita bloqueio do WhatsApp). O botão 📤 na linha de cada cliente envia na hora.</p>
               </div>
             )}
             <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
