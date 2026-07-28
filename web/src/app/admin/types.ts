@@ -18,7 +18,6 @@ export interface FiltroApostas {
   bl?: boolean | null; adv?: boolean | null; irr?: boolean | null;
   dt1?: string | null; dt2?: string | null; ord?: string; page?: number;
   pend?: boolean | null;  // true = só fila pendente (EM ABERTO ou contestada)
-  porLancamento?: boolean | null; // true = filtra pela data que foi LANÇADO (criado_em), não do print
 }
 export interface FechCliRow { id: number; nome: string; cal: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number; saldoCal: number }
 export interface FechCliResp { rows: FechCliRow[]; g: { cal: number; saldoCal: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number } }
