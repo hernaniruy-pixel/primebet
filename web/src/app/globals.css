@@ -6,6 +6,13 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Cores da MARCA (white-label). Padrão = PrimeBet (dourado). O layout.tsx
+     sobrescreve estes valores com as NEXT_PUBLIC_MARCA_COR* do cliente, quando
+     houver. Todo dourado do painel aponta para estas variáveis. */
+  --marca: #DAA520;       /* principal */
+  --marca-esc: #B8860B;   /* escuro (botões, bordas, faixas) */
+  --marca-claro: #F0D060; /* claro (realces) */
 }
 
 @theme inline {

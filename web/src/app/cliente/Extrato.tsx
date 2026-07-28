@@ -6,6 +6,7 @@ import Image from 'next/image';
 import type { ExtratoResp, SemanaExtrato } from './types';
 import { contestarAposta, sairCliente } from './actions';
 import { renderJogoLinhas } from './render';
+import { MARCA } from '@/lib/marca';
 import type { Reg } from '../admin/types';
 import { partesTs, statusContestacao } from '../admin/types';
 
@@ -192,9 +193,9 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
         <header className="bg-gradient-to-r from-[#13200a] to-[#1e2f10] text-white">
           <div className="mx-auto flex max-w-4xl items-center justify-between gap-2 px-4 py-3">
             <div className="flex min-w-0 items-center gap-3">
-              <Image src="/logo.jpg" alt="PrimeBet" width={40} height={40} style={{ borderRadius: 10 }} />
+              <Image src="/logo.jpg" alt={MARCA.nome} width={40} height={40} style={{ borderRadius: 10 }} />
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-[#DAA520]">PrimeBet</div>
+                <div className="text-sm font-semibold text-[var(--marca)]">{MARCA.nome}</div>
                 <div className="truncate text-xs text-slate-300">Olá, {dados.cliente.nome}</div>
               </div>
               <button onClick={toggleTheme} title="Tema claro/escuro" className="shrink-0 rounded-lg border border-white/20 px-2.5 py-1.5 text-xs hover:bg-white/10">

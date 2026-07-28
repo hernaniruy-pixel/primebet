@@ -1,4 +1,5 @@
 // Avisos operacionais para um grupo "AVISOS" no WhatsApp (online/offline/heartbeat).
+const { MARCA } = require('./marca');
 const horaBR = () => new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }).format(new Date());
 
 let grupoAvisosId = null;
@@ -101,12 +102,12 @@ async function aoConectar(client, avisosLink) {
   if (avisouQueda) {
     avisouQueda = false;
     anunciouBoot = true;
-    await avisar(client, `✅ *PrimeBet — integração RECUPERADA*\nO bot voltou ONLINE após uma queda.\n🕒 ${horaBR()}`);
+    await avisar(client, `✅ *${MARCA.nome} — integração RECUPERADA*\nO bot voltou ONLINE após uma queda.\n🕒 ${horaBR()}`);
     return;
   }
   if (!anunciouBoot) {
     anunciouBoot = true;
-    await avisar(client, `✅ *PrimeBet — integração ONLINE*\nBot conectado, ouvindo os grupos (reações + despesas).\n🕒 ${horaBR()}`);
+    await avisar(client, `✅ *${MARCA.nome} — integração ONLINE*\nBot conectado, ouvindo os grupos (reações + despesas).\n🕒 ${horaBR()}`);
     return;
   }
   console.log('   (reconexão de rotina — sem aviso no grupo)');
@@ -121,14 +122,14 @@ async function aoDesconectar(client, motivo) {
   timerQueda = setTimeout(async () => {
     timerQueda = null;
     avisouQueda = true;
-    await avisar(client, `⚠️ *PrimeBet — integração CAIU*\nMotivo: ${motivo}\nFora do ar há mais de ${QUEDA_MIN_MS / 60000} min. Pode ser necessário reescanear o QR.\n🕒 ${horaBR()}`);
+    await avisar(client, `⚠️ *${MARCA.nome} — integração CAIU*\nMotivo: ${motivo}\nFora do ar há mais de ${QUEDA_MIN_MS / 60000} min. Pode ser necessário reescanear o QR.\n🕒 ${horaBR()}`);
   }, QUEDA_MIN_MS);
   console.log(`   (desconectou: ${motivo} — aguardando ${QUEDA_MIN_MS / 60000}min antes de avisar; reconexão rápida não gera alerta)`);
 }
 
 /** Alerta de autenticação (útil pra saber que está subindo). */
 async function aoAutenticar(client) {
-  await avisar(client, `🔐 *PrimeBet — autenticado*\nConexão estabelecida, finalizando sincronização…\n🕒 ${horaBR()}`);
+  await avisar(client, `🔐 *${MARCA.nome} — autenticado*\nConexão estabelecida, finalizando sincronização…\n🕒 ${horaBR()}`);
 }
 
 module.exports = { avisar, aoConectar, aoDesconectar, aoAutenticar, resolverAvisosPorLink, horaBR, setGrupoAvisos, getGrupoAvisos };

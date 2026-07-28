@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 import type { SemanaDespesas } from './types';
 import { wa } from '@/lib/pdf-winansi';
 import { alinharCabecalho } from '@/lib/pdf-tabela';
+import { MARCA, corRGB } from '@/lib/marca';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const safe = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -27,7 +28,7 @@ export interface PdfDespesasOpts {
   sem: SemanaDespesas;   // rótulo + intervalo + linhas + total
 }
 
-export function gerarPdfDespesas({ banca = 'PrimeBet', sem }: PdfDespesasOpts) {
+export function gerarPdfDespesas({ banca = MARCA.nome, sem }: PdfDespesasOpts) {
   banca = wa(banca);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
@@ -44,7 +45,7 @@ export function gerarPdfDespesas({ banca = 'PrimeBet', sem }: PdfDespesasOpts) {
   doc.setTextColor(120, 113, 108);
   doc.text('Despesas', W - M, 46, { align: 'right' });
 
-  doc.setDrawColor(245, 158, 11);
+  doc.setDrawColor(...corRGB(MARCA.cor));
   doc.setLineWidth(1.5);
   doc.line(M, 56, W - M, 56);
 
@@ -87,7 +88,7 @@ export function gerarPdfDespesas({ banca = 'PrimeBet', sem }: PdfDespesasOpts) {
       doc.text(`Pág. ${doc.getCurrentPageInfo().pageNumber}/${doc.getNumberOfPages()}`, W - M, ph - 18, { align: 'right' });
       doc.setFontSize(7);
       doc.setTextColor(150, 160, 175);
-      doc.text('desenvolvido por www.trackertipster.site', M, ph - 9);
+      doc.text(MARCA.rodapePdf, M, ph - 9);
     },
   });
 

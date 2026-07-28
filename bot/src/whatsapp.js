@@ -30,6 +30,7 @@ const {
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto, setTeste } = require('./webqr');
 const { avisar, aoConectar, aoDesconectar, horaBR, setGrupoAvisos, getGrupoAvisos } = require('./avisos');
+const { MARCA } = require('./marca');
 
 const BOOT = Date.now();
 const log = pino({ level: 'silent' }); // a Baileys é verbosa; nossos logs são os console.log
@@ -259,7 +260,7 @@ async function montarStatus(conectado, nomeGrupo = '') {
   const ehAlertas = /avisos|alerta/i.test(nomeGrupo);
   const perm = await gruposPermitidos();
   const linhas = [
-    '🤖 *PrimeBet bot — status*',
+    `🤖 *${MARCA.nome} bot — status*`,
     `• conexão: ${conectado ? '✅ CONNECTED' : '⚠️ conectando…'} (Baileys)`,
     `• no ar há: ${h}h ${m}min`,
     `• pedidos na fila (dashboard): ${pend}`,
@@ -433,7 +434,7 @@ async function iniciarWhatsApp() {
     printQRInTerminal: false,
     markOnlineOnConnect: false, // não rouba as notificações do celular
     syncFullHistory: false,     // não baixa histórico (não precisamos)
-    browser: ['PrimeBet', 'Chrome', '1.0.0'],
+    browser: [MARCA.nome, 'Chrome', '1.0.0'],
   });
   const cliente = adaptar(sock);
 

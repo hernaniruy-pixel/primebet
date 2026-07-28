@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react';
 import Image from 'next/image';
 import { entrar, type LoginState } from './actions';
+import { MARCA } from '@/lib/marca';
 
 const inicial: LoginState = {};
 
@@ -46,7 +47,7 @@ export default function LoginPage() {
             >
               <Image
                 src="/logo.jpg"
-                alt="PrimeBet"
+                alt={MARCA.nome}
                 width={100}
                 height={100}
                 priority
@@ -66,7 +67,7 @@ export default function LoginPage() {
                   lineHeight: 1.1,
                 }}
               >
-                PrimeBet
+                {MARCA.nome}
               </div>
               <div style={{ color: '#8ba468', fontSize: 12, marginTop: 2, letterSpacing: '.02em' }}>Acesso ao sistema</div>
             </div>

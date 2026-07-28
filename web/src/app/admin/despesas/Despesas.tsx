@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { listarDespesas, listarDespesasPeriodo, excluirDespesa } from '../actions';
 import { gerarPdfDespesas } from './pdf-despesas';
 import type { DespesasResp, SemanaDespesas } from './types';
+import { MARCA } from '@/lib/marca';
 
 const brl = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDia = (s: string) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
@@ -21,7 +22,7 @@ export default function Despesas({ dadosIni }: { dadosIni: DespesasResp }) {
   // Nomenclatura que vai impressa no PDF, conforme o período que está selecionado na tela.
   const ROTULO = { atual: 'Semana atual', passada: 'Semana passada', periodo: 'Período selecionado' } as const;
   function exportarPdf() {
-    gerarPdfDespesas({ banca: 'PrimeBet', sem: { ...sem, rotulo: ROTULO[aba] } });
+    gerarPdfDespesas({ banca: MARCA.nome, sem: { ...sem, rotulo: ROTULO[aba] } });
   }
 
   function buscarPeriodo() {

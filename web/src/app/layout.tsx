@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { MARCA } from "@/lib/marca";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,15 +14,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://primefisica.site"),
-  title: "PrimeBet",
+  metadataBase: new URL(MARCA.siteUrl),
+  title: MARCA.nome,
   description: "Sistema de gestão.",
   robots: { index: false, follow: false },
   openGraph: {
-    title: "PrimeBet",
+    title: MARCA.nome,
     description: "Sistema de gestão.",
-    url: "https://primefisica.site",
-    siteName: "PrimeBet",
+    url: MARCA.siteUrl,
+    siteName: MARCA.nome,
     type: "website",
   },
 };
@@ -35,6 +36,8 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // Cores da marca do cliente (env) sobrescrevem os padrões do globals.css.
+      style={{ ["--marca" as string]: MARCA.cor, ["--marca-esc" as string]: MARCA.corEsc, ["--marca-claro" as string]: MARCA.corClaro }}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

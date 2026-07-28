@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 import type { FechCliRow, Reg } from './types';
 import { wa } from '@/lib/pdf-winansi';
 import { alinharCabecalho } from '@/lib/pdf-tabela';
+import { MARCA, corRGB } from '@/lib/marca';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const safe = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -46,7 +47,7 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0
   doc.setTextColor(120, 113, 108);
   doc.text('Fechamento', W - M, 46, { align: 'right' });
 
-  doc.setDrawColor(245, 158, 11);
+  doc.setDrawColor(...corRGB(MARCA.cor));
   doc.setLineWidth(1.5);
   doc.line(M, 56, W - M, 56);
 
@@ -137,7 +138,7 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0
       doc.text(`Pág. ${doc.getCurrentPageInfo().pageNumber}/${pg}`, W - M, ph - 18, { align: 'right' });
       doc.setFontSize(7);
       doc.setTextColor(150, 160, 175);
-      doc.text('desenvolvido por www.trackertipster.site', M, ph - 9);
+      doc.text(MARCA.rodapePdf, M, ph - 9);
     },
   });
 

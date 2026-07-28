@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable';
 import type { Reg } from '../admin/types';
 import { wa } from '@/lib/pdf-winansi';
 import { alinharCabecalho } from '@/lib/pdf-tabela';
+import { MARCA } from '@/lib/marca';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const safe = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -38,7 +39,7 @@ export interface PdfExtratoOpts {
 }
 
 export function gerarPdfExtrato(o: PdfExtratoOpts): { blob: Blob; nome: string } {
-  const banca = wa(o.banca ?? 'PrimeBet');
+  const banca = wa(o.banca ?? MARCA.nome);
   const cliente = wa(o.cliente);
   const periodo = wa(o.periodo);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
@@ -168,7 +169,7 @@ export function gerarPdfExtrato(o: PdfExtratoOpts): { blob: Blob; nome: string }
       doc.text(`Pág. ${doc.getCurrentPageInfo().pageNumber}/${doc.getNumberOfPages()}`, W - M, ph - 18, { align: 'right' });
       doc.setFontSize(7);
       doc.setTextColor(150, 160, 175);
-      doc.text('desenvolvido por www.trackertipster.site', M, ph - 9);
+      doc.text(MARCA.rodapePdf, M, ph - 9);
     },
   });
 

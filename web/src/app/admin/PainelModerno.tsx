@@ -18,6 +18,7 @@ import {
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
+import { MARCA } from '@/lib/marca';
 import { fmtOdd, fmtMoney, parseNumBR } from './num';
 
 interface Draft { dt?: string; odd?: string; val?: string; jogo?: string; st?: string; _saved?: boolean }
@@ -520,7 +521,7 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
     setPdfBusy(row.id);
     try {
       const bilhetes = await bilhetesCliente(row.id, fech.dt1 || null, fech.dt2 || null);
-      gerarPdfFechamento({ banca: 'PrimeBet', resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2, desc: cliDesc[row.id] ?? 0 });
+      gerarPdfFechamento({ banca: MARCA.nome, resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2, desc: cliDesc[row.id] ?? 0 });
     } catch { toast('Erro ao gerar o PDF.'); }
     finally { setPdfBusy(null); }
   }
@@ -531,7 +532,7 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
     setPdfGeralBusy(true);
     try {
       const desp = await listarDespesasPeriodo(fech.dt1 || null, fech.dt2 || null);
-      gerarPdfFechamentoGeral({ banca: 'PrimeBet', g: fechData.g, despesas: desp.total, dt1: fech.dt1, dt2: fech.dt2 });
+      gerarPdfFechamentoGeral({ banca: MARCA.nome, g: fechData.g, despesas: desp.total, dt1: fech.dt1, dt2: fech.dt2 });
     } catch { toast('Erro ao gerar o PDF.'); }
     finally { setPdfGeralBusy(false); }
   }
@@ -546,7 +547,7 @@ Nota: Se precisar de alguma correção ou ajuste nos dados, pedimos a gentileza 
 Agradecemos desde já pela confiança em nosso trabalho. 🙏
 
 Atenciosamente,
-Equipe PrimeBet`);
+${MARCA.equipe}`);
   const [envRow, setEnvRow] = useState<number | null>(null);
   const [enviandoTodos, setEnviandoTodos] = useState(false);
   function periodoTexto() {
@@ -566,7 +567,7 @@ Equipe PrimeBet`);
     const grupoId = cli?.grupoId || '';
     if (!grupoId) return { ok: false, erro: `${row.nome}: sem grupo vinculado.` };
     const bilhetes = await bilhetesCliente(row.id, fech.dt1 || null, fech.dt2 || null);
-    const { blob } = gerarPdfFechamento({ banca: 'PrimeBet', resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2, desc: cliDesc[row.id] ?? 0 }, false);
+    const { blob } = gerarPdfFechamento({ banca: MARCA.nome, resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2, desc: cliDesc[row.id] ?? 0 }, false);
     const pdfBase64 = await blobParaBase64(blob);
     const legenda = legendaEnvio.replace('{período}', periodoTexto());
     return enfileirarEnvioPdf({ grupoId, clienteNome: row.nome, pdfBase64, legenda });
@@ -651,7 +652,7 @@ Equipe PrimeBet`);
           <div className="flex min-w-0 shrink-0 items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">★</div>
             <div className="leading-tight">
-              <div className="text-sm font-medium text-amber-400">PrimeBet</div>
+              <div className="text-sm font-medium text-amber-400">{MARCA.nome}</div>
               <div className="text-[11px] text-slate-400">Controle</div>
             </div>
             {(() => {
@@ -660,7 +661,7 @@ Equipe PrimeBet`);
               const label = bot.ok ? '🟡 Bot sem WhatsApp' : '🔴 Bot offline';
               const cls = bot.ok ? 'border-amber-400/50 bg-amber-500/15 text-amber-200' : 'border-rose-500/50 bg-rose-500/20 text-rose-200';
               const tip = bot.ok ? 'WhatsApp desconectado — clique para abrir o QR e reparear o bot' : 'Bot fora do ar — clique para abrir a página de QR/health';
-              return <a href="https://primebet-production.up.railway.app/?t=primebet2026" target="_blank" rel="noopener noreferrer" title={tip} className={`animate-pulse rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${cls}`}>{label} — reconectar →</a>;
+              return <a href={MARCA.botUrl} target="_blank" rel="noopener noreferrer" title={tip} className={`animate-pulse rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${cls}`}>{label} — reconectar →</a>;
             })()}
           </div>
           {/* SEM justify-end e SEM flex-1: com eles, o que transborda vai para a ESQUERDA
