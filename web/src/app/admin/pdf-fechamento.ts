@@ -63,8 +63,7 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0
   const cards: [string, number][] = [
     ['Calção', resumo.cal], ['Saldo calção', resumo.saldoCal],
     ['Total apostado', resumo.val], ['Em aberto', resumo.ab],
-    ['Saldo bruto', resumo.sb], ['Comissão', resumo.cm],
-    ['Com. afiliado', resumo.caf], ['Saldo líquido', resumo.sl],
+    ['Comissão', resumo.cm], ['Saldo líquido', resumo.sl],
   ];
   const cols = 4;
   const gap = 8;
