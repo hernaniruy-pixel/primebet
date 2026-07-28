@@ -114,9 +114,9 @@ const filtrosVazios = {
   aba: 'pend',  // 'pend' = fila pendente (EM ABERTO + contestadas) | 'todas' = histórico completo
 };
 
-const inp = 'w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-sm text-slate-800 dark:text-slate-100 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20';
+const inp = 'w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-sm text-slate-800 dark:text-slate-100 outline-none transition focus:border-marca-500 focus:ring-2 focus:ring-marca-500/20';
 const lbl = 'mb-1 block text-[11px] font-medium text-slate-400 dark:text-slate-500';
-const cinp = 'rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-amber-500';
+const cinp = 'rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-marca-500';
 
 // Rótulos das ações registradas no histórico (auditoria) do bilhete.
 const ACAO_LABEL: Record<string, string> = {
@@ -648,18 +648,18 @@ ${MARCA.equipe}`);
         {/* TOPBAR */}
         {/* min-w-0 + nav rolável: no celular os 9 itens não cabem numa linha. Sem isto
             eles esticavam a página, criavam rolagem lateral e apareciam as bordas pretas. */}
-        <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b-2 border-amber-500 bg-slate-900 px-3 sm:px-4">
+        <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b-2 border-marca-500 bg-slate-900 px-3 sm:px-4">
           <div className="flex min-w-0 shrink-0 items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">★</div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-marca-500/20 text-marca-400">★</div>
             <div className="leading-tight">
-              <div className="text-sm font-medium text-amber-400">{MARCA.nome}</div>
+              <div className="text-sm font-medium text-marca-400">{MARCA.nome}</div>
               <div className="text-[11px] text-slate-400">Controle</div>
             </div>
             {(() => {
               if (!bot) return <span className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-300">🤖 verificando…</span>;
               if (bot.ok && bot.pronto) return <span title="Bot conectado ao WhatsApp" className="rounded-lg border border-emerald-400/40 bg-emerald-500/15 px-2.5 py-1.5 text-xs font-medium text-emerald-300">🟢 Bot online</span>;
               const label = bot.ok ? '🟡 Bot sem WhatsApp' : '🔴 Bot offline';
-              const cls = bot.ok ? 'border-amber-400/50 bg-amber-500/15 text-amber-200' : 'border-rose-500/50 bg-rose-500/20 text-rose-200';
+              const cls = bot.ok ? 'border-marca-400/50 bg-marca-500/15 text-marca-200' : 'border-rose-500/50 bg-rose-500/20 text-rose-200';
               const tip = bot.ok ? 'WhatsApp desconectado — clique para abrir o QR e reparear o bot' : 'Bot fora do ar — clique para abrir a página de QR/health';
               return <a href={MARCA.botUrl} target="_blank" rel="noopener noreferrer" title={tip} className={`animate-pulse rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${cls}`}>{label} — reconectar →</a>;
             })()}
@@ -746,7 +746,7 @@ ${MARCA.equipe}`);
                 onClick={() => setF('aba', k, true)}
                 className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
                   filtros.aba === k
-                    ? 'bg-amber-500 text-white shadow-sm'
+                    ? 'bg-marca-500 text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100'
                 }`}
               >
@@ -803,7 +803,7 @@ ${MARCA.equipe}`);
             </div>
             <div className="mt-3 flex flex-wrap justify-end gap-2">
               <button onClick={limpar} title="Limpar todos os filtros" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">🗑️ Limpar</button>
-              <button onClick={() => { reload(); toast('Lista atualizada.'); }} title="Recarregar a lista (descarta rascunhos não salvos)" className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition hover:border-amber-400 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20">🔄 Atualizar</button>
+              <button onClick={() => { reload(); toast('Lista atualizada.'); }} title="Recarregar a lista (descarta rascunhos não salvos)" className="inline-flex items-center gap-1.5 rounded-lg border border-marca-300 bg-marca-50 px-3 py-1.5 text-sm font-medium text-marca-700 transition hover:border-marca-400 hover:bg-marca-100 dark:border-marca-500/40 dark:bg-marca-500/10 dark:text-marca-300 dark:hover:bg-marca-500/20">🔄 Atualizar</button>
             </div>
           </div>
 
@@ -851,7 +851,7 @@ ${MARCA.equipe}`);
                               <div className="text-[11px] text-slate-400">{p.data}</div>
                             </>); })()}
                             {/* Lápis: corrige data/hora (ex.: print reenviado noutro dia). */}
-                            <button onClick={() => abrirDt(r)} title="Editar data e hora" className="absolute right-0 top-0 rounded p-1 text-slate-300 transition hover:bg-amber-50 hover:text-amber-600 dark:text-slate-500 dark:hover:bg-amber-500/10 dark:hover:text-amber-400">✏️</button>
+                            <button onClick={() => abrirDt(r)} title="Editar data e hora" className="absolute right-0 top-0 rounded p-1 text-slate-300 transition hover:bg-marca-50 hover:text-marca-600 dark:text-slate-500 dark:hover:bg-marca-500/10 dark:hover:text-marca-400">✏️</button>
                           </div>
                         </td>
                         <td className="px-2 py-1.5">
@@ -862,7 +862,7 @@ ${MARCA.equipe}`);
                             deixa números/odds na mesma largura — muito mais fácil de conferir. */}
                         <td className="px-2 py-1.5"><div className="relative max-w-[340px] pr-6 font-mono text-[11px] leading-snug">
                           {/* Lápis: edita o texto do bilhete (corrige time/handicap que a IA não pegou). */}
-                          <button onClick={() => setJogoModal({ id: r.id, text: r.jogo })} title="Editar o texto do bilhete" className="absolute right-0 top-0 rounded p-1 text-slate-300 transition hover:bg-amber-50 hover:text-amber-600 dark:text-slate-500 dark:hover:bg-amber-500/10 dark:hover:text-amber-400">✏️</button>
+                          <button onClick={() => setJogoModal({ id: r.id, text: r.jogo })} title="Editar o texto do bilhete" className="absolute right-0 top-0 rounded p-1 text-slate-300 transition hover:bg-marca-50 hover:text-marca-600 dark:text-slate-500 dark:hover:bg-marca-500/10 dark:hover:text-marca-400">✏️</button>
                           {r.ct && (
                             <span className="mb-1 flex flex-wrap items-center gap-1">
                               <span title={r.ctMotivo || 'Contestada pelo cliente'} className="inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">⚠️ Contestada</span>
@@ -889,9 +889,9 @@ ${MARCA.equipe}`);
                           {renderJogo(r.jogo)}
                         </div></td>
                         <td className="px-2 py-1.5 text-center">
-                          <NumInput kind="odd" desc={cliDesc[r.cId] ?? 0} value={dV(r, 'odd')} onChange={(v) => updDraft(r.id, 'odd', v)} cls={`${cinp} w-16 text-center ${edited(r, 'odd') ? 'border-amber-400' : ''}`} />
+                          <NumInput kind="odd" desc={cliDesc[r.cId] ?? 0} value={dV(r, 'odd')} onChange={(v) => updDraft(r.id, 'odd', v)} cls={`${cinp} w-16 text-center ${edited(r, 'odd') ? 'border-marca-400' : ''}`} />
                         </td>
-                        <td className="px-2 py-1.5 text-center"><NumInput kind="money" value={dV(r, 'val')} onChange={(v) => updDraft(r.id, 'val', v)} cls={`${cinp} w-20 text-center font-medium ${edited(r, 'val') ? 'border-amber-400' : ''}`} /></td>
+                        <td className="px-2 py-1.5 text-center"><NumInput kind="money" value={dV(r, 'val')} onChange={(v) => updDraft(r.id, 'val', v)} cls={`${cinp} w-20 text-center font-medium ${edited(r, 'val') ? 'border-marca-400' : ''}`} /></td>
                         <td className="px-2 py-1.5 text-center">
                           {(() => { const stv = dV(r, 'st'); const pend = edited(r, 'st'); return (
                             <select value={stv} onChange={(e) => updDraft(r.id, 'st', e.target.value)} title={pend ? 'Status não salvo — clique em Salvar para confirmar' : undefined} style={{ backgroundColor: stStyle(stv).bg, color: stStyle(stv).fg, boxShadow: pend ? '0 0 0 2px #f59e0b' : undefined }} className="pb-st rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer">{STS.map((s) => <option key={s} value={s} style={{ backgroundColor: stStyle(s).bg, color: stStyle(s).fg }}>{s}</option>)}</select>
@@ -982,7 +982,7 @@ ${MARCA.equipe}`);
                 <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px]">
                   <span className="rounded-full bg-slate-800 px-2.5 py-1 font-semibold text-[#DAA520]">{ativos.length} clientes ativos</span>
                   <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">🟢 {lendo} sendo lidos</span>
-                  {vinculando > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">⏳ {vinculando} vinculando</span>}
+                  {vinculando > 0 && <span className="rounded-full bg-marca-100 px-2.5 py-1 font-semibold text-marca-700 dark:bg-marca-500/15 dark:text-marca-300">⏳ {vinculando} vinculando</span>}
                   {fora > 0 && <span className="rounded-full bg-rose-100 px-2.5 py-1 font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">🔴 {fora} ativo(s) sem grupo — o bot não lê</span>}
                   {inativos > 0 && <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">⚠️ {inativos} inativo(s)</span>}
                 </div>
@@ -1023,7 +1023,7 @@ ${MARCA.equipe}`);
                     <td className="px-2 py-1.5"><div className="flex items-center gap-1.5"><input className={`${cinp} w-44`} placeholder="link do grupo" value={c.grupoLink ?? ''} onChange={(e) => updCli(c.id, { grupoLink: e.target.value })} /><StatusGrupo ativo={c.on} link={c.grupoLink} grupoId={c.grupoId} /></div></td>
                     <td className="px-2 py-1.5 sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800">
                       <div className="flex gap-1.5">
-                        <button onClick={() => saveCli(c.id)} className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700">Salvar</button>
+                        <button onClick={() => saveCli(c.id)} className="rounded-lg bg-marca-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-marca-700">Salvar</button>
                         <button onClick={() => delCli(c.id)} title="Excluir cliente (só sem apostas no sistema)" className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-50 dark:border-rose-500/30 dark:hover:bg-rose-500/10">Excluir</button>
                       </div>
                     </td>
@@ -1046,7 +1046,7 @@ ${MARCA.equipe}`);
                   <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-24`} value={a.com} onChange={(e) => updAf(a.id, { com: Number(e.target.value) })} /></td>
                   <td className="px-2 py-1.5">
                     <div className="flex gap-1.5">
-                      <button onClick={() => saveAf(a.id)} className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700">Salvar</button>
+                      <button onClick={() => saveAf(a.id)} className="rounded-lg bg-marca-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-marca-700">Salvar</button>
                       <button onClick={() => delAf(a.id)} title="Excluir supervisor (só sem clientes vinculados)" className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-50 dark:border-rose-500/30 dark:hover:bg-rose-500/10">Excluir</button>
                     </div>
                   </td>
@@ -1151,7 +1151,7 @@ ${MARCA.equipe}`);
               const u = plano.uso;
               const pctFill = Math.min(u.pct, 100);
               const nivel = u.pct >= 100 ? 'cheio' : u.pct >= 80 ? 'alerta' : 'ok';
-              const barColor = nivel === 'cheio' ? 'bg-rose-500' : nivel === 'alerta' ? 'bg-amber-500' : 'bg-emerald-500';
+              const barColor = nivel === 'cheio' ? 'bg-rose-500' : nivel === 'alerta' ? 'bg-marca-500' : 'bg-emerald-500';
               const cicloIni = u.cicloInicio ? new Date(u.cicloInicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—';
               return (
                 <div className="flex flex-col gap-5">
@@ -1168,7 +1168,7 @@ ${MARCA.equipe}`);
                       <span>Ciclo desde {cicloIni} · renova todo dia {plano.config.renovaDia}</span>
                       <span className="font-mono tabular-nums">{u.pct.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}%</span>
                     </div>
-                    {nivel === 'alerta' && <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">⚠️ Chegando no limite da cota ({u.pct.toFixed(0)}%). Fique de olho — ao passar de 100% começa a contar excedente.</div>}
+                    {nivel === 'alerta' && <div className="mt-3 rounded-lg bg-marca-50 px-3 py-2 text-[12px] text-marca-700 dark:bg-marca-500/10 dark:text-marca-400">⚠️ Chegando no limite da cota ({u.pct.toFixed(0)}%). Fique de olho — ao passar de 100% começa a contar excedente.</div>}
                     {nivel === 'cheio' && <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-[12px] text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">🔴 Cota atingida. Não travou nada — segue transcrevendo. O excedente abaixo entra na próxima mensalidade.</div>}
                   </div>
 
@@ -1239,7 +1239,7 @@ ${MARCA.equipe}`);
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{u.nome}</div>
                         <div className="mt-0.5 flex items-center gap-1.5">
-                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${u.papel === 'gestor' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300'}`}>{u.papel}</span>
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${u.papel === 'gestor' ? 'bg-marca-100 text-marca-700 dark:bg-marca-500/20 dark:text-marca-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300'}`}>{u.papel}</span>
                           {!u.ativo && <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-700">inativo</span>}
                         </div>
                       </div>
@@ -1251,7 +1251,7 @@ ${MARCA.equipe}`);
                     {resetUser?.id === u.id && (
                       <div className="mt-2 flex items-center gap-2 border-t border-slate-200 pt-2 dark:border-slate-700">
                         <input className={inp} type="text" autoFocus value={resetUser.senha} onChange={(e) => setResetUser((r) => (r ? { ...r, senha: e.target.value } : r))} placeholder="nova senha (mín. 4)" />
-                        <button onClick={salvarResetSenha} className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">Salvar</button>
+                        <button onClick={salvarResetSenha} className="shrink-0 rounded-lg bg-marca-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-marca-700">Salvar</button>
                         <button onClick={() => setResetUser(null)} className="shrink-0 rounded-lg px-2 py-1.5 text-sm text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Cancelar</button>
                       </div>
                     )}
@@ -1335,7 +1335,7 @@ ${MARCA.equipe}`);
               <div className="flex justify-end gap-2">
                 <button onClick={() => setObsModal(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button>
                 <button onClick={resolverObs} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Resolvido</button>
-                <button onClick={salvarObs} className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">Salvar</button>
+                <button onClick={salvarObs} className="rounded-lg bg-marca-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-marca-700">Salvar</button>
               </div>
             </div>
           </Modal>
@@ -1351,7 +1351,7 @@ ${MARCA.equipe}`);
               <p className="text-[11px] text-slate-400">Use para corrigir o que a transcrição não pegou (nome do time, handicap, seleções). Uma linha por seleção.</p>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setJogoModal(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button>
-                <button onClick={salvarJogo} className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">Salvar</button>
+                <button onClick={salvarJogo} className="rounded-lg bg-marca-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-marca-700">Salvar</button>
               </div>
             </div>
           </Modal>
@@ -1372,7 +1372,7 @@ ${MARCA.equipe}`);
               <p className="text-[11px] text-slate-400">A data da aposta é a do momento em que o cliente mandou o print. Corrija aqui se o horário ficou errado.</p>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setDtModal(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button>
-                <button onClick={salvarDt} className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">Salvar</button>
+                <button onClick={salvarDt} className="rounded-lg bg-marca-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-marca-700">Salvar</button>
               </div>
             </div>
           </Modal>
@@ -1412,13 +1412,13 @@ function tot(n: number) { return `R$ ${fmt(n)}`; }
 // cartão e o selo ficava boiando. O -100 com borda -300 desenha o selo de verdade.
 const KPI_COR: Record<string, string> = {
   blue: 'border-blue-300 bg-blue-100 text-blue-600 dark:border-blue-400/40 dark:bg-blue-500/15 dark:text-blue-300',
-  amber: 'border-amber-300 bg-amber-100 text-amber-600 dark:border-amber-400/40 dark:bg-amber-500/15 dark:text-amber-300',
+  amber: 'border-marca-300 bg-marca-100 text-marca-600 dark:border-marca-400/40 dark:bg-marca-500/15 dark:text-marca-300',
   violet: 'border-violet-300 bg-violet-100 text-violet-600 dark:border-violet-400/40 dark:bg-violet-500/15 dark:text-violet-300',
   emerald: 'border-emerald-300 bg-emerald-100 text-emerald-600 dark:border-emerald-400/40 dark:bg-emerald-500/15 dark:text-emerald-300',
   rose: 'border-rose-300 bg-rose-100 text-rose-600 dark:border-rose-400/40 dark:bg-rose-500/15 dark:text-rose-300',
   teal: 'border-teal-300 bg-teal-100 text-teal-600 dark:border-teal-400/40 dark:bg-teal-500/15 dark:text-teal-300',
   slate: 'border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-500/50 dark:bg-slate-700 dark:text-slate-300',
-  destaque: 'border-amber-400 bg-amber-200/60 text-amber-700 dark:border-amber-400/50 dark:bg-amber-400/20 dark:text-amber-300',
+  destaque: 'border-marca-400 bg-marca-200/60 text-marca-700 dark:border-marca-400/50 dark:bg-marca-400/20 dark:text-marca-300',
 };
 
 /**
@@ -1432,8 +1432,8 @@ function Kpi({ icone, cor, titulo, valor, valorCls, sub, dica, href }: {
   const destaque = cor === 'destaque';
   // Borda dourada em todos os cartões (era só no Resumo total). O destaque continua
   // se separando pelo anel âmbar e pelo número maior, não pela cor da borda.
-  const cls = `group relative overflow-hidden rounded-xl border border-amber-400 bg-white p-3 transition dark:border-amber-500/50 dark:bg-slate-900 ${
-    destaque ? 'ring-1 ring-amber-400/30' : 'hover:shadow-sm hover:ring-1 hover:ring-amber-400/20'}`;
+  const cls = `group relative overflow-hidden rounded-xl border border-marca-400 bg-white p-3 transition dark:border-marca-500/50 dark:bg-slate-900 ${
+    destaque ? 'ring-1 ring-marca-400/30' : 'hover:shadow-sm hover:ring-1 hover:ring-marca-400/20'}`;
   const conteudo = (
     <>
       <div className="flex items-start justify-between gap-2">
@@ -1447,7 +1447,7 @@ function Kpi({ icone, cor, titulo, valor, valorCls, sub, dica, href }: {
     </>
   );
   return href
-    ? <a href={href} title={dica} className={`${cls} block hover:border-amber-400`}>{conteudo}</a>
+    ? <a href={href} title={dica} className={`${cls} block hover:border-marca-400`}>{conteudo}</a>
     : <div title={dica} className={cls}>{conteudo}</div>;
 }
 
@@ -1473,7 +1473,7 @@ function StatusGrupo({ ativo, link, grupoId }: { ativo: boolean; link: string | 
     return <span title="Cliente inativo — o bot não lê, e está certo assim." className="shrink-0 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">Inativo</span>;
   }
   if (link) {
-    return <span title="Link colado, mas o bot ainda não vinculou. Costuma levar até 1 minuto. Se ficar assim, o link está inválido ou expirado — gere um novo no WhatsApp e cole aqui." className="shrink-0 whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">Vinculando…</span>;
+    return <span title="Link colado, mas o bot ainda não vinculou. Costuma levar até 1 minuto. Se ficar assim, o link está inválido ou expirado — gere um novo no WhatsApp e cole aqui." className="shrink-0 whitespace-nowrap rounded-full bg-marca-100 px-2 py-0.5 text-[10px] font-semibold text-marca-700 dark:bg-marca-500/15 dark:text-marca-300">Vinculando…</span>;
   }
   return <span title="Cliente ATIVO sem link do grupo: o bot NÃO lê este cliente. Nenhum bilhete dele entra no sistema." className="shrink-0 whitespace-nowrap rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">Sem grupo</span>;
 }

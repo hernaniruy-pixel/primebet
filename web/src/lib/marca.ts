@@ -34,6 +34,10 @@ export const MARCA = {
   cor: env('NEXT_PUBLIC_MARCA_COR', '#DAA520'),        // dourado principal
   corEsc: env('NEXT_PUBLIC_MARCA_COR_ESC', '#B8860B'), // dourado escuro (botões, bordas)
   corClaro: env('NEXT_PUBLIC_MARCA_COR_CLARO', '#F0D060'), // dourado claro (realces)
+  // Base da rampa do painel (bg-marca-*/text-marca-*). Lê a MESMA env da cor
+  // principal, mas cai em amber-500 quando não definida — assim a PrimeBet fica
+  // idêntica e um cliente que define NEXT_PUBLIC_MARCA_COR pinta o painel todo.
+  corRamp: env('NEXT_PUBLIC_MARCA_COR', '#f59e0b'),
 };
 
 /** '#RRGGBB' → [r,g,b] para o jsPDF (setDrawColor/setTextColor). */

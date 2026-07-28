@@ -111,7 +111,7 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
               <div className="text-[11px] text-slate-300">Imagens recebidas × transcritas</div>
             </div>
           </div>
-          <button onClick={() => recarregar()} className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200 hover:bg-amber-500/20">🔄 Atualizar</button>
+          <button onClick={() => recarregar()} className="rounded-lg border border-marca-400/40 bg-marca-500/10 px-3 py-1.5 text-xs text-marca-200 hover:bg-marca-500/20">🔄 Atualizar</button>
         </div>
       </header>
 
@@ -126,7 +126,7 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
 
           <button
             onClick={() => selecionarGrupo('')}
-            className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${grupoSel === '' ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}
+            className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${grupoSel === '' ? 'border-marca-400 bg-marca-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}
           >
             <b>Todos os grupos</b>
           </button>
@@ -137,7 +137,7 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
               value={buscaGrupo}
               onChange={(e) => setBuscaGrupo(e.target.value)}
               placeholder="🔍 Buscar grupo…"
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-marca-500 focus:ring-2 focus:ring-marca-500/20"
             />
             {buscaGrupo && (
               <button onClick={() => setBuscaGrupo('')} title="Limpar" className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-1 text-slate-400 hover:text-slate-700">✕</button>
@@ -151,7 +151,7 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
               <button
                 key={g.grupo_id}
                 onClick={() => selecionarGrupo(g.grupo_id)}
-                className={`w-full rounded-lg border px-3 py-2 text-left ${grupoSel === g.grupo_id ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}
+                className={`w-full rounded-lg border px-3 py-2 text-left ${grupoSel === g.grupo_id ? 'border-marca-400 bg-marca-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate text-sm font-medium">{g.grupo_nome || g.grupo_id}</span>
@@ -159,7 +159,7 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
                 </div>
                 <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-400">
                   <span>{g.transcritas}/{g.recebidas} transcritas</span>
-                  {!g.tem_cliente && <span className="rounded bg-amber-100 px-1.5 font-semibold text-amber-700">⚠️ sem cliente</span>}
+                  {!g.tem_cliente && <span className="rounded bg-marca-100 px-1.5 font-semibold text-marca-700">⚠️ sem cliente</span>}
                 </div>
               </button>
             ))}
@@ -213,7 +213,7 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
                       {img.reagida
                         ? <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">✅ {img.lancada ? `#${img.apostaId}` : 'transcrita'}</span>
                         : img.pedidoStatus === 'pendente'
-                          ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">⏳ lançando…</span>
+                          ? <span className="rounded-full bg-marca-100 px-2 py-0.5 text-[10px] font-semibold text-marca-700">⏳ lançando…</span>
                           : img.pedidoStatus === 'erro'
                             ? <span title={img.pedidoErro || ''} className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">erro ⚠</span>
                             : img.ignorada

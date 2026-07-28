@@ -37,7 +37,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       // Cores da marca do cliente (env) sobrescrevem os padrões do globals.css.
-      style={{ ["--marca" as string]: MARCA.cor, ["--marca-esc" as string]: MARCA.corEsc, ["--marca-claro" as string]: MARCA.corClaro }}
+      style={{ ["--marca" as string]: MARCA.cor, ["--marca-esc" as string]: MARCA.corEsc, ["--marca-claro" as string]: MARCA.corClaro, ["--marca-base" as string]: MARCA.corRamp }}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

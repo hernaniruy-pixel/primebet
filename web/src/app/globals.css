@@ -10,9 +10,15 @@
   /* Cores da MARCA (white-label). Padrão = PrimeBet (dourado). O layout.tsx
      sobrescreve estes valores com as NEXT_PUBLIC_MARCA_COR* do cliente, quando
      houver. Todo dourado do painel aponta para estas variáveis. */
-  --marca: #DAA520;       /* principal */
+  --marca: #DAA520;       /* principal (realces em hex: login, extrato, PDF) */
   --marca-esc: #B8860B;   /* escuro (botões, bordas, faixas) */
   --marca-claro: #F0D060; /* claro (realces) */
+
+  /* Base da RAMPA do painel (utilitarios bg-marca / text-marca / border-marca).
+     Padrão = amber-500, para o painel PrimeBet ficar idêntico ao de hoje. O
+     layout.tsx troca por NEXT_PUBLIC_MARCA_COR quando o cliente define. A rampa
+     inteira (50 a 700) deriva desta base via color-mix — trocar 1 cor pinta tudo. */
+  --marca-base: #f59e0b;
 }
 
 @theme inline {
@@ -20,6 +26,19 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Rampa da marca — derivada de --marca-base. Gera os utilitários
+     bg-marca-500, text-marca-400, border-marca-600, dark:text-marca-300, etc.,
+     inclusive com opacidade (bg-marca-500/20). Percentuais calibrados p/ que a
+     base amber-500 reproduza a paleta amber do Tailwind de perto. */
+  --color-marca-50:  color-mix(in srgb, var(--marca-base) 9%,  #ffffff);
+  --color-marca-100: color-mix(in srgb, var(--marca-base) 20%, #ffffff);
+  --color-marca-200: color-mix(in srgb, var(--marca-base) 38%, #ffffff);
+  --color-marca-300: color-mix(in srgb, var(--marca-base) 60%, #ffffff);
+  --color-marca-400: color-mix(in srgb, var(--marca-base) 82%, #ffffff);
+  --color-marca-500: var(--marca-base);
+  --color-marca-600: color-mix(in srgb, var(--marca-base) 84%, #000000);
+  --color-marca-700: color-mix(in srgb, var(--marca-base) 66%, #000000);
 }
 
 /* NÃO seguir o modo escuro do sistema aqui: o tema do painel é por CLASSE (.dark,

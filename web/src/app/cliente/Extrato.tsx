@@ -26,11 +26,11 @@ const CARD_COR: Record<string, string> = {
   slate: 'border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
   blue: 'border-blue-300 bg-blue-100 text-blue-600 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-300',
   violet: 'border-violet-300 bg-violet-100 text-violet-600 dark:border-violet-500/40 dark:bg-violet-500/15 dark:text-violet-300',
-  destaque: 'border-amber-400 bg-amber-200/60 text-amber-700 dark:border-amber-500/50 dark:bg-amber-500/15 dark:text-amber-300',
+  destaque: 'border-marca-400 bg-marca-200/60 text-marca-700 dark:border-marca-500/50 dark:bg-marca-500/15 dark:text-marca-300',
 };
 
 // Campos iguais aos do painel (o foco âmbar é a identidade da casa).
-const inp = 'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100';
+const inp = 'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 outline-none transition focus:border-marca-500 focus:ring-2 focus:ring-marca-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100';
 const lbl = 'mb-1 block text-[11px] font-medium text-slate-400 dark:text-slate-500';
 const painel = 'rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900';
 
@@ -422,7 +422,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
                         key={s}
                         type="button"
                         onClick={() => setStSugerido(on ? '' : s)}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${STBTN[s]} bg-white dark:bg-slate-900 ${on ? 'ring-2 ring-amber-400' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${STBTN[s]} bg-white dark:bg-slate-900 ${on ? 'ring-2 ring-marca-400' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                       >
                         {s}
                       </button>
@@ -436,7 +436,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
                 onChange={(e) => setMotivo(e.target.value)}
                 rows={3}
                 placeholder="Descreva o motivo (opcional)…"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-marca-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               />
               {msg && <div className="mt-2 text-xs text-rose-600">{msg}</div>}
               <div className="mt-4 flex justify-end gap-2">
@@ -534,7 +534,7 @@ function Card({ icone, cor, titulo, valor, valorCls, destaque }: {
 }) {
   const selo = CARD_COR[cor] ?? CARD_COR.slate;
   return (
-    <div className={`rounded-xl border border-amber-400 bg-white p-3 dark:border-amber-500/40 dark:bg-slate-900 ${destaque ? 'ring-1 ring-amber-400/30' : ''}`}>
+    <div className={`rounded-xl border border-marca-400 bg-white p-3 dark:border-marca-500/40 dark:bg-slate-900 ${destaque ? 'ring-1 ring-marca-400/30' : ''}`}>
       <div className="flex items-start justify-between gap-2">
         <div className={`inline-block rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${selo}`}>{titulo}</div>
         <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[11px] ${selo}`}>{icone}</span>

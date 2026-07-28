@@ -27,9 +27,11 @@ Defina em **Vercel → Project → Settings → Environment Variables** e faça 
 | `NEXT_PUBLIC_MARCA_COR_ESC` | Cor escura (botões/bordas/faixas) | `#144077` |
 | `NEXT_PUBLIC_MARCA_COR_CLARO` | Cor clara (realces) | `#5A93D6` |
 
-As três cores viram as variáveis CSS `--marca / --marca-esc / --marca-claro` e também
-pintam a faixa de destaque no topo dos PDFs. **Deixe em branco para manter o dourado
-PrimeBet.**
+`NEXT_PUBLIC_MARCA_COR` é a mais importante: além de virar a variável `--marca`
+(realces em login/extrato) e a faixa dos PDFs, ela também é a **base da rampa do painel**
+(`--marca-base`) — o painel inteiro (fundos, bordas, textos, hover, claro/escuro) é gerado
+dela via `color-mix`, então **uma cor repinta tudo**. As `_ESC` e `_CLARO` afinam só os
+realces em hex. **Deixe em branco para manter o dourado PrimeBet.**
 
 ## 2) Bot (Railway) — variáveis de ambiente
 

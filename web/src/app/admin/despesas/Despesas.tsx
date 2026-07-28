@@ -56,7 +56,7 @@ export default function Despesas({ dadosIni }: { dadosIni: DespesasResp }) {
           </div>
           <div className="flex items-center gap-2">
             <button onClick={exportarPdf} title="Baixar o PDF das despesas do período selecionado" className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs text-white hover:bg-white/15">📄 Exportar PDF</button>
-            <button onClick={recarregar} className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200 hover:bg-amber-500/20">🔄 Atualizar</button>
+            <button onClick={recarregar} className="rounded-lg border border-marca-400/40 bg-marca-500/10 px-3 py-1.5 text-xs text-marca-200 hover:bg-marca-500/20">🔄 Atualizar</button>
           </div>
         </div>
       </header>
@@ -87,11 +87,11 @@ export default function Despesas({ dadosIni }: { dadosIni: DespesasResp }) {
           <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-3">
             <div>
               <label className="mb-1 block text-[11px] font-medium text-slate-500">De</label>
-              <input type="date" value={dt1} onChange={(e) => setDt1(e.target.value)} className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-amber-500" />
+              <input type="date" value={dt1} onChange={(e) => setDt1(e.target.value)} className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-marca-500" />
             </div>
             <div>
               <label className="mb-1 block text-[11px] font-medium text-slate-500">Até</label>
-              <input type="date" value={dt2} onChange={(e) => setDt2(e.target.value)} className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-amber-500" />
+              <input type="date" value={dt2} onChange={(e) => setDt2(e.target.value)} className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-marca-500" />
             </div>
             <button onClick={buscarPeriodo} className="rounded-lg bg-[#13200a] px-4 py-1.5 text-sm font-medium text-[#DAA520] hover:brightness-125">Buscar</button>
             <button onClick={() => { setDt1(''); setDt2(''); startTransition(async () => setPeriodo(await listarDespesasPeriodo(null, null))); }} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Todo o histórico</button>
