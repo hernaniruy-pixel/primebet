@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { setClienteCookie } from '@/lib/cliente-session';
+import { setEquipeCookie } from '@/lib/equipe-session';
+import { conferirSenha } from '@/lib/senha';
 
 export type LoginState = { erro?: string };
 
@@ -26,8 +28,25 @@ export async function entrar(_prev: LoginState, formData: FormData): Promise<Log
     redirect('/admin');
   }
 
-  // 2) Cliente (nome + senha do cadastro). Só clientes ativos com senha definida.
   const db = createAdminClient();
+
+  // 2) Equipe (gestor/operador). Login = nome; senha conferida por hash (scrypt).
+  //    O 'admin' já foi tratado acima e não pode ser cadastrado como equipe.
+  const { data: eq } = await db
+    .from('equipe')
+    .select('id,nome,senha_hash,papel,ativo')
+    .ilike('nome', usuario)
+    .maybeSingle();
+  if (
+    eq && eq.ativo &&
+    String(eq.nome).toLowerCase() === usuario.toLowerCase() &&
+    conferirSenha(senha, String(eq.senha_hash))
+  ) {
+    await setEquipeCookie(Number(eq.id), String(eq.nome), eq.papel as 'gestor' | 'operador');
+    redirect('/admin');
+  }
+
+  // 3) Cliente (nome + senha do cadastro). Só clientes ativos com senha definida.
   const { data: cli } = await db.rpc('cliente_login', { p_nome: usuario, p_senha: senha });
   if (cli) {
     const c = cli as { id: number; nome: string };

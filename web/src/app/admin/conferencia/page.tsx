@@ -1,14 +1,13 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { atorAtual } from '@/lib/auth-equipe';
 import { listarConfGrupos, listarConfImagens } from '../actions';
 import Conferencia from './Conferencia';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ConferenciaPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect('/login');
+  const ator = await atorAtual();  // admin, gestor ou operador — todos usam a conferência
+  if (!ator) redirect('/login');
 
   const [grupos, imagens] = await Promise.all([
     listarConfGrupos(),

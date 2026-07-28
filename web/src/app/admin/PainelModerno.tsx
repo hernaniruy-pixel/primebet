@@ -11,6 +11,7 @@ import {
   fechamentoClientes, fechamentoAfiliados, bilhetesCliente, listarDespesasPeriodo,
   statusBot, type BotStatus,
   lerPlano, type PlanoConfig, type UsoCota,
+  sairEquipe,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
@@ -127,8 +128,8 @@ function Modal({ title, onClose, max = 'max-w-3xl', children }: { title: ReactNo
   );
 }
 
-export default function PainelModerno({ email, clientesIni, afiliadosIni, apostasIni, semana }: {
-  email: string; clientesIni: Cliente[]; afiliadosIni: Afiliado[]; apostasIni: ApostasPage; semana: { d1: string; d2: string };
+export default function PainelModerno({ email, papel, clientesIni, afiliadosIni, apostasIni, semana }: {
+  email: string; papel: 'admin' | 'gestor' | 'operador'; clientesIni: Cliente[]; afiliadosIni: Afiliado[]; apostasIni: ApostasPage; semana: { d1: string; d2: string };
 }) {
   const router = useRouter();
   const [dark, setDark] = useState(false);
@@ -418,7 +419,13 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
       toast(inc ? 'Bilhete recebido (EM ABERTO) — preencha odd/valor.' : 'Bilhete recebido na fila.');
     } catch { toast('Erro ao receber bilhete.'); }
   }
-  async function sair() { const s = createClient(); await s.auth.signOut(); router.replace('/login'); }
+  async function sair() {
+    // Admin sai do Supabase Auth; gestor/operador limpam o cookie da equipe. Faz os dois
+    // (quem não tiver um deles, o outro é no-op) e volta pro login.
+    try { await createClient().auth.signOut(); } catch { /* admin pode não ter sessão supabase */ }
+    try { await sairEquipe(); } catch { /* sem cookie de equipe, tudo bem */ }
+    router.replace('/login');
+  }
   async function salvarObs() { if (!obsModal) return; const t = obsModal.text.trim(); await patchReg(obsModal.id, { obs: t, adv: t.length > 0 }); setObsModal(null); toast(t ? 'Advertência salva.' : 'Advertência removida.'); }
   async function resolverObs() { if (!obsModal) return; await patchReg(obsModal.id, { adv: false }); setObsModal(null); toast('Advertência resolvida.'); }
   async function salvarJogo() { if (!jogoModal) return; await patchReg(jogoModal.id, { jogo: jogoModal.text }); setJogoModal(null); toast(`Bilhete #${jogoModal.id} atualizado.`); }
@@ -562,7 +569,7 @@ export default function PainelModerno({ email, clientesIni, afiliadosIni, aposta
             <button onClick={toggleTheme} title="Tema" className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
             {/* O e-mail saiu do corpo da tela (ocupava espaço e o topo já diz onde você
                 está). Fica aqui no título: passe o mouse para ver a conta logada. */}
-            <button onClick={sair} title={`Sair — logado como ${email}`} className="shrink-0 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
+            <button onClick={sair} title={`Sair — logado como ${email}${papel !== 'admin' ? ` · ${papel}` : ''}`} className="shrink-0 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
           </div>
         </header>
 

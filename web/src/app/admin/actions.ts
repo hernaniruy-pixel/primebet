@@ -1,6 +1,5 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   type Afiliado, type Cliente, type Reg,
@@ -12,6 +11,8 @@ import type { ConfGrupo, ConfImagensResp, ConfFiltro } from './conferencia/types
 import type { DespesasResp, SemanaDespesas, Despesa } from './despesas/types';
 import type { Conta, NovaConta, PatchConta, MovimentoConta } from './contas/types';
 import { semanasBR, janelaSemana } from '@/lib/semana';
+import { atorAtual, type Ator } from '@/lib/auth-equipe';
+import { limparEquipeCookie } from '@/lib/equipe-session';
 
 // ═══════════════════ LISTAGEM / FECHAMENTO (paginação no servidor) ═══════════════════
 export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
@@ -406,11 +407,17 @@ export async function zerarContadorCota(): Promise<{ config: PlanoConfig; uso: U
   return lerPlano();
 }
 
-// ─────────── Auth: só equipe logada pode mutar ───────────
-async function exigirSessao() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) throw new Error('Não autenticado.');
+// ─────────── Auth: admin (dono), gestor ou operador logado ───────────
+// Devolve QUEM está agindo — a Fase 3 usa isto para gatear por papel e p/ a auditoria.
+async function exigirSessao(): Promise<Ator> {
+  const ator = await atorAtual();
+  if (!ator) throw new Error('Não autenticado.');
+  return ator;
+}
+
+/** Logout da equipe (gestor/operador): limpa o cookie assinado. */
+export async function sairEquipe(): Promise<void> {
+  await limparEquipeCookie();
 }
 
 // id da banca padrão (mono-banca PrimeBet) — obrigatório em clientes/afiliados/apostas.

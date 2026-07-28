@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { atorAtual } from '@/lib/auth-equipe';
 import { loadBase } from './data';
 import { listarApostas } from './actions';
 import { weekRange } from './types';
@@ -8,9 +8,8 @@ import PainelModerno from './PainelModerno';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect('/login');
+  const ator = await atorAtual();          // admin (dono), gestor ou operador
+  if (!ator) redirect('/login');
 
   const semana = weekRange();
   const [base, apostas] = await Promise.all([
@@ -20,7 +19,8 @@ export default async function AdminPage() {
 
   return (
     <PainelModerno
-      email={data.user.email ?? ''}
+      email={ator.nome}
+      papel={ator.tipo}
       clientesIni={base.clientes}
       afiliadosIni={base.afiliados}
       apostasIni={apostas}
