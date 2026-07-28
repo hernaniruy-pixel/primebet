@@ -5,7 +5,7 @@ import {
   type Afiliado, type Cliente, type Reg,
   type AfiliadoRow, type ClienteRow, type ApostaRow,
   type ApostasPage, type FiltroApostas, type Totals, type FechCliResp, type FechAfResp,
-  mapAfiliado, mapCliente, mapAposta, parseTs, fmtTs,
+  mapAfiliado, mapCliente, mapAposta, parseTs, fmtTs, pisoDuasSemanas,
 } from './types';
 import type { ConfGrupo, ConfImagensResp, ConfFiltro } from './conferencia/types';
 import type { DespesasResp, SemanaDespesas, Despesa } from './despesas/types';
@@ -19,8 +19,15 @@ import { hashSenha } from '@/lib/senha';
 export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
   const ator = await exigir('operador');
   const db = createAdminClient();
+  // Operador: piso de data = segunda-feira da semana passada (só vê semana atual + anterior).
+  // Força no servidor — se o filtro pedir algo mais antigo, é elevado ao piso.
+  let dt1 = f.dt1 || null;
+  if (ator.tipo === 'operador') {
+    const piso = pisoDuasSemanas();
+    dt1 = (!dt1 || dt1 < piso) ? piso : dt1;
+  }
   const { data, error } = await db.rpc('controle_listar', {
-    p_dt1: f.dt1 || null, p_dt2: f.dt2 || null,
+    p_dt1: dt1, p_dt2: f.dt2 || null,
     p_id: f.id || null, p_cliente: f.cId ?? null,
     p_status: f.st || null, p_jogo: f.jogo || null, p_descarrego: f.dc || null,
     p_odd_min: f.oddMin ?? null, p_odd_max: f.oddMax ?? null,

@@ -36,6 +36,20 @@ export function weekRange(): { d1: string; d2: string } {
   return { d1: fmt(mon), d2: fmt(sun) };
 }
 
+/**
+ * Piso de datas do OPERADOR: segunda-feira da SEMANA PASSADA. O operador só enxerga a
+ * semana atual + a anterior — nada mais antigo. É aplicado NO SERVIDOR (listarApostas),
+ * então não dá pra burlar pelo filtro de data.
+ */
+export function pisoDuasSemanas(): string {
+  const fmt = (d: Date) => d.toISOString().split('T')[0];
+  const today = new Date();
+  const desdeSeg = (today.getDay() + 6) % 7;
+  const mon = new Date(today);
+  mon.setDate(today.getDate() - desdeSeg - 7); // segunda-feira da semana passada
+  return fmt(mon);
+}
+
 // ═══════════ LINHAS CRUAS DO BANCO ═══════════
 export interface AfiliadoRow { id: number; nome: string; comissao_pct: number | string }
 export interface ClienteRow {
