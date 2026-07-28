@@ -139,6 +139,21 @@ async function anexarTextoAUltimaImagem(grupoId, texto, janelaMin = 5) {
   return alvo;
 }
 
+/**
+ * TRAVA ANTI-DUPLICATA: se esta mensagem já gerou uma aposta e ela AINDA existe,
+ * devolve o id. Reagir 2× no mesmo print criava OUTRA aposta (dinheiro contado
+ * 2×: #18987-89 viraram também #19177-79). Se a aposta foi EXCLUÍDA no painel,
+ * devolve null — excluir + reagir de novo é o fluxo legítimo de RELANÇAR.
+ */
+async function apostaExistentePorMsg(msgId) {
+  if (!msgId) return null;
+  const { data } = await sb.from('imagens_recebidas').select('aposta_id').eq('msg_id', msgId).maybeSingle();
+  const apostaId = data && data.aposta_id;
+  if (!apostaId) return null;
+  const { data: ap } = await sb.from('apostas').select('id').eq('id', apostaId).maybeSingle();
+  return ap ? apostaId : null;
+}
+
 /** Já existe linha para esta mensagem? (usado pelo catch-up p/ não rebaixar imagem já registrada.) */
 async function imagemJaRegistrada(msgId) {
   if (!msgId) return false;
@@ -215,6 +230,6 @@ module.exports = {
   registrarImagemRecebida, marcarReagida,
   listarPedidosPendentes, marcarPedido, baixarThumbBase64, thumbPathPorMsg,
   legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg, enviadoEmPorMsg,
-  limparImagensAntigas, imagemJaRegistrada,
+  limparImagensAntigas, imagemJaRegistrada, apostaExistentePorMsg,
   listarEnviosPendentes, baixarPdfEnvio, marcarEnvio,
 };

@@ -25,6 +25,7 @@ const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId, grupos
 const {
   registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido,
   baixarThumbBase64, thumbPathPorMsg, legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg, enviadoEmPorMsg,
+  apostaExistentePorMsg,
   listarEnviosPendentes, baixarPdfEnvio, marcarEnvio,
 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
@@ -535,6 +536,19 @@ async function iniciarWhatsApp() {
           const tsNaoVinc = await enviadoEmPorMsg(msgId);
           const quandoNV = tsNaoVinc ? ` (bilhete de ${dataHoraBR(tsNaoVinc)})` : '';
           await avisar(cliente, `⚠️ Reagi um bilhete em "${nomeGrupo}"${quandoNV}, mas o grupo não está vinculado a nenhum cliente. Cadastre o link do grupo no cliente e reaja de novo.`);
+          continue;
+        }
+
+        // ── TRAVA ANTI-DUPLICATA: reagir de novo num bilhete JÁ lançado não cria outra
+        // aposta (reagir 2× duplicava o dinheiro: #18987-89 renasceram como #19177-79).
+        // Se a aposta foi EXCLUÍDA no painel, a trava libera — excluir + reagir de novo
+        // é o fluxo legítimo de relançar um bilhete que saiu errado.
+        const jaLancada = await apostaExistentePorMsg(msgId);
+        if (jaLancada) {
+          console.log(`ℹ️  Reação repetida — bilhete já lançado como aposta #${jaLancada}. Ignorado.`);
+          const tsJa = await enviadoEmPorMsg(msgId);
+          const qJa = tsJa ? `, bilhete de ${dataHoraBR(tsJa)}` : '';
+          await avisar(cliente, `ℹ️ Reação repetida ignorada: esse bilhete já está lançado como aposta #${jaLancada} (${cli.nome}${qJa}). Para corrigir, edite ou EXCLUA a aposta no painel e reaja de novo.`);
           continue;
         }
 
