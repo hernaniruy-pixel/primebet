@@ -264,7 +264,13 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   const pageSafe = Math.min(Math.max(1, page), totalPages);
   const start = (pageSafe - 1) * PAGE_SIZE;
 
-  const dV = (r: Reg, f: 'dt' | 'odd' | 'val' | 'jogo' | 'st') => { const d = drafts[r.id]; return d && d[f] !== undefined ? d[f]! : String(r[f]); };
+  const dV = (r: Reg, f: 'dt' | 'odd' | 'val' | 'jogo' | 'st') => {
+    const d = drafts[r.id];
+    if (d && d[f] !== undefined) return d[f]!;
+    // Odd/valor zerados = campo VAZIO (não "0"), pra digitar direto sem ter que apagar o zero.
+    if ((f === 'odd' || f === 'val') && Number(r[f]) === 0) return '';
+    return String(r[f]);
+  };
   const edited = (r: Reg, f: 'dt' | 'odd' | 'val' | 'jogo' | 'st') => drafts[r.id]?.[f] !== undefined;
   function updDraft(id: number, f: 'dt' | 'odd' | 'val' | 'jogo' | 'st', v: string) { setDrafts((d) => ({ ...d, [id]: { ...d[id], [f]: v } })); }
 
@@ -844,7 +850,7 @@ Equipe PrimeBet`);
                               <div className="text-[11px] text-slate-400">{p.data}</div>
                             </>); })()}
                             {/* Lápis: corrige data/hora (ex.: print reenviado noutro dia). */}
-                            <button onClick={() => abrirDt(r)} title="Editar data e hora" className="absolute right-0 top-0 rounded p-0.5 text-slate-300 opacity-0 transition hover:bg-amber-50 hover:text-amber-600 group-hover/dt:opacity-100 dark:text-slate-500 dark:hover:bg-amber-500/10 dark:hover:text-amber-400">✏️</button>
+                            <button onClick={() => abrirDt(r)} title="Editar data e hora" className="absolute right-0 top-0 rounded p-1 text-slate-300 transition hover:bg-amber-50 hover:text-amber-600 dark:text-slate-500 dark:hover:bg-amber-500/10 dark:hover:text-amber-400">✏️</button>
                           </div>
                         </td>
                         <td className="px-2 py-1.5">
