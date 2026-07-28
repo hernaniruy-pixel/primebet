@@ -30,7 +30,6 @@ const {
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto, setTeste } = require('./webqr');
 const { avisar, aoConectar, aoDesconectar, horaBR, setGrupoAvisos, getGrupoAvisos } = require('./avisos');
-const { MARCA } = require('./marca');
 
 const BOOT = Date.now();
 const log = pino({ level: 'silent' }); // a Baileys é verbosa; nossos logs são os console.log
@@ -220,32 +219,21 @@ async function baixarBase64(sock, m) {
  * valor 18,5). A miniatura serve para CONFERIR com o olho, não para a IA transcrever.
  */
 async function imagemParaTranscrever(sock, jid, msgId) {
-  // `havia_foto` = existia UMA imagem registrada para esta mensagem (memória, banco ou
-  // miniatura). Se havia mas não conseguimos o base64, a mídia foi NEGADA/EXPIROU pelo
-  // WhatsApp. Se NÃO havia nada, o que foi reagido não era foto (card/link/texto).
-  let haviaFoto = false;
-
   const orig = acharImagem(jid, msgId);
   if (orig) {
-    haviaFoto = true;
     const base64 = await baixarBase64(sock, orig).catch((e) => { console.log('   (falha ao baixar da memória:', e.message, ')'); return null; });
-    if (base64) return { base64, mime: (orig.message.imageMessage && orig.message.imageMessage.mimetype) || 'image/jpeg', fonte: 'original (memória)', orig, motivo: null };
+    if (base64) return { base64, mime: (orig.message.imageMessage && orig.message.imageMessage.mimetype) || 'image/jpeg', fonte: 'original (memória)', orig };
   }
 
   const salva = await msgJsonPorMsg(msgId);
   if (salva) {
-    haviaFoto = true;
     const base64 = await baixarBase64(sock, salva).catch((e) => { console.log('   (falha ao rebaixar a original:', e.message, ')'); return null; });
-    if (base64) return { base64, mime: (salva.message && salva.message.imageMessage && salva.message.imageMessage.mimetype) || 'image/jpeg', fonte: 'original (rebaixada do WhatsApp)', orig: salva, motivo: null };
+    if (base64) return { base64, mime: (salva.message && salva.message.imageMessage && salva.message.imageMessage.mimetype) || 'image/jpeg', fonte: 'original (rebaixada do WhatsApp)', orig: salva };
   }
 
-  const thumbPath = await thumbPathPorMsg(msgId);
-  if (thumbPath) haviaFoto = true;
-  const base64 = await baixarThumbBase64(thumbPath);
-  if (base64) return { base64, mime: 'image/jpeg', fonte: '⚠️ MINIATURA (baixa qualidade — valores podem sair errados)', orig: null, motivo: null };
-  // Sem base64: 'midia_negada' quando existia foto mas o WhatsApp não entregou;
-  // 'nao_e_foto' quando nunca houve imagem registrada (reagiram em card/link/texto).
-  return { base64: null, mime: 'image/jpeg', fonte: 'nenhuma', orig: null, motivo: haviaFoto ? 'midia_negada' : 'nao_e_foto' };
+  const base64 = await baixarThumbBase64(await thumbPathPorMsg(msgId));
+  if (base64) return { base64, mime: 'image/jpeg', fonte: '⚠️ MINIATURA (baixa qualidade — valores podem sair errados)', orig: null };
+  return { base64: null, mime: 'image/jpeg', fonte: 'nenhuma', orig: null };
 }
 
 // ─────────── /status ───────────
@@ -260,7 +248,7 @@ async function montarStatus(conectado, nomeGrupo = '') {
   const ehAlertas = /avisos|alerta/i.test(nomeGrupo);
   const perm = await gruposPermitidos();
   const linhas = [
-    `🤖 *${MARCA.nome} bot — status*`,
+    '🤖 *PrimeBet bot — status*',
     `• conexão: ${conectado ? '✅ CONNECTED' : '⚠️ conectando…'} (Baileys)`,
     `• no ar há: ${h}h ${m}min`,
     `• pedidos na fila (dashboard): ${pend}`,
@@ -434,7 +422,7 @@ async function iniciarWhatsApp() {
     printQRInTerminal: false,
     markOnlineOnConnect: false, // não rouba as notificações do celular
     syncFullHistory: false,     // não baixa histórico (não precisamos)
-    browser: [MARCA.nome, 'Chrome', '1.0.0'],
+    browser: ['PrimeBet', 'Chrome', '1.0.0'],
   });
   const cliente = adaptar(sock);
 
@@ -550,22 +538,15 @@ async function iniciarWhatsApp() {
           continue;
         }
 
-        const { base64, mime, fonte, orig, motivo } = await imagemParaTranscrever(sock, jid, msgId);
+        const { base64, mime, fonte, orig } = await imagemParaTranscrever(sock, jid, msgId);
         if (!base64) {
-          // Dois motivos, com instrução DIFERENTE para cada um (antes vinham juntos e o
-          // operador não sabia qual era o caso):
-          //  • 'nao_e_foto'   → a mensagem reagida NÃO é foto (card/link de bookingcode,
-          //                     figurinha, texto). O bot só lê PRINT como imagem.
-          //  • 'midia_negada' → era foto, mas o WhatsApp não entregou a mídia (expirou /
-          //                     403). Reenviar o print resolve.
-          console.log(`ℹ️  Sem imagem para transcrever (${motivo}). Ignorado.`);
+          // Causa nº 1 (comum): reagiram num CARD/LINK de bookingcode (Betano etc.), que
+          // NÃO é foto — o bot não lê card. Causa nº 2: era foto, mas o WhatsApp negou a
+          // mídia. A mensagem cobre as duas e diz o que fazer (mandar o PRINT como foto).
+          console.log('ℹ️  Sem imagem para transcrever (card/link ou mídia negada). Ignorado.');
           const tsPrint = (orig && tsIso(orig)) || (await enviadoEmPorMsg(msgId));
-          const quando = tsPrint ? `\n🕒 Bilhete de ${dataHoraBR(tsPrint)}` : '';
-          const emj = emoji ? ` ${emoji}` : '';
-          const causa = motivo === 'midia_negada'
-            ? `O que você reagiu ERA uma foto, mas o WhatsApp não entregou a imagem ao bot (a mídia expirou). ✅ Solução: *reenvie o mesmo print* como FOTO e reaja${emj} de novo nele.`
-            : `A mensagem que você reagiu NÃO é uma foto — provavelmente é um CARD/LINK (ex.: bookingcode da Betano/bet365), uma figurinha ou um texto. O bot só lê PRINT do bilhete enviado como IMAGEM. ✅ Solução: peça o *PRINT (foto) do bilhete*, mande no grupo e reaja${emj} nele.`;
-          await avisar(cliente, `⚠️ Reação${emj} em "${nomeGrupo}" (${cli.nome}) não lançou o bilhete.${quando}\n\n${causa}`);
+          const quando = tsPrint ? ` (bilhete de ${dataHoraBR(tsPrint)})` : '';
+          await avisar(cliente, `⚠️ Reação em "${nomeGrupo}" (${cli.nome})${quando}: não consegui ler o bilhete. Se você reagiu num CARD/LINK (ex.: bookingcode da Betano), isso não funciona — peça o PRINT do bilhete e mande como FOTO. Se já era foto, reenvie e reaja de novo.`);
           continue;
         }
         console.log('   imagem:', fonte);

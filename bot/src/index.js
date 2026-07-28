@@ -7,9 +7,8 @@
 const { iniciarWhatsApp } = require('./whatsapp');
 const { iniciarWebQR } = require('./webqr');
 const { limparImagensAntigas } = require('./conferencia');
-const { MARCA } = require('./marca');
 
-console.log(`🤖 ${MARCA.nome} bot — iniciando... (Baileys / sem navegador)`);
+console.log('🤖 PrimeBet bot — iniciando... (Baileys / sem navegador)');
 
 iniciarWebQR(); // página web do QR (escanear no servidor)
 iniciarWhatsApp().catch((e) => {
