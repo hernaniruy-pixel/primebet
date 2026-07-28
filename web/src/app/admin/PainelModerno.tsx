@@ -530,7 +530,17 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
     finally { setPdfGeralBusy(false); }
   }
   // ── Envio do PDF de fechamento no grupo do cliente (o bot é quem manda). Só admin. ──
-  const [legendaEnvio, setLegendaEnvio] = useState('Segue o fechamento da semana passada ({período}). Qualquer dúvida, estamos à disposição.');
+  const [legendaEnvio, setLegendaEnvio] = useState(
+`Olá, tudo bem?
+
+Segue o seu relatório de fechamento semanal. 📊
+
+Nota: Se precisar de alguma correção ou ajuste nos dados, pedimos a gentileza de solicitar a alteração através do nosso app ou site. 📱💻
+
+Agradecemos desde já pela confiança em nosso trabalho. 🙏
+
+Atenciosamente,
+Equipe PrimeBet`);
   const [envRow, setEnvRow] = useState<number | null>(null);
   const [enviandoTodos, setEnviandoTodos] = useState(false);
   function periodoTexto() {
@@ -1054,8 +1064,8 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
             {ehAdmin && (
               <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 dark:border-emerald-900/50 dark:bg-emerald-900/10">
                 <div className="min-w-[280px] flex-1">
-                  <span className={lbl}>Mensagem enviada com o PDF (<b>{'{período}'}</b> vira as datas do fechamento)</span>
-                  <textarea className={`${inp} min-h-[52px]`} value={legendaEnvio} onChange={(e) => setLegendaEnvio(e.target.value)} />
+                  <span className={lbl}>Mensagem enviada junto com o PDF (editável · vale para envio individual e em massa)</span>
+                  <textarea className={`${inp} min-h-[180px]`} value={legendaEnvio} onChange={(e) => setLegendaEnvio(e.target.value)} />
                 </div>
                 <button onClick={enviarPdfTodos} disabled={enviandoTodos || envRow != null} title="Envia o PDF de cada cliente no grupo dele — o bot manda espaçado" className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50">
                   {enviandoTodos ? 'Enfileirando…' : '📤 Enviar a todos'}
