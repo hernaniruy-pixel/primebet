@@ -55,6 +55,14 @@ function tsIso(m) {
   return new Date((seg || Date.now() / 1000) * 1000).toISOString();
 }
 
+// 'DD/MM HH:mm' no fuso de Brasília — usado nos avisos para apontar o bilhete com problema.
+function dataHoraBR(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch { return ''; }
+}
+
 // Cache do nome do grupo: groupMetadata tem limite de taxa, não dá p/ chamar a cada msg.
 const nomeCache = new Map();
 async function nomeDoGrupo(sock, jid) {
@@ -524,7 +532,9 @@ async function iniciarWhatsApp() {
         const cli = await acharCliente(jid, nomeGrupo);
         if (!cli) {
           console.log(`⚠️  Grupo "${nomeGrupo}" (${jid}) não casou com nenhum cliente cadastrado — pulei.`);
-          await avisar(cliente, `⚠️ Reagi um bilhete em "${nomeGrupo}", mas o grupo não está vinculado a nenhum cliente. Cadastre o link do grupo no cliente e reaja de novo.`);
+          const tsNaoVinc = await enviadoEmPorMsg(msgId);
+          const quandoNV = tsNaoVinc ? ` (bilhete de ${dataHoraBR(tsNaoVinc)})` : '';
+          await avisar(cliente, `⚠️ Reagi um bilhete em "${nomeGrupo}"${quandoNV}, mas o grupo não está vinculado a nenhum cliente. Cadastre o link do grupo no cliente e reaja de novo.`);
           continue;
         }
 
@@ -534,7 +544,9 @@ async function iniciarWhatsApp() {
           // NÃO é foto — o bot não lê card. Causa nº 2: era foto, mas o WhatsApp negou a
           // mídia. A mensagem cobre as duas e diz o que fazer (mandar o PRINT como foto).
           console.log('ℹ️  Sem imagem para transcrever (card/link ou mídia negada). Ignorado.');
-          await avisar(cliente, `⚠️ Reação em "${nomeGrupo}" (${cli.nome}): não consegui ler o bilhete. Se você reagiu num CARD/LINK (ex.: bookingcode da Betano), isso não funciona — peça o PRINT do bilhete e mande como FOTO. Se já era foto, reenvie e reaja de novo.`);
+          const tsPrint = (orig && tsIso(orig)) || (await enviadoEmPorMsg(msgId));
+          const quando = tsPrint ? ` (bilhete de ${dataHoraBR(tsPrint)})` : '';
+          await avisar(cliente, `⚠️ Reação em "${nomeGrupo}" (${cli.nome})${quando}: não consegui ler o bilhete. Se você reagiu num CARD/LINK (ex.: bookingcode da Betano), isso não funciona — peça o PRINT do bilhete e mande como FOTO. Se já era foto, reenvie e reaja de novo.`);
           continue;
         }
         console.log('   imagem:', fonte);
