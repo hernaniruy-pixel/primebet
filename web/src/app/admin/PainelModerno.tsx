@@ -12,6 +12,7 @@ import {
   statusBot, type BotStatus,
   lerPlano, type PlanoConfig, type UsoCota,
   sairEquipe,
+  listarEquipe, criarEquipe, resetarSenhaEquipe, definirAtivoEquipe, type EquipeUser,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
@@ -132,6 +133,9 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   email: string; papel: 'admin' | 'gestor' | 'operador'; clientesIni: Cliente[]; afiliadosIni: Afiliado[]; apostasIni: ApostasPage; semana: { d1: string; d2: string };
 }) {
   const router = useRouter();
+  // Papéis: operador só vê bilhetes + conferência (nada financeiro); gestor/admin veem tudo.
+  const podeFinanceiro = papel === 'admin' || papel === 'gestor';
+  const ehAdmin = papel === 'admin';
   const [dark, setDark] = useState(false);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -146,7 +150,7 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   const [clientes, setClientes] = useState<Cliente[]>(clientesIni);
   const [afiliados, setAfiliados] = useState<Afiliado[]>(afiliadosIni);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
-  const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp' | 'plano'>(null);
+  const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp' | 'plano' | 'usuarios'>(null);
   // Plano/cota de transcrições — SOMENTE LEITURA neste painel (é do dono da banca).
   // A configuração (cota, preço, renovação, zerar) fica no admin MASTER do Tracker.
   const [plano, setPlano] = useState<{ config: PlanoConfig; uso: UsoCota } | null>(null);
@@ -178,6 +182,11 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   const [flashId, setFlashId] = useState<number | null>(null); // linha recém-atualizada (flash verde)
   const [novo, setNovo] = useState({ open: false, cId: '', jogo: '', odd: '', val: '', st: 'EM ABERTO', dc: '' });
   const [bot, setBot] = useState<BotStatus | null>(null);
+  // Usuários da equipe (modal). novoUser = form de criação (só admin); resetUser = redefinir senha.
+  const [equipe, setEquipe] = useState<EquipeUser[]>([]);
+  const [novoUser, setNovoUser] = useState<{ nome: string; senha: string; papel: 'operador' | 'gestor' }>({ nome: '', senha: '', papel: 'operador' });
+  const [userErro, setUserErro] = useState('');
+  const [resetUser, setResetUser] = useState<{ id: number; nome: string; senha: string } | null>(null);
 
   // Status do bot (health da Railway): checa ao abrir e a cada 60s.
   useEffect(() => {
@@ -228,12 +237,13 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   // Vêm da aba Despesas (grupo "despesa" do WhatsApp), filtradas por data.
   const [despPeriodo, setDespPeriodo] = useState(0);
   useEffect(() => {
+    if (!podeFinanceiro) return;  // operador não vê despesas (fica em 0, o valor inicial)
     let alive = true;
     listarDespesasPeriodo(debFiltros.dt1 || null, debFiltros.dt2 || null)
       .then((d) => { if (alive) setDespPeriodo(d.total); })
       .catch(() => { if (alive) setDespPeriodo(0); });
     return () => { alive = false; };
-  }, [debFiltros.dt1, debFiltros.dt2, reloadKey]);
+  }, [debFiltros.dt1, debFiltros.dt2, reloadKey, podeFinanceiro]);
 
   // Atualizar/recarregar DESCARTA rascunhos não salvos (status pendente volta ao real).
   const reload = () => { setDrafts({}); setReloadKey((k) => k + 1); };
@@ -509,12 +519,31 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   }
   function loadFaf(d1: string, d2: string) { fechamentoAfiliados(d1 || null, d2 || null).then(setFafRes).catch(() => toast('Erro no fechamento.')); }
   function loadPlano() { lerPlano().then(setPlano).catch(() => toast('Erro ao carregar o plano.')); }
+  function carregarEquipe() { listarEquipe().then(setEquipe).catch(() => toast('Erro ao carregar usuários.')); }
   useEffect(() => {
     if (modal === 'fech') loadFech(fech.dt1, fech.dt2);
     if (modal === 'faf') loadFaf(faf.dt1, faf.dt2);
     if (modal === 'plano') loadPlano();
+    if (modal === 'usuarios') carregarEquipe();  // reset do form fica no onClick do botão (evita setState no effect)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modal]);
+
+  // ── Usuários da equipe ──
+  async function criarUsuario() {
+    const r = await criarEquipe(novoUser.nome.trim(), novoUser.senha, novoUser.papel);
+    if (r.ok) { setNovoUser({ nome: '', senha: '', papel: 'operador' }); setUserErro(''); carregarEquipe(); toast('Usuário criado.'); }
+    else setUserErro(r.erro || 'Erro ao criar.');
+  }
+  async function salvarResetSenha() {
+    if (!resetUser) return;
+    const r = await resetarSenhaEquipe(resetUser.id, resetUser.senha);
+    if (r.ok) { setResetUser(null); toast(`Senha de ${resetUser.nome} redefinida.`); }
+    else toast(r.erro || 'Erro ao redefinir.');
+  }
+  async function alternarAtivoUsuario(u: EquipeUser) {
+    setEquipe((es) => es.map((x) => (x.id === u.id ? { ...x, ativo: !u.ativo } : x))); // otimista
+    try { await definirAtivoEquipe(u.id, !u.ativo); } catch { carregarEquipe(); toast('Erro ao atualizar.'); }
+  }
   const fechData = fechRes ?? { rows: [], g: { cal: 0, saldoCal: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 } };
   const fafData = fafRes ?? { rows: [], g: { logins: 0, val: 0, ab: 0, sb: 0, cm: 0, caf: 0, sl: 0 } };
 
@@ -558,14 +587,24 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
               trava e os botões do começo somem. O justify-between do header já joga este
               bloco para a direita. */}
           <div className="flex min-w-0 items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <button onClick={() => setModal('cli')} className={navBtn}>👤 Clientes</button>
-            <button onClick={() => setModal('af')} className={navBtn}>🤝 Afiliados</button>
-            <button onClick={() => setModal('fech')} className={navBtn}>📊 Fechamento</button>
-            <button onClick={() => setModal('faf')} className={navBtn}>📈 Fech. afiliado</button>
-            <button onClick={() => setModal('plano')} className={navBtn} title="Plano e cota de transcrições da banca">📦 Plano</button>
-            <a href="/admin/contas" className={navBtn} title="Contas usadas para replicar as apostas (controle dos donos)">💳 Contas</a>
+            {podeFinanceiro && (
+              <>
+                <button onClick={() => setModal('cli')} className={navBtn}>👤 Clientes</button>
+                <button onClick={() => setModal('af')} className={navBtn}>🤝 Afiliados</button>
+                <button onClick={() => setModal('fech')} className={navBtn}>📊 Fechamento</button>
+                <button onClick={() => setModal('faf')} className={navBtn}>📈 Fech. afiliado</button>
+                <button onClick={() => setModal('plano')} className={navBtn} title="Plano e cota de transcrições da banca">📦 Plano</button>
+                <a href="/admin/contas" className={navBtn} title="Contas usadas para replicar as apostas (controle dos donos)">💳 Contas</a>
+              </>
+            )}
+            {/* Conferência: todos (inclusive operador) — é o que ele usa p/ organizar os grupos. */}
             <a href="/admin/conferencia" className={navBtn} title="Conferência de grupos (imagens recebidas × transcritas)">🗂 Conferência</a>
-            <a href="/admin/despesas" className={navBtn} title="Despesas (lançadas pelo grupo despesa)">💸 Despesas</a>
+            {podeFinanceiro && (
+              <a href="/admin/despesas" className={navBtn} title="Despesas (lançadas pelo grupo despesa)">💸 Despesas</a>
+            )}
+            {podeFinanceiro && (
+              <button onClick={() => { setNovoUser({ nome: '', senha: '', papel: 'operador' }); setUserErro(''); setResetUser(null); setModal('usuarios'); }} className={navBtn} title="Usuários da equipe (operador/gestor)">👥 Usuários</button>
+            )}
             <button onClick={toggleTheme} title="Tema" className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
             {/* O e-mail saiu do corpo da tela (ocupava espaço e o topo já diz onde você
                 está). Fica aqui no título: passe o mouse para ver a conta logada. */}
@@ -595,19 +634,24 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
               <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 <Kpi icone="⇄" cor="blue" titulo="Entrada" valor={tot(totals.entradas)} valorCls={entCls(totals.entradas)} sub={`${total} linhas`} />
                 <Kpi icone="🕐" cor="violet" titulo="Em aberto" valor={tot(totals.em_aberto_total)} valorCls={abertoCls(totals.em_aberto_total)} sub={`${totals.em_aberto_qtd} linhas`} />
-                <Kpi icone="📈" cor="slate" titulo="Saldo bruto" valor={tot(totals.saldo_bruto)} valorCls={clrCls(totals.saldo_bruto)} sub="ganho/perda dos bilhetes" />
-                <Kpi icone="✓" cor="emerald" titulo="Saldo líquido" valor={tot(totals.saldo_liquido)} valorCls={clrCls(totals.saldo_liquido)} sub="resultado dos clientes"
-                     dica="Quanto os clientes ficaram no período, depois da comissão. Positivo = os clientes ganharam. É o dinheiro deles, não o lucro da banca." />
-                <Kpi icone="%" cor="rose" titulo="Comissão" valor={tot(totals.comissao)} valorCls={comCls(totals.comissao)} sub="receita da banca" />
-                <Kpi icone="🤝" cor="rose" titulo="Com. afiliados" valor={tot(totals.comissao_afiliado)} valorCls={comCls(totals.comissao_afiliado)} sub="custo da banca" />
-                <Kpi icone="💸" cor="rose" titulo="Despesas" href="/admin/despesas"
-                     valor={recorte ? '—' : tot(despPeriodo)} valorCls={recorte ? 'text-slate-300 dark:text-slate-600' : comCls(despPeriodo)}
-                     sub={recorte ? 'não se aplica ao filtro 🔗' : 'do período 🔗'}
-                     dica={recorte ? 'As despesas são da banca inteira — não pertencem a um cliente nem a um filtro de apostas. Limpe os filtros e use a aba "Todas" para ver o lucro do período.' : 'Despesas do período (vêm do grupo de despesa no WhatsApp). Clique para ver a lista.'} />
-                <Kpi icone="★" cor="destaque" titulo="Resumo total" valor={tot(lucro)} valorCls={clrCls(lucro)} sub={rotuloLucro}
-                     dica={recorte
-                       ? 'Comissão ganha − Comissão dos afiliados, apenas do que está filtrado. As despesas são da banca inteira e por isso ficam de fora aqui.'
-                       : 'Lucro = Comissão ganha − Comissão dos afiliados − Despesas do período. A banca só ganha comissão em bilhete GREEN.'} />
+                {/* Financeiro da banca — só gestor/admin. Operador vê só Entrada e Em aberto. */}
+                {podeFinanceiro && (
+                  <>
+                    <Kpi icone="📈" cor="slate" titulo="Saldo bruto" valor={tot(totals.saldo_bruto)} valorCls={clrCls(totals.saldo_bruto)} sub="ganho/perda dos bilhetes" />
+                    <Kpi icone="✓" cor="emerald" titulo="Saldo líquido" valor={tot(totals.saldo_liquido)} valorCls={clrCls(totals.saldo_liquido)} sub="resultado dos clientes"
+                         dica="Quanto os clientes ficaram no período, depois da comissão. Positivo = os clientes ganharam. É o dinheiro deles, não o lucro da banca." />
+                    <Kpi icone="%" cor="rose" titulo="Comissão" valor={tot(totals.comissao)} valorCls={comCls(totals.comissao)} sub="receita da banca" />
+                    <Kpi icone="🤝" cor="rose" titulo="Com. afiliados" valor={tot(totals.comissao_afiliado)} valorCls={comCls(totals.comissao_afiliado)} sub="custo da banca" />
+                    <Kpi icone="💸" cor="rose" titulo="Despesas" href="/admin/despesas"
+                         valor={recorte ? '—' : tot(despPeriodo)} valorCls={recorte ? 'text-slate-300 dark:text-slate-600' : comCls(despPeriodo)}
+                         sub={recorte ? 'não se aplica ao filtro 🔗' : 'do período 🔗'}
+                         dica={recorte ? 'As despesas são da banca inteira — não pertencem a um cliente nem a um filtro de apostas. Limpe os filtros e use a aba "Todas" para ver o lucro do período.' : 'Despesas do período (vêm do grupo de despesa no WhatsApp). Clique para ver a lista.'} />
+                    <Kpi icone="★" cor="destaque" titulo="Resumo total" valor={tot(lucro)} valorCls={clrCls(lucro)} sub={rotuloLucro}
+                         dica={recorte
+                           ? 'Comissão ganha − Comissão dos afiliados, apenas do que está filtrado. As despesas são da banca inteira e por isso ficam de fora aqui.'
+                           : 'Lucro = Comissão ganha − Comissão dos afiliados − Despesas do período. A banca só ganha comissão em bilhete GREEN.'} />
+                  </>
+                )}
               </div>
             );
           })()}
@@ -699,8 +743,9 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
                     <th className="px-2 py-2 font-medium">nome</th><th className="px-2 py-2 font-medium">jogo</th>
                     <th className="px-2 py-2 text-center font-medium">odd</th><th className="px-2 py-2 text-center font-medium">entradas</th>
                     <th className="px-2 py-2 text-center font-medium">status</th>
-                    <th className="px-2 py-2 text-center font-medium">s. bruto</th><th className="px-2 py-2 text-center font-medium">comissão</th>
-                    <th className="px-2 py-2 text-center font-medium">baixa liq.</th><th className="px-2 py-2 text-center font-medium">saldo líq.</th>
+                    {podeFinanceiro && (<><th className="px-2 py-2 text-center font-medium">s. bruto</th><th className="px-2 py-2 text-center font-medium">comissão</th></>)}
+                    <th className="px-2 py-2 text-center font-medium">baixa liq.</th>
+                    {podeFinanceiro && (<th className="px-2 py-2 text-center font-medium">saldo líq.</th>)}
                     <th className="px-2 py-2 text-center font-medium">ações</th>
                   </tr>
                 </thead>
@@ -765,10 +810,12 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
                             <select value={stv} onChange={(e) => updDraft(r.id, 'st', e.target.value)} title={pend ? 'Status não salvo — clique em Salvar para confirmar' : undefined} style={{ backgroundColor: stStyle(stv).bg, color: stStyle(stv).fg, boxShadow: pend ? '0 0 0 2px #f59e0b' : undefined }} className="pb-st rounded-full border-0 px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer">{STS.map((s) => <option key={s} value={s} style={{ backgroundColor: stStyle(s).bg, color: stStyle(s).fg }}>{s}</option>)}</select>
                           ); })()}
                         </td>
+                        {podeFinanceiro && (<>
                         <td className={`px-2 py-1.5 text-center tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td>
                         <td className={`px-2 py-1.5 text-center tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td>
+                        </>)}
                         <td className="px-2 py-1.5 text-center"><select value={r.bl ? 'Sim' : 'Não'} onChange={(e) => patchReg(r.id, { bl: e.target.value === 'Sim' })} className={`${cinp} w-16`}><option>Não</option><option>Sim</option></select></td>
-                        <td className={`px-2 py-1.5 text-center font-semibold tabular-nums ${clrCls(r.sl)}`}>{fmt(r.sl)}</td>
+                        {podeFinanceiro && (<td className={`px-2 py-1.5 text-center font-semibold tabular-nums ${clrCls(r.sl)}`}>{fmt(r.sl)}</td>)}
                         <td className="px-2 py-1.5">
                           <div className="flex justify-center gap-1.5">
                             {r.ct ? (
@@ -1045,6 +1092,65 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
                 </div>
               );
             })()}
+          </Modal>
+        )}
+
+        {/* USUÁRIOS DA EQUIPE */}
+        {modal === 'usuarios' && (
+          <Modal onClose={() => { setModal(null); setResetUser(null); }} max="max-w-lg" title="👥 Usuários da equipe">
+            <div className="flex flex-col gap-4">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {ehAdmin
+                  ? 'Operador vê só bilhetes + conferência. Gestor tem o acesso operacional completo (menos criar usuário/cliente e senha de gestor/admin). O admin (dono) não aparece na lista.'
+                  : 'Você pode redefinir a senha dos operadores. Criar usuários é só com o admin.'}
+              </p>
+
+              {ehAdmin && (
+                <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                  <div className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Novo usuário</div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div><span className={lbl}>Nome de login</span><input className={inp} value={novoUser.nome} onChange={(e) => setNovoUser((s) => ({ ...s, nome: e.target.value }))} placeholder="ex.: joao" /></div>
+                    <div><span className={lbl}>Senha</span><input className={inp} type="text" value={novoUser.senha} onChange={(e) => setNovoUser((s) => ({ ...s, senha: e.target.value }))} placeholder="mín. 4 caracteres" /></div>
+                    <div><span className={lbl}>Cargo</span>
+                      <select className={inp} value={novoUser.papel} onChange={(e) => setNovoUser((s) => ({ ...s, papel: e.target.value as 'operador' | 'gestor' }))}>
+                        <option value="operador">Operador (só bilhetes + conferência)</option>
+                        <option value="gestor">Gestor (operacional completo)</option>
+                      </select>
+                    </div>
+                    <div className="flex items-end"><button onClick={criarUsuario} className="w-full rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">+ Criar usuário</button></div>
+                  </div>
+                  {userErro && <div className="mt-2 text-xs text-rose-600">{userErro}</div>}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                {equipe.length === 0 && <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center text-sm text-slate-400 dark:border-slate-700">Nenhum usuário ainda.</div>}
+                {equipe.map((u) => (
+                  <div key={u.id} className="rounded-lg border border-slate-200 p-2.5 dark:border-slate-700">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{u.nome}</div>
+                        <div className="mt-0.5 flex items-center gap-1.5">
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${u.papel === 'gestor' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300'}`}>{u.papel}</span>
+                          {!u.ativo && <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-700">inativo</span>}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <button onClick={() => setResetUser({ id: u.id, nome: u.nome, senha: '' })} className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">🔑 Senha</button>
+                        {ehAdmin && <button onClick={() => alternarAtivoUsuario(u)} className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">{u.ativo ? 'Desativar' : 'Ativar'}</button>}
+                      </div>
+                    </div>
+                    {resetUser?.id === u.id && (
+                      <div className="mt-2 flex items-center gap-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+                        <input className={inp} type="text" autoFocus value={resetUser.senha} onChange={(e) => setResetUser((r) => (r ? { ...r, senha: e.target.value } : r))} placeholder="nova senha (mín. 4)" />
+                        <button onClick={salvarResetSenha} className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700">Salvar</button>
+                        <button onClick={() => setResetUser(null)} className="shrink-0 rounded-lg px-2 py-1.5 text-sm text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Cancelar</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </Modal>
         )}
 
