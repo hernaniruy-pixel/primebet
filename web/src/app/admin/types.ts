@@ -83,7 +83,14 @@ export function parseTs(s: string): string {
   if (m) {
     const [, hh, mm, dd, mo, ano] = m;
     const yyyy = ano.length === 2 ? 2000 + Number(ano) : Number(ano);
-    const d = new Date(yyyy, Number(mo) - 1, Number(dd), Number(hh), Number(mm));
+    const p2 = (n: string | number) => String(n).padStart(2, '0');
+    // A hora digitada é HORÁRIO DE BRASÍLIA — o operador pensa no relógio local, e o
+    // fmtTs também exibe em America/Sao_Paulo. Fixamos o offset -03:00 no ISO para o
+    // instante UTC sair certo em QUALQUER fuso de servidor. Sem isto, new Date(y,m,d,h,min)
+    // interpretava a hora no fuso do processo (a Vercel roda em UTC) e gravava 3h deslocado,
+    // reaparecendo como "hora aleatória". Brasil não tem horário de verão desde 2019 → -03:00 fixo.
+    const iso = `${yyyy}-${p2(mo)}-${p2(dd)}T${p2(hh)}:${mm}:00-03:00`;
+    const d = new Date(iso);
     return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
   }
   const d = new Date(s.replace(' ', 'T'));
