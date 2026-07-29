@@ -116,6 +116,7 @@ export async function listarConfImagens(f: ConfFiltro): Promise<ConfImagensResp>
     remetente: r.remetente ?? '', enviadoEm: fmtTs(r.enviado_em), legenda: r.legenda ?? '',
     thumbUrl: r.thumb_path ? (urlPorPath[r.thumb_path] ?? null) : null,
     reagida: r.reagida, lancada: r.lancada, ignorada: r.ignorada, emoji: r.emoji, apostaId: r.aposta_id,
+    apostaExcluida: !!r.aposta_excluida,
     pedidoStatus: r.pedido_status ?? null, pedidoErro: r.pedido_erro ?? null,
   }));
   return { rows, total: count ?? 0 };
@@ -606,6 +607,13 @@ export async function excluirAposta(id: number): Promise<void> {
   const ator = await exigir('gestor');
   const db = createAdminClient();
   const { data: antes } = await db.from('apostas').select('jogo,odd,valor,status').eq('id', id).maybeSingle();
+  // Marca a imagem da Conferência como "aposta excluída" ANTES do delete: a FK
+  // (on delete set null) vai zerar o aposta_id, então rotulamos agora para não
+  // virar "#null". A imagem NÃO some — fica visível com o rótulo e o rastro.
+  // Best-effort: se a coluna (migração 025) ainda não existe, a exclusão segue
+  // normal (a imagem cai no fallback "lancada && aposta_id null" na exibição).
+  await db.from('imagens_recebidas').update({ aposta_excluida: true }).eq('aposta_id', id)
+    .then(({ error }) => { if (error) console.warn('aposta_excluida (migração 025 pendente?):', error.message); });
   const { error } = await db.from('apostas').delete().eq('id', id);
   if (error) throw error;
   const a = antes as { jogo?: string; odd?: number | string; valor?: number | string; status?: string } | null;

@@ -21,6 +21,7 @@ export interface ConfImagem {
   ignorada: boolean;
   emoji: string | null;
   apostaId: number | null;
+  apostaExcluida: boolean;       // aposta foi excluída no painel — imagem fica rotulada (não vira #null)
   pedidoStatus: string | null;   // null | 'pendente' | 'feito' | 'erro'
   pedidoErro: string | null;
 }

@@ -211,7 +211,9 @@ export default function Conferencia({ gruposIni, imagensIni }: { gruposIni: Conf
                     )}
                     <div className="flex items-center justify-between pt-1">
                       {img.reagida
-                        ? <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">✅ {img.lancada ? `#${img.apostaId}` : 'transcrita'}</span>
+                        ? (img.apostaExcluida || (img.lancada && img.apostaId == null))
+                          ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700" title="A aposta deste bilhete foi excluída no painel.">🗑 excluída</span>
+                          : <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">✅ {img.lancada ? `#${img.apostaId}` : 'transcrita'}</span>
                         : img.pedidoStatus === 'pendente'
                           ? <span className="rounded-full bg-marca-100 px-2 py-0.5 text-[10px] font-semibold text-marca-700">⏳ lançando…</span>
                           : img.pedidoStatus === 'erro'

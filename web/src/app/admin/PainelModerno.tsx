@@ -217,7 +217,11 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   function toast(m: string) { setToastMsg(m); window.clearTimeout((toast as unknown as { _h?: number })._h); (toast as unknown as { _h?: number })._h = window.setTimeout(() => setToastMsg(''), 2600); }
   // `instant` = aplica sem o debounce de 400ms (use nos SELECTS: cliente, status…).
   function setF<K extends keyof typeof filtros>(k: K, v: (typeof filtros)[K], instant = false) { debMs.current = instant ? 0 : 400; setFiltros((f) => ({ ...f, [k]: v })); setPage(1); }
-  function applyPeriod(v: string) { debMs.current = 0; const p = periodDates(v); setFiltros((f) => ({ ...f, period: v, dt1: p.d1, dt2: p.d2 })); setPage(1); }
+  // Escolher um período (esta semana, hoje, semana passada) mostra a semana INTEIRA:
+  // troca pra aba "Todas" (todos os status), senão ficava só nos EM ABERTO da aba
+  // Pendentes e parecia que os bilhetes resolvidos tinham sumido. Limpar o período
+  // (v vazio) não mexe na aba.
+  function applyPeriod(v: string) { debMs.current = 0; const p = periodDates(v); setFiltros((f) => ({ ...f, period: v, dt1: p.d1, dt2: p.d2, ...(v ? { aba: 'todas' as const } : {}) })); setPage(1); }
   function limpar() { debMs.current = 0; setFiltros({ ...filtrosVazios }); setPage(1); }
 
   useEffect(() => { const t = setTimeout(() => setDebFiltros(filtros), debMs.current); return () => clearTimeout(t); }, [filtros]);
