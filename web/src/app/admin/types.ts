@@ -116,7 +116,9 @@ export const mapAfiliado = (r: AfiliadoRow): Afiliado => ({ id: r.id, nome: r.no
 
 export function mapCliente(r: ClienteRow, afNome: Record<number, string>): Cliente {
   return {
-    id: r.id, nome: r.nome, s: r.senha_hash ?? '', on: r.ativo,
+    // s (senha) NUNCA sai do servidor: é hash. O painel mostra o campo em branco
+    // e só envia `s` quando digitam uma NOVA senha (branco = manter a atual).
+    id: r.id, nome: r.nome, s: '', on: r.ativo,
     cal: num(r.calcao), desc: num(r.desconto), com: num(r.comissao_pct),
     sup: r.afiliado_id != null ? (afNome[r.afiliado_id] ?? null) : null,
     af: num(r.afiliado_comissao_pct),

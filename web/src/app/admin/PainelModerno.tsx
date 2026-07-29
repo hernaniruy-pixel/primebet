@@ -1022,7 +1022,7 @@ ${MARCA.equipe}`);
                       </div>
                     </td>
                     <td className="px-2 py-1.5"><input className={`${cinp} w-36 font-medium`} value={c.nome} onChange={(e) => updCli(c.id, { nome: e.target.value.toUpperCase() })} /></td>
-                    <td className="px-2 py-1.5"><input className={`${cinp} w-24`} value={c.s} onChange={(e) => updCli(c.id, { s: e.target.value })} /></td>
+                    <td className="px-2 py-1.5"><input className={`${cinp} w-24`} value={c.s} placeholder="nova senha" title="Senha guardada com hash — não é exibida. Digite uma nova para trocar; em branco mantém a atual." onChange={(e) => updCli(c.id, { s: e.target.value })} /></td>
                     <td className="px-2 py-1.5"><select className={cinp} value={c.on ? 'Sim' : 'Não'} onChange={(e) => updCli(c.id, { on: e.target.value === 'Sim' })}><option>Sim</option><option>Não</option></select></td>
                     <td className="px-2 py-1.5"><input type="number" className={`${cinp} w-20 text-right`} value={c.cal} onChange={(e) => updCli(c.id, { cal: Number(e.target.value) })} /></td>
                     <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-16 text-right`} value={c.desc} onChange={(e) => updCli(c.id, { desc: Number(e.target.value) })} /></td>

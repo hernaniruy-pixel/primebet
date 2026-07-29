@@ -733,7 +733,7 @@ export async function criarCliente(input: NovoClienteInput): Promise<Cliente> {
 
   const { data, error } = await db.from('clientes').insert({
     banca_id: await bancaId(db),
-    nome, senha_hash: input.senha || null,
+    nome, senha_hash: input.senha ? hashSenha(input.senha) : null,
     calcao: input.calcao ?? 0, desconto: input.desconto ?? 0,
     comissao_pct: input.comissao ?? 0, afiliado_id: afiliadoId,
     afiliado_comissao_pct: input.comissaoSup ?? 0,
@@ -759,7 +759,9 @@ export async function atualizarCliente(id: number, patch: PatchCliente): Promise
 
   const upd: Record<string, unknown> = {};
   if (patch.nome !== undefined) upd.nome = patch.nome;
-  if (patch.s !== undefined) upd.senha_hash = patch.s || null;
+  // Senha do cliente guardada com hash (scrypt). O painel manda `s` VAZIO para
+  // "manter" (não expõe mais a senha atual) — só re-hasheia quando digitam uma nova.
+  if (patch.s) upd.senha_hash = hashSenha(patch.s);
   if (patch.on !== undefined) upd.ativo = patch.on;
   if (patch.cal !== undefined) upd.calcao = patch.cal;
   if (patch.desc !== undefined) upd.desconto = patch.desc;

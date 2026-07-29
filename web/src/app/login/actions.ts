@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { setClienteCookie } from '@/lib/cliente-session';
 import { setEquipeCookie } from '@/lib/equipe-session';
 import { conferirSenha } from '@/lib/senha';
+import { verificarClienteLogin } from '@/lib/cliente-auth';
 import { segundosBloqueado, registrarFalha, limparFalhas } from '@/lib/login-rate';
 
 export type LoginState = { erro?: string };
@@ -53,12 +54,11 @@ export async function entrar(_prev: LoginState, formData: FormData): Promise<Log
     redirect('/admin');
   }
 
-  // 3) Cliente (nome + senha do cadastro). Só clientes ativos com senha definida.
-  const { data: cli } = await db.rpc('cliente_login', { p_nome: usuario, p_senha: senha });
+  // 3) Cliente (nome + senha do cadastro). Hash scrypt; senha legada migra no acesso.
+  const cli = await verificarClienteLogin(usuario, senha);
   if (cli) {
-    const c = cli as { id: number; nome: string };
     await limparFalhas(usuario);
-    await setClienteCookie(c.id, c.nome);
+    await setClienteCookie(cli.id, cli.nome);
     redirect('/cliente');
   }
 
