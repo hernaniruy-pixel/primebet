@@ -33,6 +33,15 @@ Defina em **Vercel → Project → Settings → Environment Variables** e faça 
 dela via `color-mix`, então **uma cor repinta tudo**. As `_ESC` e `_CLARO` afinam só os
 realces em hex. **Deixe em branco para manter o dourado PrimeBet.**
 
+### Segredos server-only (NÃO usar prefixo `NEXT_PUBLIC_` — marcar como *Sensitive*)
+
+| Variável | Para que serve | Observação |
+|---|---|---|
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Acesso ao banco do cliente (server) | infra base |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Middleware/Supabase Auth (login master) | infra base |
+| `ADMIN_EMAIL` | E-mail do usuário **master** no Supabase Auth (login `admin`) | crie o usuário no Auth do cliente com esse e-mail + senha |
+| `PRIMEBET_SESSION_SECRET` | Segredo das sessões (equipe/cliente, HMAC) | **valor aleatório longo por cliente**; sem ele cai no service-role key |
+
 ## 2) Bot (Railway) — variáveis de ambiente
 
 | Variável | Para que serve | Exemplo |
@@ -61,11 +70,43 @@ Substitua estes arquivos (mesmos nomes) no repo/deploy web:
 - **Tema visual do login** (fundo + composição) é do template; a troca por cliente é
   **logo + nome + cores da marca**. O painel segue as cores da marca via `--marca`.
 
+## 5) Banco de dados — migrações (SQL Editor do Supabase do cliente)
+
+Rode **em ordem de número**, uma vez, no SQL Editor do projeto do cliente. Todas são
+idempotentes (`if not exists` / `drop ... if exists`). Os arquivos estão em
+`supabase/migrations/`. As essenciais do modelo atual:
+
+| # | O que cria |
+|---|---|
+| 001–020 | Base (apostas, clientes, conferência, contas, plano/cota, etc.) |
+| 021 | Equipe (cargos) + auditoria (histórico do bilhete) |
+| 022 | Fila de envio de PDF pelo bot |
+| 023 | Fuso Brasil no filtro de data (semana certa) |
+| 025 | `imagens_recebidas.aposta_excluida` — fim do `#null`; aposta excluída rotula a imagem, **nada some** |
+| 026 | Papel `admin` na equipe (multi-admin: master cria admins dos donos) |
+| 027 | `login_rate` — trava anti-força-bruta no login |
+| 028 | `acertos` — controle de pagamentos/recebimentos dos clientes |
+
+> Depois das migrações, crie o usuário **master** no Supabase Auth do cliente (e-mail =
+> `ADMIN_EMAIL`, com uma senha). Ele loga como `admin` e, no painel (👥 Usuários), cria os
+> logins **Admin** dos donos do cliente.
+
+## 6) Regras do modelo (herdadas, não reimplementar)
+
+- **Nada é apagado automaticamente:** o sistema nunca exclui bilhete/dado por conta própria
+  — só exclusão manual, auditada. Faxina automática só de miniatura de conferência >2 semanas.
+- **Data do bilhete = hora do envio no grupo** (nunca a data impressa no print nem a da reação).
+- **Senhas em scrypt** (equipe e cliente); todo papel troca a própria senha; login com rate-limit.
+- **Acertos** ficam POR CIMA do fechamento, sem tocar em bilhete.
+
 ---
 
 ### Checklist rápido (cliente novo)
 1. Novo projeto Vercel (web) + novo serviço Railway (bot), a partir deste repo.
-2. Setar as env da tabela 1 (web) e tabela 2 (bot).
-3. Trocar `logo.jpg` (e ícone/OG se tiver).
-4. Redeploy web. Parear o bot no `/`.
-5. Cadastrar clientes/afiliados/plano no painel (dados individuais da banca).
+2. Rodar as **migrações** (seção 5) no Supabase do cliente.
+3. Setar as env: tabela 1 + segredos server-only (web), tabela 2 (bot).
+4. Criar o usuário **master** no Supabase Auth (e-mail = `ADMIN_EMAIL`).
+5. Trocar `logo.jpg` (e ícone/OG se tiver).
+6. Redeploy web. Parear o bot no `/`.
+7. Logar como master → criar os **Admins** dos donos (👥 Usuários).
+8. Cadastrar clientes/afiliados/plano no painel (dados individuais da banca).
