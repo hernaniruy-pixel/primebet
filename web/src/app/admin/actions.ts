@@ -397,7 +397,7 @@ export async function lerPlano(): Promise<{ config: PlanoConfig; uso: UsoCota }>
 
 /** Edita a config do plano. Devolve o uso recalculado. */
 export async function atualizarPlano(patch: Partial<PlanoConfig>): Promise<{ config: PlanoConfig; uso: UsoCota }> {
-  await exigir('admin');
+  await exigir('master');  // plano/cota é cobrança da rede — só o master (você) edita
   const db = createAdminClient();
   const id = await bancaId(db);
   const up: Record<string, unknown> = {};
@@ -414,7 +414,7 @@ export async function atualizarPlano(patch: Partial<PlanoConfig>): Promise<{ con
 
 /** Zera o contador: passa a contar só o que vier a partir de agora (reset manual). */
 export async function zerarContadorCota(): Promise<{ config: PlanoConfig; uso: UsoCota }> {
-  await exigir('admin');
+  await exigir('master');  // zerar contador afeta a cobrança — só o master
   const db = createAdminClient();
   const id = await bancaId(db);
   const { error } = await db.from('bancas').update({ contador_zerado_em: new Date().toISOString() }).eq('id', id);
@@ -432,7 +432,7 @@ async function exigirSessao(): Promise<Ator> {
 
 // Mínimo de papel por ação. admin(3) > gestor(2) > operador(1). A trava é AQUI (servidor):
 // esconder no front não basta — o operador não pode nem CONSEGUIR chamar o que é financeiro.
-const NIVEL: Record<Ator['tipo'], number> = { operador: 1, gestor: 2, admin: 3 };
+const NIVEL: Record<Ator['tipo'], number> = { operador: 1, gestor: 2, admin: 3, master: 4 };
 async function exigir(min: Ator['tipo']): Promise<Ator> {
   const ator = await exigirSessao();
   if (NIVEL[ator.tipo] < NIVEL[min]) throw new Error('Sem permissão para esta ação.');
@@ -461,26 +461,34 @@ export async function sairEquipe(): Promise<void> {
   await limparEquipeCookie();
 }
 
-// ─────────── Usuários da equipe (gestor/operador) ───────────
-export type EquipeUser = { id: number; nome: string; papel: 'gestor' | 'operador'; ativo: boolean };
+// ─────────── Usuários da equipe (admin/gestor/operador) ───────────
+export type EquipeUser = { id: number; nome: string; papel: 'admin' | 'gestor' | 'operador'; ativo: boolean };
 
-/** Lista a equipe. Admin vê todos; gestor vê só os operadores (não enxerga outros gestores). */
+/**
+ * Lista a equipe conforme o poder de quem pede:
+ *  • master : todos (inclusive os admins dos donos);
+ *  • admin  : gestor + operador (não gerencia outros admins);
+ *  • gestor : só operador.
+ */
 export async function listarEquipe(): Promise<EquipeUser[]> {
   const ator = await exigir('gestor');
   const db = createAdminClient();
   let q = db.from('equipe').select('id,nome,papel,ativo').order('papel', { ascending: true }).order('nome', { ascending: true });
   if (ator.tipo === 'gestor') q = q.eq('papel', 'operador');
+  else if (ator.tipo === 'admin') q = q.in('papel', ['gestor', 'operador']);
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as EquipeUser[];
 }
 
-/** Cria operador/gestor. SÓ admin. Senha guardada com hash (scrypt), nunca texto puro. */
-export async function criarEquipe(nome: string, senha: string, papel: 'gestor' | 'operador'): Promise<{ ok: boolean; erro?: string }> {
-  await exigir('admin');
+/** Cria admin/gestor/operador. Senha com hash (scrypt), nunca texto puro.
+ *  Criar ADMIN é privilégio do MASTER; gestor/operador o admin também cria. */
+export async function criarEquipe(nome: string, senha: string, papel: 'admin' | 'gestor' | 'operador'): Promise<{ ok: boolean; erro?: string }> {
+  const ator = await exigir('admin');
+  if (papel === 'admin' && ator.tipo !== 'master') return { ok: false, erro: 'Só o dono da rede (master) pode criar outro admin.' };
   const login = String(nome || '').trim();
   if (!login || String(senha || '').length < 4) return { ok: false, erro: 'Informe o nome e uma senha de pelo menos 4 caracteres.' };
-  if (papel !== 'gestor' && papel !== 'operador') return { ok: false, erro: 'Papel inválido.' };
+  if (papel !== 'admin' && papel !== 'gestor' && papel !== 'operador') return { ok: false, erro: 'Papel inválido.' };
   if (login.toLowerCase() === 'admin') return { ok: false, erro: 'O nome "admin" é reservado.' };
   if (!/^[A-Za-z0-9 ._-]{2,40}$/.test(login)) return { ok: false, erro: 'Nome inválido (use letras, números, espaço, . _ -).' };
   const db = createAdminClient();
@@ -500,15 +508,19 @@ export async function resetarSenhaEquipe(id: number, novaSenha: string): Promise
   const { data: alvo } = await db.from('equipe').select('id,papel').eq('id', id).maybeSingle();
   if (!alvo) return { ok: false, erro: 'Usuário não encontrado.' };
   if (ator.tipo === 'gestor' && alvo.papel !== 'operador') return { ok: false, erro: 'Sem permissão para redefinir a senha deste usuário.' };
+  // Admin não mexe em outro admin — só o master.
+  if (alvo.papel === 'admin' && ator.tipo !== 'master') return { ok: false, erro: 'Só o dono da rede (master) pode redefinir a senha de um admin.' };
   const { error } = await db.from('equipe').update({ senha_hash: hashSenha(novaSenha), atualizado_em: new Date().toISOString() }).eq('id', id);
   if (error) return { ok: false, erro: 'Não foi possível redefinir a senha.' };
   return { ok: true };
 }
 
-/** Ativa/desativa um membro (desativado não loga). SÓ admin. */
+/** Ativa/desativa um membro (desativado não loga). Admin: gestor/operador. Admin só o master. */
 export async function definirAtivoEquipe(id: number, ativo: boolean): Promise<void> {
-  await exigir('admin');
+  const ator = await exigir('admin');
   const db = createAdminClient();
+  const { data: alvo } = await db.from('equipe').select('papel').eq('id', id).maybeSingle();
+  if (alvo?.papel === 'admin' && ator.tipo !== 'master') throw new Error('Só o dono da rede (master) pode ativar/desativar um admin.');
   await db.from('equipe').update({ ativo, atualizado_em: new Date().toISOString() }).eq('id', id);
 }
 

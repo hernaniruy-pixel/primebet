@@ -42,7 +42,7 @@ export async function entrar(_prev: LoginState, formData: FormData): Promise<Log
     String(eq.nome).toLowerCase() === usuario.toLowerCase() &&
     conferirSenha(senha, String(eq.senha_hash))
   ) {
-    await setEquipeCookie(Number(eq.id), String(eq.nome), eq.papel as 'gestor' | 'operador');
+    await setEquipeCookie(Number(eq.id), String(eq.nome), eq.papel as 'admin' | 'gestor' | 'operador');
     redirect('/admin');
   }
 

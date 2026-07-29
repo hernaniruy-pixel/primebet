@@ -10,7 +10,7 @@ import crypto from 'node:crypto';
 const COOKIE = 'pb_equipe';
 const MAX_AGE = 60 * 60 * 24 * 7; // 7 dias
 
-export type Papel = 'gestor' | 'operador';
+export type Papel = 'admin' | 'gestor' | 'operador';
 export type EquipeSessao = { eid: number; nome: string; papel: Papel; exp: number };
 
 function secret(): string {
@@ -38,7 +38,7 @@ function verificarToken(token: string): EquipeSessao | null {
     const p = JSON.parse(Buffer.from(body, 'base64url').toString()) as EquipeSessao;
     // Falha fechada: formato inválido ou papel desconhecido não autentica.
     if (typeof p.eid !== 'number' || !Number.isFinite(p.eid) || typeof p.nome !== 'string') return null;
-    if (p.papel !== 'gestor' && p.papel !== 'operador') return null;
+    if (p.papel !== 'admin' && p.papel !== 'gestor' && p.papel !== 'operador') return null;
     if (!p.exp || p.exp < Math.floor(Date.now() / 1000)) return null;
     return p;
   } catch {

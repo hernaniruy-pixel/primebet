@@ -141,12 +141,13 @@ function Modal({ title, onClose, max = 'max-w-3xl', children }: { title: ReactNo
 }
 
 export default function PainelModerno({ email, papel, clientesIni, afiliadosIni, apostasIni, semana }: {
-  email: string; papel: 'admin' | 'gestor' | 'operador'; clientesIni: Cliente[]; afiliadosIni: Afiliado[]; apostasIni: ApostasPage; semana: { d1: string; d2: string };
+  email: string; papel: 'master' | 'admin' | 'gestor' | 'operador'; clientesIni: Cliente[]; afiliadosIni: Afiliado[]; apostasIni: ApostasPage; semana: { d1: string; d2: string };
 }) {
   const router = useRouter();
-  // Papéis: operador só vê bilhetes + conferência (nada financeiro); gestor/admin veem tudo.
-  const podeFinanceiro = papel === 'admin' || papel === 'gestor';
-  const ehAdmin = papel === 'admin';
+  // Papéis: operador só vê bilhetes + conferência (nada financeiro); gestor/admin/master veem tudo.
+  const podeFinanceiro = papel === 'master' || papel === 'admin' || papel === 'gestor';
+  const ehAdmin = papel === 'master' || papel === 'admin';   // gerencia equipe (Usuários)
+  const ehMaster = papel === 'master';                        // só o dono da rede cria admin / mexe em cota
   const [dark, setDark] = useState(false);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -199,7 +200,7 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   const [bot, setBot] = useState<BotStatus | null>(null);
   // Usuários da equipe (modal). novoUser = form de criação (só admin); resetUser = redefinir senha.
   const [equipe, setEquipe] = useState<EquipeUser[]>([]);
-  const [novoUser, setNovoUser] = useState<{ nome: string; senha: string; papel: 'operador' | 'gestor' }>({ nome: '', senha: '', papel: 'operador' });
+  const [novoUser, setNovoUser] = useState<{ nome: string; senha: string; papel: 'operador' | 'gestor' | 'admin' }>({ nome: '', senha: '', papel: 'operador' });
   const [userErro, setUserErro] = useState('');
   const [resetUser, setResetUser] = useState<{ id: number; nome: string; senha: string } | null>(null);
   // Histórico (auditoria) de um bilhete — só gestor/admin abrem.
@@ -698,7 +699,7 @@ ${MARCA.equipe}`);
             <button onClick={toggleTheme} title="Tema" className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
             {/* O e-mail saiu do corpo da tela (ocupava espaço e o topo já diz onde você
                 está). Fica aqui no título: passe o mouse para ver a conta logada. */}
-            <button onClick={sair} title={`Sair — logado como ${email}${papel !== 'admin' ? ` · ${papel}` : ''}`} className="shrink-0 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
+            <button onClick={sair} title={`Sair — logado como ${email}${papel !== 'master' ? ` · ${papel}` : ''}`} className="shrink-0 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
           </div>
         </header>
 
@@ -1228,9 +1229,10 @@ ${MARCA.equipe}`);
                     <div><span className={lbl}>Nome de login</span><input className={inp} value={novoUser.nome} onChange={(e) => setNovoUser((s) => ({ ...s, nome: e.target.value }))} placeholder="ex.: joao" /></div>
                     <div><span className={lbl}>Senha</span><input className={inp} type="text" value={novoUser.senha} onChange={(e) => setNovoUser((s) => ({ ...s, senha: e.target.value }))} placeholder="mín. 4 caracteres" /></div>
                     <div><span className={lbl}>Cargo</span>
-                      <select className={inp} value={novoUser.papel} onChange={(e) => setNovoUser((s) => ({ ...s, papel: e.target.value as 'operador' | 'gestor' }))}>
+                      <select className={inp} value={novoUser.papel} onChange={(e) => setNovoUser((s) => ({ ...s, papel: e.target.value as 'operador' | 'gestor' | 'admin' }))}>
                         <option value="operador">Operador (só bilhetes + conferência)</option>
                         <option value="gestor">Gestor (operacional completo)</option>
+                        {ehMaster && <option value="admin">Admin (dono — vê tudo + gerencia equipe)</option>}
                       </select>
                     </div>
                     <div className="flex items-end"><button onClick={criarUsuario} className="w-full rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">+ Criar usuário</button></div>
@@ -1247,7 +1249,7 @@ ${MARCA.equipe}`);
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{u.nome}</div>
                         <div className="mt-0.5 flex items-center gap-1.5">
-                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${u.papel === 'gestor' ? 'bg-marca-100 text-marca-700 dark:bg-marca-500/20 dark:text-marca-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300'}`}>{u.papel}</span>
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${u.papel === 'admin' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : u.papel === 'gestor' ? 'bg-marca-100 text-marca-700 dark:bg-marca-500/20 dark:text-marca-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300'}`}>{u.papel}</span>
                           {!u.ativo && <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-700">inativo</span>}
                         </div>
                       </div>
