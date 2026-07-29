@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { setClienteCookie } from '@/lib/cliente-session';
 import { setEquipeCookie } from '@/lib/equipe-session';
 import { conferirSenha } from '@/lib/senha';
+import { segundosBloqueado, registrarFalha, limparFalhas } from '@/lib/login-rate';
 
 export type LoginState = { erro?: string };
 
@@ -20,18 +21,23 @@ export async function entrar(_prev: LoginState, formData: FormData): Promise<Log
   const senha = String(formData.get('senha') || '');
   if (!usuario || !senha) return { erro: 'Preencha usuário e senha.' };
 
-  // 1) Equipe/admin
+  // Trava anti-força-bruta: bloqueado? nem tenta conferir a senha.
+  const bloq = await segundosBloqueado(usuario);
+  if (bloq > 0) return { erro: `Muitas tentativas. Tente de novo em ${Math.ceil(bloq / 60)} min.` };
+
+  // 1) Master (login 'admin' → Supabase Auth)
   if (usuario.toLowerCase() === ADMIN_USER) {
     const supabase = await createClient();
     const { error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: senha });
-    if (error) return { erro: 'Usuário ou senha incorretos.' };
+    if (error) { await registrarFalha(usuario); return { erro: 'Usuário ou senha incorretos.' }; }
+    await limparFalhas(usuario);
     redirect('/admin');
   }
 
   const db = createAdminClient();
 
-  // 2) Equipe (gestor/operador). Login = nome; senha conferida por hash (scrypt).
-  //    O 'admin' já foi tratado acima e não pode ser cadastrado como equipe.
+  // 2) Equipe (admin/gestor/operador). Login = nome; senha conferida por hash (scrypt).
+  //    O 'admin' (master) já foi tratado acima e não pode ser cadastrado como equipe.
   const { data: eq } = await db
     .from('equipe')
     .select('id,nome,senha_hash,papel,ativo')
@@ -42,6 +48,7 @@ export async function entrar(_prev: LoginState, formData: FormData): Promise<Log
     String(eq.nome).toLowerCase() === usuario.toLowerCase() &&
     conferirSenha(senha, String(eq.senha_hash))
   ) {
+    await limparFalhas(usuario);
     await setEquipeCookie(Number(eq.id), String(eq.nome), eq.papel as 'admin' | 'gestor' | 'operador');
     redirect('/admin');
   }
@@ -50,9 +57,11 @@ export async function entrar(_prev: LoginState, formData: FormData): Promise<Log
   const { data: cli } = await db.rpc('cliente_login', { p_nome: usuario, p_senha: senha });
   if (cli) {
     const c = cli as { id: number; nome: string };
+    await limparFalhas(usuario);
     await setClienteCookie(c.id, c.nome);
     redirect('/cliente');
   }
 
+  await registrarFalha(usuario);
   return { erro: 'Usuário ou senha incorretos.' };
 }
