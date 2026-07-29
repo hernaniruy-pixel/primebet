@@ -11,6 +11,16 @@ import { MARCA } from '@/lib/marca';
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const safe = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 
+// Cores do STATUS iguais às do painel (STCOLOR em PainelModerno) — [bg, texto].
+const STCOR: Record<string, { bg: [number, number, number]; fg: [number, number, number] }> = {
+  'EM ABERTO': { bg: [221, 214, 254], fg: [76, 29, 149] },
+  GREEN: { bg: [22, 163, 74], fg: [255, 255, 255] },
+  'MEIO GREEN': { bg: [134, 239, 172], fg: [20, 83, 45] },
+  'MEIO RED': { bg: [252, 165, 165], fg: [127, 29, 29] },
+  RED: { bg: [220, 38, 38], fg: [255, 255, 255] },
+  REEMBOLSO: { bg: [250, 204, 21], fg: [113, 63, 18] },
+};
+
 // 'HH:mm DD/MM/AA' → 'DD/MM/AA HH:mm' (a data manda na leitura de um extrato).
 const dataLinha = (s: string): string => {
   const m = /^(\d{2}):(\d{2})\s+(\d{2})[/-](\d{2})[/-](\d{2}|\d{4})$/.exec(s || '');
@@ -152,12 +162,10 @@ export function gerarPdfExtrato(o: PdfExtratoOpts): { blob: Blob; nome: string }
       const r = o.rows[d.row.index];
       if (!r) return;
       if (d.column.index === 5) d.cell.styles.textColor = r.sl > 0 ? [22, 163, 74] : r.sl < 0 ? [225, 29, 72] : [15, 23, 42];
+      // Status (col 4): pílula colorida igual ao dashboard (fundo + texto).
       if (d.column.index === 4) {
-        const c: Record<string, [number, number, number]> = {
-          'GREEN': [22, 163, 74], 'MEIO GREEN': [34, 139, 84], 'RED': [220, 38, 38],
-          'MEIO RED': [200, 60, 60], 'REEMBOLSO': [161, 98, 7], 'EM ABERTO': [109, 40, 217],
-        };
-        d.cell.styles.textColor = c[r.st] ?? [15, 23, 42];
+        const cor = STCOR[String(r.st || '').trim().toUpperCase()];
+        if (cor) { d.cell.styles.fillColor = cor.bg; d.cell.styles.textColor = cor.fg; d.cell.styles.fontStyle = 'bold'; }
       }
     },
     didDrawPage: () => {

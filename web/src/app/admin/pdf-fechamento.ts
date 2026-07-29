@@ -22,6 +22,16 @@ const COR_NEG: [number, number, number] = [225, 29, 72];
 const COR_ZERO: [number, number, number] = [15, 23, 42];
 const corNum = (n: number): [number, number, number] => (n > 0 ? COR_POS : n < 0 ? COR_NEG : COR_ZERO);
 
+// Cores do STATUS iguais às do painel (STCOLOR em PainelModerno) — [bg, texto].
+const STCOR: Record<string, { bg: [number, number, number]; fg: [number, number, number] }> = {
+  'EM ABERTO': { bg: [221, 214, 254], fg: [76, 29, 149] },
+  GREEN: { bg: [22, 163, 74], fg: [255, 255, 255] },
+  'MEIO GREEN': { bg: [134, 239, 172], fg: [20, 83, 45] },
+  'MEIO RED': { bg: [252, 165, 165], fg: [127, 29, 29] },
+  RED: { bg: [220, 38, 38], fg: [255, 255, 255] },
+  REEMBOLSO: { bg: [250, 204, 21], fg: [113, 63, 18] },
+};
+
 export interface PdfFechamentoOpts {
   banca: string;
   resumo: FechCliRow;
@@ -122,6 +132,15 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0
     },
     didParseCell: (data) => {
       alinharCabecalho(data, { 2: 'right', 3: 'right', 4: 'center', 5: 'right' });
+      // Status (col 4): pílula colorida igual ao dashboard (fundo + texto por status).
+      if (data.section === 'body' && data.column.index === 4) {
+        const cor = STCOR[String(data.cell.raw || '').trim().toUpperCase()];
+        if (cor) {
+          data.cell.styles.fillColor = cor.bg;
+          data.cell.styles.textColor = cor.fg;
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
       if (data.section === 'body' && data.column.index === 5) {
         const n = Number(String(data.cell.raw).replace(/\./g, '').replace(',', '.')) || 0;
         data.cell.styles.textColor = corNum(n);
