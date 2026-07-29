@@ -12,7 +12,7 @@ import {
   statusBot, type BotStatus,
   lerPlano, type PlanoConfig, type UsoCota,
   sairEquipe,
-  listarEquipe, criarEquipe, resetarSenhaEquipe, definirAtivoEquipe, type EquipeUser,
+  listarEquipe, criarEquipe, resetarSenhaEquipe, definirAtivoEquipe, alterarMinhaSenha, type EquipeUser,
   historicoAposta, type AuditoriaItem,
   enfileirarEnvioPdf,
 } from './actions';
@@ -162,7 +162,8 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   const [clientes, setClientes] = useState<Cliente[]>(clientesIni);
   const [afiliados, setAfiliados] = useState<Afiliado[]>(afiliadosIni);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
-  const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp' | 'plano' | 'usuarios'>(null);
+  const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp' | 'plano' | 'usuarios' | 'minhaSenha'>(null);
+  const [minhaSenha, setMinhaSenha] = useState({ atual: '', nova: '', conf: '', erro: '', ok: false });
   // Plano/cota de transcrições — SOMENTE LEITURA neste painel (é do dono da banca).
   // A configuração (cota, preço, renovação, zerar) fica no admin MASTER do Tracker.
   const [plano, setPlano] = useState<{ config: PlanoConfig; uso: UsoCota } | null>(null);
@@ -625,6 +626,13 @@ ${MARCA.equipe}`);
     if (r.ok) { setResetUser(null); toast(`Senha de ${resetUser.nome} redefinida.`); }
     else toast(r.erro || 'Erro ao redefinir.');
   }
+  async function salvarMinhaSenha() {
+    const { atual, nova, conf } = minhaSenha;
+    if (nova !== conf) { setMinhaSenha((s) => ({ ...s, erro: 'A confirmação não bate com a nova senha.' })); return; }
+    const r = await alterarMinhaSenha(atual, nova);
+    if (r.ok) { setMinhaSenha({ atual: '', nova: '', conf: '', erro: '', ok: true }); toast('Senha alterada!'); setTimeout(() => setModal(null), 900); }
+    else setMinhaSenha((s) => ({ ...s, erro: r.erro || 'Erro ao trocar a senha.', ok: false }));
+  }
   async function alternarAtivoUsuario(u: EquipeUser) {
     setEquipe((es) => es.map((x) => (x.id === u.id ? { ...x, ativo: !u.ativo } : x))); // otimista
     try { await definirAtivoEquipe(u.id, !u.ativo); } catch { carregarEquipe(); toast('Erro ao atualizar.'); }
@@ -699,6 +707,7 @@ ${MARCA.equipe}`);
             <button onClick={toggleTheme} title="Tema" className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
             {/* O e-mail saiu do corpo da tela (ocupava espaço e o topo já diz onde você
                 está). Fica aqui no título: passe o mouse para ver a conta logada. */}
+            <button onClick={() => { setMinhaSenha({ atual: '', nova: '', conf: '', erro: '', ok: false }); setModal('minhaSenha'); }} title="Trocar a minha senha" className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">🔑 Minha senha</button>
             <button onClick={sair} title={`Sair — logado como ${email}${papel !== 'master' ? ` · ${papel}` : ''}`} className="shrink-0 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/30">Sair</button>
           </div>
         </header>
@@ -1268,6 +1277,20 @@ ${MARCA.equipe}`);
                   </div>
                 ))}
               </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* MINHA SENHA (qualquer papel troca a própria) */}
+        {modal === 'minhaSenha' && (
+          <Modal onClose={() => setModal(null)} max="max-w-sm" title="🔑 Trocar a minha senha">
+            <div className="flex flex-col gap-3">
+              <div><span className={lbl}>Senha atual</span><input className={inp} type="password" autoComplete="current-password" value={minhaSenha.atual} onChange={(e) => setMinhaSenha((s) => ({ ...s, atual: e.target.value, erro: '' }))} /></div>
+              <div><span className={lbl}>Nova senha</span><input className={inp} type="password" autoComplete="new-password" placeholder="mín. 4 caracteres" value={minhaSenha.nova} onChange={(e) => setMinhaSenha((s) => ({ ...s, nova: e.target.value, erro: '' }))} /></div>
+              <div><span className={lbl}>Confirmar nova senha</span><input className={inp} type="password" autoComplete="new-password" value={minhaSenha.conf} onChange={(e) => setMinhaSenha((s) => ({ ...s, conf: e.target.value, erro: '' }))} /></div>
+              {minhaSenha.erro && <div className="text-xs text-rose-600">{minhaSenha.erro}</div>}
+              {minhaSenha.ok && <div className="text-xs font-medium text-emerald-600">Senha alterada!</div>}
+              <button onClick={salvarMinhaSenha} disabled={!minhaSenha.atual || !minhaSenha.nova} className="mt-1 w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50">Trocar senha</button>
             </div>
           </Modal>
         )}

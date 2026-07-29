@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import type { ExtratoResp, SemanaExtrato } from './types';
-import { contestarAposta, sairCliente } from './actions';
+import { contestarAposta, sairCliente, alterarMinhaSenhaCliente } from './actions';
 import { renderJogoLinhas } from './render';
 import { MARCA } from '@/lib/marca';
 import type { Reg } from '../admin/types';
@@ -137,6 +137,7 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
 
   const router = useRouter();
   const [pend, startTransition] = useTransition();
+  const [senhaModal, setSenhaModal] = useState<null | { atual: string; nova: string; conf: string; erro: string; ok: boolean }>(null);
   const [contestando, setContestando] = useState<Reg | null>(null);
   const [motivo, setMotivo] = useState('');
   const [stSugerido, setStSugerido] = useState('');
@@ -205,6 +206,9 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
             <div className="flex shrink-0 items-center gap-2">
               <button onClick={exportarPdf} disabled={expPend} title="Exportar extrato em PDF" className="rounded-lg border border-[#DAA520]/50 bg-[#DAA520]/15 px-3 py-1.5 text-xs font-medium text-[#f0d081] hover:bg-[#DAA520]/25 disabled:opacity-50">
                 {expPend ? '…' : '📄 PDF'}
+              </button>
+              <button onClick={() => setSenhaModal({ atual: '', nova: '', conf: '', erro: '', ok: false })} title="Trocar a minha senha" className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">
+                🔑 Senha
               </button>
               <button onClick={() => startTransition(() => sairCliente())} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10">
                 Sair
@@ -403,6 +407,34 @@ export default function Extrato({ dados }: { dados: ExtratoResp }) {
         </div>
 
         {/* Modal de contestação */}
+        {senhaModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSenhaModal(null)}>
+            <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+              <h3 className="mb-3 text-base font-semibold text-slate-800 dark:text-slate-100">🔑 Trocar a minha senha</h3>
+              <div className="flex flex-col gap-3">
+                <input type="password" autoComplete="current-password" placeholder="Senha atual" value={senhaModal.atual} onChange={(e) => setSenhaModal((s) => s && { ...s, atual: e.target.value, erro: '' })} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-marca-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
+                <input type="password" autoComplete="new-password" placeholder="Nova senha (mín. 4)" value={senhaModal.nova} onChange={(e) => setSenhaModal((s) => s && { ...s, nova: e.target.value, erro: '' })} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-marca-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
+                <input type="password" autoComplete="new-password" placeholder="Confirmar nova senha" value={senhaModal.conf} onChange={(e) => setSenhaModal((s) => s && { ...s, conf: e.target.value, erro: '' })} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-marca-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
+                {senhaModal.erro && <div className="text-xs text-rose-600">{senhaModal.erro}</div>}
+                {senhaModal.ok && <div className="text-xs font-medium text-emerald-600">Senha alterada!</div>}
+                <div className="flex gap-2">
+                  <button onClick={() => setSenhaModal(null)} className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">Cancelar</button>
+                  <button
+                    disabled={!senhaModal.atual || !senhaModal.nova}
+                    onClick={async () => {
+                      if (senhaModal.nova !== senhaModal.conf) { setSenhaModal((s) => s && { ...s, erro: 'A confirmação não bate com a nova senha.' }); return; }
+                      const r = await alterarMinhaSenhaCliente(senhaModal.atual, senhaModal.nova);
+                      if (r.ok) { setSenhaModal((s) => s && { ...s, ok: true, erro: '' }); setTimeout(() => setSenhaModal(null), 900); }
+                      else setSenhaModal((s) => s && { ...s, erro: r.erro || 'Erro ao trocar a senha.' });
+                    }}
+                    className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                  >Trocar senha</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {contestando && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setContestando(null)}>
             <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>

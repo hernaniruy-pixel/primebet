@@ -13,7 +13,8 @@ import type { Conta, NovaConta, PatchConta, MovimentoConta } from './contas/type
 import { semanasBR, janelaSemana } from '@/lib/semana';
 import { atorAtual, type Ator } from '@/lib/auth-equipe';
 import { limparEquipeCookie } from '@/lib/equipe-session';
-import { hashSenha } from '@/lib/senha';
+import { hashSenha, conferirSenha } from '@/lib/senha';
+import { createClient } from '@/lib/supabase/server';
 
 // ═══════════════════ LISTAGEM / FECHAMENTO (paginação no servidor) ═══════════════════
 export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
@@ -459,6 +460,37 @@ async function auditar(db: ReturnType<typeof createAdminClient>, apostaId: numbe
 /** Logout da equipe (gestor/operador): limpa o cookie assinado. */
 export async function sairEquipe(): Promise<void> {
   await limparEquipeCookie();
+}
+
+/**
+ * Troca a PRÓPRIA senha (qualquer papel logado no painel). Confere a senha ATUAL
+ * antes de trocar. Master (Supabase Auth) muda no Auth; equipe (admin/gestor/
+ * operador) grava novo hash scrypt na tabela equipe.
+ */
+export async function alterarMinhaSenha(atual: string, nova: string): Promise<{ ok: boolean; erro?: string }> {
+  const ator = await atorAtual();
+  if (!ator) return { ok: false, erro: 'Não autenticado.' };
+  if (String(nova || '').length < 4) return { ok: false, erro: 'A nova senha precisa ter pelo menos 4 caracteres.' };
+
+  if (ator.tipo === 'master') {
+    const supabase = await createClient();
+    const email = process.env.ADMIN_EMAIL || 'admin@primebet.app';
+    // Confere a senha atual re-autenticando; depois troca no Supabase Auth.
+    const { error: eLogin } = await supabase.auth.signInWithPassword({ email, password: String(atual || '') });
+    if (eLogin) return { ok: false, erro: 'Senha atual incorreta.' };
+    const { error } = await supabase.auth.updateUser({ password: nova });
+    if (error) return { ok: false, erro: 'Não foi possível trocar a senha.' };
+    return { ok: true };
+  }
+
+  // Equipe: confere o hash atual e grava o novo.
+  const db = createAdminClient();
+  const { data: eq } = await db.from('equipe').select('id,senha_hash').ilike('nome', ator.nome).maybeSingle();
+  if (!eq) return { ok: false, erro: 'Usuário não encontrado.' };
+  if (!conferirSenha(String(atual || ''), String(eq.senha_hash))) return { ok: false, erro: 'Senha atual incorreta.' };
+  const { error } = await db.from('equipe').update({ senha_hash: hashSenha(nova), atualizado_em: new Date().toISOString() }).eq('id', eq.id);
+  if (error) return { ok: false, erro: 'Não foi possível trocar a senha.' };
+  return { ok: true };
 }
 
 // ─────────── Usuários da equipe (admin/gestor/operador) ───────────

@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getClienteSessao, limparClienteCookie } from '@/lib/cliente-session';
+import { hashSenha, conferirSenha } from '@/lib/senha';
 import { mapAposta, type ApostaRow } from '../admin/types';
 import type { SemanaExtrato, ExtratoResp } from './types';
 
@@ -90,4 +91,23 @@ export async function contestarAposta(id: number, motivo: string, statusSugerido
 export async function sairCliente(): Promise<void> {
   await limparClienteCookie();
   redirect('/login');
+}
+
+/**
+ * O JOGADOR troca a própria senha. Confere a senha atual (aceita a legada em
+ * texto puro) e grava o novo hash scrypt.
+ */
+export async function alterarMinhaSenhaCliente(atual: string, nova: string): Promise<{ ok: boolean; erro?: string }> {
+  const ses = await getClienteSessao();
+  if (!ses) return { ok: false, erro: 'Não autenticado.' };
+  if (String(nova || '').length < 4) return { ok: false, erro: 'A nova senha precisa ter pelo menos 4 caracteres.' };
+  const db = createAdminClient();
+  const { data: cli } = await db.from('clientes').select('id,senha_hash').eq('id', ses.cid).maybeSingle();
+  if (!cli || !cli.senha_hash) return { ok: false, erro: 'Cliente não encontrado.' };
+  const armazenado = String(cli.senha_hash);
+  const ok = armazenado.startsWith('scrypt$') ? conferirSenha(String(atual || ''), armazenado) : armazenado === String(atual || '');
+  if (!ok) return { ok: false, erro: 'Senha atual incorreta.' };
+  const { error } = await db.from('clientes').update({ senha_hash: hashSenha(nova) }).eq('id', cli.id);
+  if (error) return { ok: false, erro: 'Não foi possível trocar a senha.' };
+  return { ok: true };
 }
