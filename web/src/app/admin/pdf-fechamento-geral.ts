@@ -131,8 +131,8 @@ export function gerarPdfFechamentoGeral({ banca = MARCA.nome, g, rows = [], desp
 
   // ── Desempenho por cliente (detalhamento p/ os sócios) ──
   if (rows.length) {
-    // Maior saldo bruto primeiro: quem mais movimentou/ganhou aparece no topo.
-    const ordenadas = [...rows].sort((a, b) => b.sb - a.sb);
+    // Maior saldo LÍQUIDO primeiro: quem mais ganhou no topo, quem mais perdeu no fim.
+    const ordenadas = [...rows].sort((a, b) => b.sl - a.sl);
     autoTable(doc, {
       startY: y2 + 30,
       head: [['Cliente', 'Apostado', 'Em aberto', 'Saldo bruto', 'Comissão', 'Saldo líq.']],
@@ -140,6 +140,7 @@ export function gerarPdfFechamentoGeral({ banca = MARCA.nome, g, rows = [], desp
         wa(r.nome), money(r.val), money(r.ab), money(r.sb), money(r.cm), money(r.sl),
       ]),
       foot: [['TOTAL', money(g.val), money(g.ab), money(g.sb), money(g.cm), money(g.sl)]],
+      showFoot: 'lastPage',  // um ÚNICO total no fim da lista (não repete por página)
       margin: { left: M, right: M },
       styles: { font: 'helvetica', fontSize: 9, cellPadding: 5, textColor: [15, 23, 42] },
       headStyles: { fillColor: [19, 32, 10], textColor: [218, 165, 32], fontStyle: 'bold' },
