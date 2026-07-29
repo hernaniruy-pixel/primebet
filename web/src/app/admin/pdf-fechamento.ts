@@ -4,7 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { FechCliRow, Reg } from './types';
 import { wa } from '@/lib/pdf-winansi';
-import { alinharCabecalho } from '@/lib/pdf-tabela';
+import { alinharCabecalho, desenharPilulaStatus } from '@/lib/pdf-tabela';
 import { MARCA, corRGB } from '@/lib/marca';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -132,21 +132,15 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0
     },
     didParseCell: (data) => {
       alinharCabecalho(data, { 2: 'right', 3: 'right', 4: 'center', 5: 'right' });
-      // Status (col 4): pílula colorida igual ao dashboard (fundo + texto por status).
-      if (data.section === 'body' && data.column.index === 4) {
-        const cor = STCOR[String(data.cell.raw || '').trim().toUpperCase()];
-        if (cor) {
-          data.cell.styles.fillColor = cor.bg;
-          data.cell.styles.textColor = cor.fg;
-          data.cell.styles.fontStyle = 'bold';
-        }
-      }
+      // Status (col 4): esvazia o texto padrão — a pílula é desenhada no didDrawCell.
+      if (data.section === 'body' && data.column.index === 4) data.cell.text = [];
       if (data.section === 'body' && data.column.index === 5) {
         const n = Number(String(data.cell.raw).replace(/\./g, '').replace(',', '.')) || 0;
         data.cell.styles.textColor = corNum(n);
         data.cell.styles.fontStyle = 'bold';
       }
     },
+    didDrawCell: (data) => { if (data.column.index === 4) desenharPilulaStatus(doc, data, STCOR); },
     didDrawPage: () => {
       const ph = doc.internal.pageSize.getHeight();
       doc.setFont('helvetica', 'normal');

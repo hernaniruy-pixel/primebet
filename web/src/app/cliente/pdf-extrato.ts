@@ -5,7 +5,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Reg } from '../admin/types';
 import { wa } from '@/lib/pdf-winansi';
-import { alinharCabecalho } from '@/lib/pdf-tabela';
+import { alinharCabecalho, desenharPilulaStatus } from '@/lib/pdf-tabela';
 import { MARCA } from '@/lib/marca';
 
 const money = (n: number) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -162,12 +162,10 @@ export function gerarPdfExtrato(o: PdfExtratoOpts): { blob: Blob; nome: string }
       const r = o.rows[d.row.index];
       if (!r) return;
       if (d.column.index === 5) d.cell.styles.textColor = r.sl > 0 ? [22, 163, 74] : r.sl < 0 ? [225, 29, 72] : [15, 23, 42];
-      // Status (col 4): pílula colorida igual ao dashboard (fundo + texto).
-      if (d.column.index === 4) {
-        const cor = STCOR[String(r.st || '').trim().toUpperCase()];
-        if (cor) { d.cell.styles.fillColor = cor.bg; d.cell.styles.textColor = cor.fg; d.cell.styles.fontStyle = 'bold'; }
-      }
+      // Status (col 4): esvazia o texto padrão — a pílula é desenhada no didDrawCell.
+      if (d.column.index === 4) d.cell.text = [];
     },
+    didDrawCell: (d) => { if (d.column.index === 4) desenharPilulaStatus(doc, d, STCOR); },
     didDrawPage: () => {
       const ph = doc.internal.pageSize.getHeight();
       doc.setFont('helvetica', 'normal');
