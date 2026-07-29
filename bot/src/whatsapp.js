@@ -26,7 +26,7 @@ const {
   registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido,
   baixarThumbBase64, thumbPathPorMsg, legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg, enviadoEmPorMsg,
   apostaExistentePorMsg,
-  listarEnviosPendentes, baixarPdfEnvio, marcarEnvio,
+  listarEnviosPendentes, baixarPdfEnvio, marcarEnvio, reagendarEnvio,
 } = require('./conferencia');
 const { registrarDespesa } = require('./despesas');
 const { setQr, setPronto, setTeste } = require('./webqr');
@@ -486,6 +486,11 @@ function adaptar(sock) {
 
 // ─────────── conexão ───────────
 let pollerLigado = false;
+// Socket VIVO + estado da conexão. O poller lê `sockAtual` (não um sock capturado no
+// closure): sem isso, após um reconnect o poller ficava com o socket morto e TODO
+// envio falhava com "Connection Closed". `conectadoAgora` porteia os envios.
+let sockAtual = null;
+let conectadoAgora = false;
 
 async function iniciarWhatsApp() {
   // Subpasta própria dentro do volume já existente (/app/.wwebjs_auth): isola as
@@ -519,6 +524,7 @@ async function iniciarWhatsApp() {
     }
     if (connection === 'open') {
       console.log('✅ Bot conectado (Baileys) e ouvindo reações nos grupos.');
+      sockAtual = sock; conectadoAgora = true;   // socket vivo p/ o poller
       setPronto();
       // Catálogo de grupos (1 chamada) -> nomes p/ achar despesa/alertas e p/ os logs,
       // sem precisar de um groupMetadata por grupo.
@@ -527,10 +533,11 @@ async function iniciarWhatsApp() {
       const perm = await gruposPermitidos(true);
       console.log(`🔒 lendo apenas ${perm.size} grupos (clientes + despesa + alertas) de ${nomeCache.size} em que o número está`);
       setTeste(() => avisar(cliente, `🔔 Teste de alerta — ${horaBR()}`));
-      if (!pollerLigado) { pollerLigado = true; iniciarPollerPedidos(sock); }
+      if (!pollerLigado) { pollerLigado = true; iniciarPollerPedidos(); }
       aoConectar(cliente, GRUPO_AVISOS_LINK).catch((e) => console.log('   (aoConectar:', e.message, ')'));
     }
     if (connection === 'close') {
+      conectadoAgora = false;   // porteia os envios até reconectar
       const code = lastDisconnect && lastDisconnect.error && lastDisconnect.error.output && lastDisconnect.error.output.statusCode;
       const deslogado = code === DisconnectReason.loggedOut;
       console.log('⚠️  Conexão fechada:', code, deslogado ? '(DESLOGADO — precisa reescanear o QR)' : '(reconectando…)');
@@ -685,11 +692,15 @@ const VINCULO_INTERVALO = 60 * 1000; // 1x por minuto — não precisa ser a cad
 let ultimoEnvio = 0;
 const ENVIO_INTERVALO = 30 * 1000; // PDF de fechamento: 30s entre um cliente e o próximo (ban-safe)
 
-function iniciarPollerPedidos(sock) {
+function iniciarPollerPedidos() {
   setInterval(async () => {
     if (pollAtivo) return;
     pollAtivo = true;
     try {
+      // Usa SEMPRE o socket vivo. Se desconectado, não tenta nada (evita "Connection
+      // Closed" e deixa a fila intacta pra quando reconectar).
+      const sock = sockAtual;
+      if (!conectadoAgora || !sock) return;
       // A fila do dashboard é local (banco) — pode ser rápida, não fala com o WhatsApp.
       const pendentes = await listarPedidosPendentes();
       for (const p of pendentes) await processarPedido(sock, p);
@@ -715,17 +726,21 @@ function iniciarPollerPedidos(sock) {
 
 // Manda o PDF de fechamento (documento) no grupo do cliente, com a legenda do painel.
 async function processarEnvioPdf(sock, e) {
+  // Erros PERMANENTES (config errada) marcam erro na hora — não adianta reenviar.
+  if (!e.grupo_id) { await marcarEnvio(e.id, 'erro', 'Pedido sem grupo.'); return; }
+  const buf = await baixarPdfEnvio(e.storage_path);
+  if (!buf) { await marcarEnvio(e.id, 'erro', 'PDF não encontrado no Storage.'); return; }
+  const nome = `Fechamento ${e.cliente_nome || ''}`.trim().replace(/\s+/g, ' ') + '.pdf';
   try {
-    if (!e.grupo_id) { await marcarEnvio(e.id, 'erro', 'Pedido sem grupo.'); return; }
-    const buf = await baixarPdfEnvio(e.storage_path);
-    if (!buf) { await marcarEnvio(e.id, 'erro', 'PDF não encontrado no Storage.'); return; }
-    const nome = `Fechamento ${e.cliente_nome || ''}`.trim().replace(/\s+/g, ' ') + '.pdf';
     await sock.sendMessage(e.grupo_id, { document: buf, mimetype: 'application/pdf', fileName: nome, caption: e.legenda || '' });
     await marcarEnvio(e.id, 'enviado');
     console.log(`📤 PDF de fechamento enviado no grupo ${e.grupo_id} (cliente ${e.cliente_nome || '?'})`);
   } catch (err) {
-    await marcarEnvio(e.id, 'erro', String((err && err.message) || err).slice(0, 200));
-    console.error('   ❌ erro ao enviar PDF:', (err && err.message) || err);
+    // Falha ao ENVIAR é quase sempre transitória (conexão caiu no meio). NÃO desiste:
+    // reagenda (segue pendente) e reenvia nos próximos ciclos; só vira erro após 6 tentativas.
+    const msg = String((err && err.message) || err).slice(0, 200);
+    const r = await reagendarEnvio(e.id, e.tentativas, msg);
+    console.error(`   ${r === 'erro' ? '❌ desisti do' : '↻ reagendei o'} envio #${e.id} (${msg})`);
   }
 }
 

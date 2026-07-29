@@ -208,10 +208,30 @@ async function limparImagensAntigas() {
 // O painel sobe o PDF no bucket 'fechamentos' e cria o pedido em envios_pdf; aqui o
 // bot lista os pendentes, baixa o PDF e (no whatsapp.js) manda como documento no grupo.
 async function listarEnviosPendentes(limite = 1) {
-  const { data, error } = await sb.from('envios_pdf')
-    .select('id,grupo_id,cliente_nome,storage_path,legenda').eq('status', 'pendente').order('criado_em').limit(limite);
+  const cols = 'id,grupo_id,cliente_nome,storage_path,legenda,tentativas';
+  // tentativas ASC: no envio em massa, os pedidos NOVOS (0 tentativas) passam na frente;
+  // um pedido que já falhou drena atrás, sem travar a fila da leva inteira.
+  let { data, error } = await sb.from('envios_pdf')
+    .select(cols).eq('status', 'pendente').order('tentativas').order('criado_em').limit(limite);
+  if (error && /tentativas/.test(error.message)) { // migração 029 pendente
+    ({ data, error } = await sb.from('envios_pdf').select('id,grupo_id,cliente_nome,storage_path,legenda').eq('status', 'pendente').order('criado_em').limit(limite));
+  }
   if (error) { console.error('   envios pdf:', error.message); return []; }
   return data || [];
+}
+
+// Falha TRANSITÓRIA (ex.: conexão caiu): NÃO marca erro — incrementa tentativas e
+// deixa pendente pra reenviar quando reconectar. Só vira erro após `max` tentativas.
+async function reagendarEnvio(id, tentativas = 0, erro = null, max = 6) {
+  const n = (tentativas || 0) + 1;
+  if (n >= max) {
+    await sb.from('envios_pdf').update({ status: 'erro', erro: `${erro || 'falha'} (após ${n} tentativas)`, tentativas: n }).eq('id', id);
+    return 'erro';
+  }
+  const patch = { erro }; // segue pendente
+  await sb.from('envios_pdf').update(patch).eq('id', id).then(() => {}, () => {});
+  await sb.from('envios_pdf').update({ tentativas: n }).eq('id', id).then(() => {}, () => {}); // best-effort (coluna pode não existir)
+  return 'pendente';
 }
 
 async function baixarPdfEnvio(path) {
@@ -231,5 +251,5 @@ module.exports = {
   listarPedidosPendentes, marcarPedido, baixarThumbBase64, thumbPathPorMsg,
   legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg, enviadoEmPorMsg,
   limparImagensAntigas, imagemJaRegistrada, apostaExistentePorMsg,
-  listarEnviosPendentes, baixarPdfEnvio, marcarEnvio,
+  listarEnviosPendentes, baixarPdfEnvio, marcarEnvio, reagendarEnvio,
 };
