@@ -14,7 +14,9 @@ export default async function AdminPage() {
   const semana = weekRange();
   const [base, apostas] = await Promise.all([
     loadBase(),
-    listarApostas({ ord: 'data_desc', page: 1, pend: true }),  // fila pendente (default da UI)
+    // Default ao entrar: fila pendente DA SEMANA ATUAL (visão de trabalho do dia).
+    // Tem que casar com o estado inicial do PainelModerno (mesma semana + pend).
+    listarApostas({ ord: 'data_desc', page: 1, pend: true, dt1: semana.d1, dt2: semana.d2 }),
   ]);
 
   // Operador não vê o financeiro nem a gestão de clientes/afiliados. Ele PRECISA do

@@ -182,7 +182,11 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   // (listarApostas({ pend:true }) — fila pendente inteira). Antes forçava "esta semana"
   // aqui, então ao hidratar o cliente rebuscava só a semana e os bilhetes do backlog
   // SUMIAM da tela segundos após o login. O período segue disponível no filtro.
-  const [filtros, setFiltros] = useState({ ...filtrosVazios });
+  // Ao ENTRAR, o painel já vem filtrado na SEMANA ATUAL + fila PENDENTE (a visão de
+  // trabalho do dia). Tem que bater EXATO com o que o SSR renderizou (page.tsx usa
+  // pend:true + a mesma semana), senão os bilhetes "piscavam" e sumiam na hidratação.
+  const filtrosIniciais = { ...filtrosVazios, period: 'semana', dt1: semana.d1, dt2: semana.d2 };
+  const [filtros, setFiltros] = useState({ ...filtrosIniciais });
   const [debFiltros, setDebFiltros] = useState(filtros);
   // Quanto esperar antes de disparar a busca: campos de TEXTO (jogo, id…) esperam
   // 400ms pra não buscar a cada tecla; SELECTS (cliente, status, período…) aplicam
