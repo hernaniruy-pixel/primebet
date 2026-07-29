@@ -5,6 +5,7 @@ import {
   type Afiliado, type Cliente, type Reg,
   type AfiliadoRow, type ClienteRow, type ApostaRow,
   type ApostasPage, type FiltroApostas, type Totals, type FechCliResp, type FechAfResp,
+  type AcertosResp, type AcertoCliente, type AcertoMov,
   mapAfiliado, mapCliente, mapAposta, parseTs, fmtTs, pisoDuasSemanas,
 } from './types';
 import type { ConfGrupo, ConfImagensResp, ConfFiltro } from './conferencia/types';
@@ -79,6 +80,102 @@ export async function bilhetesCliente(clienteId: number, dt1?: string | null, dt
   if (error) throw error;
   const j = data as { rows: ApostaRow[] };
   return (j.rows ?? []).map(mapAposta);
+}
+
+// ═══════════════════ ACERTOS (pagamentos/recebimentos) ═══════════════════
+// Camada de acompanhamento por cima do fechamento. NÃO toca em aposta: só lê o
+// saldo líquido ao vivo (fechamento_clientes) e cruza com os movimentos de
+// dinheiro dados baixa na tabela `acertos`. Migração 028.
+
+const EPS = 0.005; // tolerância de centavo para considerar "sem saldo"
+
+/** Saldo líquido por cliente no período, direto do fechamento (ao vivo). */
+async function saldosPeriodo(db: ReturnType<typeof createAdminClient>, dt1: string, dt2: string): Promise<Map<number, { nome: string; sl: number }>> {
+  const { data, error } = await db.rpc('fechamento_clientes', { p_dt1: dt1 || null, p_dt2: dt2 || null });
+  if (error) throw error;
+  const j = data as FechCliResp;
+  const m = new Map<number, { nome: string; sl: number }>();
+  for (const r of j.rows ?? []) m.set(r.id, { nome: r.nome, sl: Number(r.sl) || 0 });
+  return m;
+}
+
+/** Lista os acertos do período: por cliente com saldo, pago/recebido, pendente e histórico + totais. */
+export async function listarAcertos(dt1: string, dt2: string): Promise<AcertosResp> {
+  await exigir('admin');  // controle de dinheiro dos donos
+  const db = createAdminClient();
+  const saldos = await saldosPeriodo(db, dt1, dt2);
+
+  const { data: movs, error } = await db.from('acertos')
+    .select('id,cliente_id,tipo,valor,obs,ator_nome,criado_em')
+    .eq('dt1', dt1).eq('dt2', dt2)
+    .order('criado_em', { ascending: true });
+  if (error) throw error;
+
+  const porCliente = new Map<number, AcertoMov[]>();
+  for (const m of movs ?? []) {
+    const arr = porCliente.get(m.cliente_id) ?? [];
+    arr.push({ id: m.id, tipo: m.tipo, valor: Number(m.valor) || 0, obs: m.obs ?? '', ator: m.ator_nome ?? '—', quando: fmtTs(m.criado_em) });
+    porCliente.set(m.cliente_id, arr);
+  }
+
+  // Todos os clientes que TÊM saldo no período OU já têm algum movimento lançado.
+  const ids = new Set<number>([...saldos.keys(), ...porCliente.keys()]);
+  const rows: AcertoCliente[] = [];
+  const tot = { aPagar: 0, pago: 0, faltaPagar: 0, aReceber: 0, recebido: 0, faltaReceber: 0 };
+
+  for (const id of ids) {
+    const s = saldos.get(id);
+    const movimentos = porCliente.get(id) ?? [];
+    // nome: do fechamento; se o cliente só tem movimento (saldo mudou p/ 0), busca na tabela.
+    let nome = s?.nome ?? '';
+    const sl = s?.sl ?? 0;
+    if (!nome) { const { data: c } = await db.from('clientes').select('nome').eq('id', id).maybeSingle(); nome = c?.nome ?? `#${id}`; }
+    if (Math.abs(sl) < EPS && movimentos.length === 0) continue;
+
+    const direcao: 'pagar' | 'receber' = sl >= 0 ? 'pagar' : 'receber';
+    const devido = Math.abs(sl);
+    const liquidado = movimentos.reduce((a, m) => a + m.valor, 0);
+    const pendente = devido - liquidado;
+    rows.push({ clienteId: id, nome, sl, direcao, devido, liquidado, pendente, movimentos });
+
+    if (direcao === 'pagar') { tot.aPagar += devido; tot.pago += liquidado; }
+    else { tot.aReceber += devido; tot.recebido += liquidado; }
+  }
+
+  tot.faltaPagar = tot.aPagar - tot.pago;
+  tot.faltaReceber = tot.aReceber - tot.recebido;
+  // Ordena: maior pendência primeiro (o que falta acertar aparece no topo).
+  rows.sort((a, b) => b.pendente - a.pendente);
+  return { rows, tot };
+}
+
+/** Lança um pagamento/recebimento contra o saldo do cliente no período. O tipo é
+ *  DEDUZIDO do saldo (ganhou->pago, perdeu->recebido) para não depender do cliente. */
+export async function registrarAcerto(clienteId: number, dt1: string, dt2: string, valor: number, obs?: string): Promise<{ ok: boolean; erro?: string; mov?: AcertoMov }> {
+  const ator = await exigir('admin');
+  const v = Number(valor);
+  if (!Number.isFinite(v) || v <= 0) return { ok: false, erro: 'Informe um valor maior que zero.' };
+  const db = createAdminClient();
+  const saldos = await saldosPeriodo(db, dt1, dt2);
+  const s = saldos.get(clienteId);
+  if (!s || Math.abs(s.sl) < EPS) return { ok: false, erro: 'Este cliente não tem saldo a acertar no período.' };
+  const tipo: 'pago' | 'recebido' = s.sl >= 0 ? 'pago' : 'recebido';
+
+  const { data, error } = await db.from('acertos').insert({
+    banca_id: await bancaId(db), cliente_id: clienteId, dt1, dt2, tipo, valor: v,
+    obs: (obs || '').slice(0, 200) || null, ator_tipo: ator.tipo, ator_nome: ator.nome,
+  }).select('id,tipo,valor,obs,ator_nome,criado_em').single();
+  if (error) return { ok: false, erro: 'Não foi possível registrar o acerto.' };
+  return { ok: true, mov: { id: data.id, tipo: data.tipo, valor: Number(data.valor), obs: data.obs ?? '', ator: data.ator_nome ?? '—', quando: fmtTs(data.criado_em) } };
+}
+
+/** Remove um lançamento de acerto (correção de erro). Manual, por admin. */
+export async function excluirAcerto(id: number): Promise<{ ok: boolean; erro?: string }> {
+  await exigir('admin');
+  const db = createAdminClient();
+  const { error } = await db.from('acertos').delete().eq('id', id);
+  if (error) return { ok: false, erro: 'Não foi possível remover o lançamento.' };
+  return { ok: true };
 }
 
 // ═══════════════════ CONFERÊNCIA DE GRUPOS ═══════════════════

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow } from './types';
+import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow, AcertosResp, AcertoCliente } from './types';
 import { partesTs, statusContestacao } from './types';
 import {
   criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao, aceitarContestacao,
@@ -15,6 +15,7 @@ import {
   listarEquipe, criarEquipe, resetarSenhaEquipe, definirAtivoEquipe, alterarMinhaSenha, type EquipeUser,
   historicoAposta, type AuditoriaItem,
   enfileirarEnvioPdf,
+  listarAcertos, registrarAcerto, excluirAcerto,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
@@ -162,8 +163,15 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   const [clientes, setClientes] = useState<Cliente[]>(clientesIni);
   const [afiliados, setAfiliados] = useState<Afiliado[]>(afiliadosIni);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
-  const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp' | 'plano' | 'usuarios' | 'minhaSenha'>(null);
+  const [modal, setModal] = useState<null | 'cli' | 'af' | 'fech' | 'faf' | 'wpp' | 'plano' | 'usuarios' | 'minhaSenha' | 'acertos'>(null);
   const [minhaSenha, setMinhaSenha] = useState({ atual: '', nova: '', conf: '', erro: '', ok: false });
+  // Acertos (pagamentos/recebimentos): período próprio (default semana passada),
+  // resultado, inputs de lançamento por cliente e clientes com histórico aberto.
+  const [acertoPer, setAcertoPer] = useState(() => { const p = periodDates('semana_ant'); return { dt1: p.d1, dt2: p.d2, period: 'semana_ant' }; });
+  const [acertoRes, setAcertoRes] = useState<AcertosResp | null>(null);
+  const [acertoBusy, setAcertoBusy] = useState(false);
+  const [acertoLanc, setAcertoLanc] = useState<Record<number, { valor: string; obs: string }>>({});
+  const [acertoHist, setAcertoHist] = useState<Set<number>>(new Set());
   // Plano/cota de transcrições — SOMENTE LEITURA neste painel (é do dono da banca).
   // A configuração (cota, preço, renovação, zerar) fica no admin MASTER do Tracker.
   const [plano, setPlano] = useState<{ config: PlanoConfig; uso: UsoCota } | null>(null);
@@ -524,6 +532,29 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   }
   function novoAfiliado() { setNovoAf({ open: true, nome: '', com: '0' }); }
   async function salvarNovoAfiliado() { if (!novoAf.nome.trim()) { alert('Informe o nome.'); return; } try { const a = await criarAfiliado(novoAf.nome, Number(novoAf.com) || 0); setAfiliados((as) => [...as, a].sort((x, y) => x.nome.localeCompare(y.nome))); setNovoAf((s) => ({ ...s, open: false })); toast('Afiliado criado!'); } catch { toast('Erro ao criar afiliado.'); } }
+  // acertos (pagamentos/recebimentos)
+  async function loadAcertos(d1: string, d2: string) {
+    setAcertoBusy(true);
+    try { setAcertoRes(await listarAcertos(d1, d2)); }
+    catch { toast('Erro ao carregar acertos.'); }
+    finally { setAcertoBusy(false); }
+  }
+  async function lancarAcerto(row: AcertoCliente) {
+    const draft = acertoLanc[row.clienteId] || { valor: '', obs: '' };
+    const v = Number(String(draft.valor).replace(',', '.'));
+    if (!v || v <= 0) { toast('Informe um valor maior que zero.'); return; }
+    const r = await registrarAcerto(row.clienteId, acertoPer.dt1, acertoPer.dt2, v, draft.obs);
+    if (r.ok) {
+      setAcertoLanc((s) => ({ ...s, [row.clienteId]: { valor: '', obs: '' } }));
+      await loadAcertos(acertoPer.dt1, acertoPer.dt2);
+      toast(row.direcao === 'pagar' ? 'Pagamento registrado.' : 'Recebimento registrado.');
+    } else toast(r.erro || 'Erro ao registrar.');
+  }
+  async function removerAcerto(id: number) {
+    const r = await excluirAcerto(id);
+    if (r.ok) { await loadAcertos(acertoPer.dt1, acertoPer.dt2); toast('Lançamento removido.'); }
+    else toast(r.erro || 'Erro ao remover.');
+  }
   // fechamento
   function loadFech(d1: string, d2: string) { fechamentoClientes(d1 || null, d2 || null).then(setFechRes).catch(() => toast('Erro no fechamento.')); }
   async function baixarPdfCliente(row: FechCliRow) {
@@ -610,6 +641,7 @@ ${MARCA.equipe}`);
     if (modal === 'fech') loadFech(fech.dt1, fech.dt2);
     if (modal === 'faf') loadFaf(faf.dt1, faf.dt2);
     if (modal === 'plano') loadPlano();
+    if (modal === 'acertos') loadAcertos(acertoPer.dt1, acertoPer.dt2);
     if (modal === 'usuarios') carregarEquipe();  // reset do form fica no onClick do botão (evita setState no effect)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modal]);
@@ -691,6 +723,7 @@ ${MARCA.equipe}`);
                 <button onClick={() => setModal('cli')} className={navBtn}>👤 Clientes</button>
                 <button onClick={() => setModal('af')} className={navBtn}>🤝 Afiliados</button>
                 <button onClick={() => setModal('fech')} className={navBtn}>📊 Fechamento</button>
+                {ehAdmin && <button onClick={() => setModal('acertos')} className={navBtn} title="Controle de pagamentos e recebimentos dos clientes">💰 Acertos</button>}
                 <button onClick={() => setModal('faf')} className={navBtn}>📈 Fech. afiliado</button>
                 <button onClick={() => setModal('plano')} className={navBtn} title="Plano e cota de transcrições da banca">📦 Plano</button>
                 <a href="/admin/contas" className={navBtn} title="Contas usadas para replicar as apostas (controle dos donos)">💳 Contas</a>
@@ -1128,6 +1161,113 @@ ${MARCA.equipe}`);
                 </tr>
               ))}
               {fechData.rows.length === 0 && <tr><td colSpan={10} className="px-2 py-8 text-center text-slate-400">Sem movimento no período.</td></tr>}
+              </tbody>
+            </table></div>
+          </Modal>
+        )}
+
+        {/* ACERTOS — pagamentos e recebimentos dos clientes */}
+        {modal === 'acertos' && (
+          <Modal onClose={() => setModal(null)} max="max-w-6xl" title="💰 Acertos — pagamentos e recebimentos">
+            <div className="mb-4 flex flex-wrap items-end gap-3">
+              <div><span className={lbl}>Data início</span><input type="date" className={inp} value={acertoPer.dt1} onChange={(e) => setAcertoPer((f) => ({ ...f, dt1: e.target.value, period: '' }))} /></div>
+              <div><span className={lbl}>Data fim</span><input type="date" className={inp} value={acertoPer.dt2} onChange={(e) => setAcertoPer((f) => ({ ...f, dt2: e.target.value, period: '' }))} /></div>
+              <div><span className={lbl}>Período</span><select className={inp} value={acertoPer.period} onChange={(e) => { const p = periodDates(e.target.value); setAcertoPer({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); loadAcertos(p.d1, p.d2); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta semana</option><option value="semana_ant">Semana passada</option></select></div>
+              <button onClick={() => loadAcertos(acertoPer.dt1, acertoPer.dt2)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Buscar</button>
+              {acertoBusy && <span className="text-xs text-slate-400">carregando…</span>}
+            </div>
+
+            {/* Cards de visão */}
+            {acertoRes && (
+              <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                {([
+                  ['A pagar', acertoRes.tot.aPagar, 'text-emerald-600 dark:text-emerald-400'],
+                  ['Pago', acertoRes.tot.pago, 'text-emerald-600 dark:text-emerald-400'],
+                  ['Falta pagar', acertoRes.tot.faltaPagar, 'text-amber-600 dark:text-amber-400'],
+                  ['A receber', acertoRes.tot.aReceber, 'text-sky-600 dark:text-sky-400'],
+                  ['Recebido', acertoRes.tot.recebido, 'text-sky-600 dark:text-sky-400'],
+                  ['Falta receber', acertoRes.tot.faltaReceber, 'text-amber-600 dark:text-amber-400'],
+                ] as [string, number, string][]).map(([l, v, cls]) => (
+                  <div key={l} className="rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50">
+                    <div className="text-[11px] text-slate-400">{l}</div>
+                    <div className={`text-sm font-semibold tabular-nums ${cls}`}>R$ {fmt(v)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <p className="mb-2 text-[11px] text-slate-500 dark:text-slate-400">
+              O saldo vem do fechamento ao vivo. <b className="text-emerald-600 dark:text-emerald-400">Pagar</b> = o cliente ganhou; <b className="text-sky-600 dark:text-sky-400">Receber</b> = o cliente perdeu. Lançar não altera bilhete algum — só registra o dinheiro acertado.
+            </p>
+
+            <div className="overflow-x-auto"><table className="w-full text-xs">
+              <thead><tr className="text-left text-slate-400">
+                <th className="px-2 py-2 font-medium">Cliente</th>
+                <th className="px-2 py-2 font-medium">Situação</th>
+                <th className="px-2 py-2 text-right font-medium">A acertar</th>
+                <th className="px-2 py-2 text-right font-medium">Já acertado</th>
+                <th className="px-2 py-2 text-right font-medium">Pendente</th>
+                <th className="px-2 py-2 font-medium">Lançar</th>
+                <th className="px-2 py-2 text-center font-medium">Hist.</th>
+              </tr></thead>
+              <tbody>{(acertoRes?.rows ?? []).map((r) => {
+                const draft = acertoLanc[r.clienteId] || { valor: '', obs: '' };
+                const aberto = acertoHist.has(r.clienteId);
+                return (
+                  <Fragment key={r.clienteId}>
+                    <tr className="border-t border-slate-100 dark:border-slate-800 align-middle">
+                      <td className="px-2 py-1.5 font-medium">{r.nome}</td>
+                      <td className="px-2 py-1.5">
+                        {r.direcao === 'pagar'
+                          ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">Ganhou · pagar</span>
+                          : <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">Perdeu · receber</span>}
+                      </td>
+                      <td className="px-2 py-1.5 text-right font-semibold tabular-nums">R$ {fmt(r.devido)}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-slate-500 dark:text-slate-400">R$ {fmt(r.liquidado)}</td>
+                      <td className="px-2 py-1.5 text-right font-semibold tabular-nums">
+                        {r.pendente > 0.005
+                          ? <span className="text-amber-600 dark:text-amber-400">R$ {fmt(r.pendente)}</span>
+                          : r.pendente < -0.005
+                            ? <span className="text-rose-600 dark:text-rose-400" title="Acertado a mais que o devido">sobra R$ {fmt(-r.pendente)}</span>
+                            : <span className="text-emerald-600 dark:text-emerald-400">Quitado ✓</span>}
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <input inputMode="decimal" placeholder="R$" value={draft.valor} onChange={(e) => setAcertoLanc((s) => ({ ...s, [r.clienteId]: { ...draft, valor: e.target.value } }))} className={`${cinp} w-20`} />
+                          <input placeholder="obs (opcional)" value={draft.obs} onChange={(e) => setAcertoLanc((s) => ({ ...s, [r.clienteId]: { ...draft, obs: e.target.value } }))} className={`${cinp} w-28`} />
+                          <button onClick={() => lancarAcerto(r)} className={`rounded-md px-2.5 py-1 text-[11px] font-medium text-white ${r.direcao === 'pagar' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'}`}>{r.direcao === 'pagar' ? 'Pagar' : 'Receber'}</button>
+                        </div>
+                      </td>
+                      <td className="px-2 py-1.5 text-center">
+                        <button onClick={() => setAcertoHist((s) => { const n = new Set(s); n.has(r.clienteId) ? n.delete(r.clienteId) : n.add(r.clienteId); return n; })} title="Histórico de lançamentos" className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 px-2 text-[11px] text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">
+                          🕘 {r.movimentos.length}
+                        </button>
+                      </td>
+                    </tr>
+                    {aberto && (
+                      <tr className="bg-slate-50/60 dark:bg-slate-800/30">
+                        <td colSpan={7} className="px-4 py-2">
+                          {r.movimentos.length === 0
+                            ? <div className="text-[11px] text-slate-400">Nenhum lançamento ainda para este cliente no período.</div>
+                            : <div className="flex flex-col gap-1">
+                                {r.movimentos.map((m) => (
+                                  <div key={m.id} className="flex items-center gap-2 text-[11px]">
+                                    <span className="tabular-nums text-slate-400">{m.quando}</span>
+                                    <span className={`rounded px-1.5 py-0.5 font-semibold ${m.tipo === 'pago' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300'}`}>{m.tipo === 'pago' ? 'pago' : 'recebido'}</span>
+                                    <span className="font-semibold tabular-nums">R$ {fmt(m.valor)}</span>
+                                    <span className="text-slate-500 dark:text-slate-400">por {m.ator}</span>
+                                    {m.obs && <span className="truncate text-slate-400">· {m.obs}</span>}
+                                    <button onClick={() => removerAcerto(m.id)} title="Remover este lançamento" className="ml-auto rounded border border-rose-200 px-1.5 py-0.5 text-[10px] text-rose-600 hover:bg-rose-50 dark:border-rose-900/50 dark:hover:bg-rose-900/20">✕ remover</button>
+                                  </div>
+                                ))}
+                              </div>}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+              {acertoRes && acertoRes.rows.length === 0 && <tr><td colSpan={7} className="px-2 py-8 text-center text-slate-400">Nenhum cliente com saldo a acertar no período.</td></tr>}
               </tbody>
             </table></div>
           </Modal>

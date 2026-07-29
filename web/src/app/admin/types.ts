@@ -21,6 +21,22 @@ export interface FiltroApostas {
 }
 export interface FechCliRow { id: number; nome: string; cal: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number; saldoCal: number }
 export interface FechCliResp { rows: FechCliRow[]; g: { cal: number; saldoCal: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number } }
+
+// ── Acertos (pagamentos/recebimentos) ──
+export interface AcertoMov { id: number; tipo: 'pago' | 'recebido'; valor: number; obs: string; ator: string; quando: string }
+export interface AcertoCliente {
+  clienteId: number; nome: string;
+  sl: number;                              // saldo líquido do período (ao vivo, do banco)
+  direcao: 'pagar' | 'receber';            // pagar = cliente ganhou; receber = cliente perdeu
+  devido: number;                          // |sl| — total a acertar
+  liquidado: number;                       // já pago/recebido
+  pendente: number;                        // devido − liquidado
+  movimentos: AcertoMov[];
+}
+export interface AcertosResp {
+  rows: AcertoCliente[];
+  tot: { aPagar: number; pago: number; faltaPagar: number; aReceber: number; recebido: number; faltaReceber: number };
+}
 export interface FechAfRow { sup: string; logins: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number }
 export interface FechAfResp { rows: FechAfRow[]; g: { logins: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number } }
 
