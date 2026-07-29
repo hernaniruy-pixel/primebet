@@ -2,7 +2,7 @@
 // Baixa direto na máquina: FECHAMENTO_GERAL_PRIMEBET_-_dd-mm-aaaa_A_dd-mm-aaaa.pdf
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { FechCliResp } from './types';
+import type { FechCliResp, FechCliRow } from './types';
 import { wa } from '@/lib/pdf-winansi';
 import { alinharCabecalho } from '@/lib/pdf-tabela';
 import { MARCA, corRGB } from '@/lib/marca';
@@ -22,6 +22,7 @@ const corNum = (n: number): [number, number, number] => (n > 0 ? COR_POS : n < 0
 export interface PdfFechamentoGeralOpts {
   banca?: string;
   g: FechCliResp['g'];  // totais do período (vindos do fechamento_clientes)
+  rows?: FechCliRow[];  // desempenho por cliente do MESMO período (detalhamento)
   despesas: number;     // total de despesas do MESMO período
   dt1: string;          // YYYY-MM-DD
   dt2: string;          // YYYY-MM-DD
@@ -38,7 +39,7 @@ export interface PdfFechamentoGeralOpts {
 export const lucroPeriodo = (comissao: number, comissaoAfiliado: number, despesas: number) =>
   comissao - comissaoAfiliado - despesas;
 
-export function gerarPdfFechamentoGeral({ banca = MARCA.nome, g, despesas, dt1, dt2 }: PdfFechamentoGeralOpts) {
+export function gerarPdfFechamentoGeral({ banca = MARCA.nome, g, rows = [], despesas, dt1, dt2 }: PdfFechamentoGeralOpts) {
   banca = wa(banca);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
@@ -127,6 +128,61 @@ export function gerarPdfFechamentoGeral({ banca = MARCA.nome, g, despesas, dt1, 
   doc.setTextColor(120, 120, 120);
   doc.text('Lucro = Comissão ganha - Comissão dos afiliados - Despesas.', M, y2);
   doc.text('A comissão incide sobre cada bilhete GREEN; em bilhete perdido não há comissão.', M, y2 + 12);
+
+  // ── Desempenho por cliente (detalhamento p/ os sócios) ──
+  if (rows.length) {
+    // Maior saldo bruto primeiro: quem mais movimentou/ganhou aparece no topo.
+    const ordenadas = [...rows].sort((a, b) => b.sb - a.sb);
+    autoTable(doc, {
+      startY: y2 + 30,
+      head: [['Cliente', 'Apostado', 'Em aberto', 'Saldo bruto', 'Comissão', 'Saldo líq.']],
+      body: ordenadas.map((r) => [
+        wa(r.nome), money(r.val), money(r.ab), money(r.sb), money(r.cm), money(r.sl),
+      ]),
+      foot: [['TOTAL', money(g.val), money(g.ab), money(g.sb), money(g.cm), money(g.sl)]],
+      margin: { left: M, right: M },
+      styles: { font: 'helvetica', fontSize: 9, cellPadding: 5, textColor: [15, 23, 42] },
+      headStyles: { fillColor: [19, 32, 10], textColor: [218, 165, 32], fontStyle: 'bold' },
+      footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 74, halign: 'right' },
+        2: { cellWidth: 66, halign: 'right' },
+        3: { cellWidth: 74, halign: 'right', fontStyle: 'bold' },
+        4: { cellWidth: 70, halign: 'right' },
+        5: { cellWidth: 74, halign: 'right', fontStyle: 'bold' },
+      },
+      didParseCell: (data) => {
+        alinharCabecalho(data, { 1: 'right', 2: 'right', 3: 'right', 4: 'right', 5: 'right' });
+        // Saldo bruto (col 3) e saldo líquido (col 5) coloridos por sinal, no corpo e no total.
+        if (data.column.index === 3 || data.column.index === 5) {
+          const val = data.section === 'foot'
+            ? (data.column.index === 3 ? g.sb : g.sl)
+            : (data.section === 'body' ? (data.column.index === 3 ? ordenadas[data.row.index].sb : ordenadas[data.row.index].sl) : 0);
+          if (data.section !== 'head') data.cell.styles.textColor = corNum(val);
+        }
+      },
+      didDrawPage: () => {
+        const ph = doc.internal.pageSize.getHeight();
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(160, 160, 160);
+        doc.text(`${banca} — gerado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, M, ph - 18);
+        doc.text(`Pág. ${doc.getCurrentPageInfo().pageNumber}/${doc.getNumberOfPages()}`, W - M, ph - 18, { align: 'right' });
+        doc.setFontSize(7);
+        doc.setTextColor(150, 160, 175);
+        doc.text(MARCA.rodapePdf, M, ph - 9);
+      },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const y3 = (doc as any).lastAutoTable.finalY + 12;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(120, 120, 120);
+    doc.text('Saldo bruto/líquido positivo = o cliente ganhou no período; negativo = perdeu.', M, y3);
+  }
 
   const sufixo = temIntervalo ? `${brDate(dt1)}_A_${brDate(dt2)}` : 'TODO_O_PERIODO';
   doc.save(`FECHAMENTO_GERAL_${safe(banca)}_-_${sufixo}.pdf`);

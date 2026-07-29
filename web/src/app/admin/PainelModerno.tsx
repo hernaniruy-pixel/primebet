@@ -542,7 +542,7 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
     setPdfGeralBusy(true);
     try {
       const desp = await listarDespesasPeriodo(fech.dt1 || null, fech.dt2 || null);
-      gerarPdfFechamentoGeral({ banca: MARCA.nome, g: fechData.g, despesas: desp.total, dt1: fech.dt1, dt2: fech.dt2 });
+      gerarPdfFechamentoGeral({ banca: MARCA.nome, g: fechData.g, rows: fechData.rows, despesas: desp.total, dt1: fech.dt1, dt2: fech.dt2 });
     } catch { toast('Erro ao gerar o PDF.'); }
     finally { setPdfGeralBusy(false); }
   }
