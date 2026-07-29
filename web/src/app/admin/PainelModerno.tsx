@@ -14,7 +14,7 @@ import {
   sairEquipe,
   listarEquipe, criarEquipe, resetarSenhaEquipe, definirAtivoEquipe, alterarMinhaSenha, type EquipeUser,
   historicoAposta, type AuditoriaItem,
-  enfileirarEnvioPdf,
+  enfileirarEnvioPdf, statusEnviosPdf,
   listarAcertos, registrarAcerto, excluirAcerto,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
@@ -591,6 +591,9 @@ Atenciosamente,
 ${MARCA.equipe}`);
   const [envRow, setEnvRow] = useState<number | null>(null);
   const [enviandoTodos, setEnviandoTodos] = useState(false);
+  // Acompanhamento da ENTREGA por cliente: id do pedido na fila + status que o bot
+  // atualiza (pendente → enviado/erro). O painel faz poll enquanto houver pendente.
+  const [envioSt, setEnvioSt] = useState<Record<number, { id: number; status: 'pendente' | 'enviado' | 'erro'; erro?: string }>>({});
   function periodoTexto() {
     const br = (d: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? `${m[3]}/${m[2]}` : d; };
     return fech.dt1 && fech.dt2 ? `${br(fech.dt1)} a ${br(fech.dt2)}` : 'período selecionado';
@@ -603,7 +606,7 @@ ${MARCA.equipe}`);
       fr.readAsDataURL(blob);
     });
   }
-  async function montarEnvio(row: FechCliRow): Promise<{ ok: boolean; erro?: string }> {
+  async function montarEnvio(row: FechCliRow): Promise<{ ok: boolean; erro?: string; id?: number }> {
     const cli = clientes.find((c) => c.id === row.id);
     const grupoId = cli?.grupoId || '';
     if (!grupoId) return { ok: false, erro: `${row.nome}: sem grupo vinculado.` };
@@ -616,8 +619,11 @@ ${MARCA.equipe}`);
   async function enviarPdfUm(row: FechCliRow) {
     if (envRow != null || enviandoTodos) return;
     setEnvRow(row.id);
-    try { const r = await montarEnvio(row); toast(r.ok ? `📤 Enviado para ${row.nome}.` : (r.erro || 'Erro ao enviar.')); }
-    catch { toast('Erro ao enviar.'); }
+    try {
+      const r = await montarEnvio(row);
+      if (r.ok && r.id) { setEnvioSt((s) => ({ ...s, [row.id]: { id: r.id!, status: 'pendente' } })); toast(`📤 ${row.nome}: na fila do bot.`); }
+      else toast(r.erro || 'Erro ao enviar.');
+    } catch { toast('Erro ao enviar.'); }
     finally { setEnvRow(null); }
   }
   async function enviarPdfTodos() {
@@ -628,12 +634,37 @@ ${MARCA.equipe}`);
     for (const row of fechData.rows) {
       const cli = clientes.find((c) => c.id === row.id);
       if (!cli?.grupoId) { semGrupo++; continue; }
-      try { const r = await montarEnvio(row); if (r.ok) ok++; else erros++; } catch { erros++; }
+      try {
+        const r = await montarEnvio(row);
+        if (r.ok && r.id) { ok++; setEnvioSt((s) => ({ ...s, [row.id]: { id: r.id!, status: 'pendente' } })); }
+        else erros++;
+      } catch { erros++; }
       await new Promise((res) => setTimeout(res, 400));
     }
     setEnviandoTodos(false);
-    toast(`📤 Enfileirados ${ok}. Sem grupo: ${semGrupo}. Erros: ${erros}. O bot envia 1 a cada ~30s.`);
+    toast(`📤 Enfileirados ${ok}. Sem grupo: ${semGrupo}. Erros: ${erros}. O bot envia 1 a cada ~30s — acompanhe o status na linha de cada cliente.`);
   }
+  // Poll da entrega: enquanto houver algum envio pendente, pergunta ao servidor o
+  // status e atualiza o selo (pendente → enviado/erro). Para sozinho quando resolve.
+  useEffect(() => {
+    const pendentes = Object.values(envioSt).filter((e) => e.status === 'pendente').map((e) => e.id);
+    if (!pendentes.length) return;
+    const t = setInterval(async () => {
+      try {
+        const res = await statusEnviosPdf(pendentes);
+        if (!res.length) return;
+        setEnvioSt((s) => {
+          const n = { ...s };
+          for (const r of res) {
+            const cliId = Object.keys(n).find((k) => n[Number(k)].id === r.id);
+            if (cliId != null) n[Number(cliId)] = { id: r.id, status: r.status, erro: r.erro || undefined };
+          }
+          return n;
+        });
+      } catch { /* silencioso — tenta de novo no próximo tick */ }
+    }, 4000);
+    return () => clearInterval(t);
+  }, [envioSt]);
   function loadFaf(d1: string, d2: string) { fechamentoAfiliados(d1 || null, d2 || null).then(setFafRes).catch(() => toast('Erro no fechamento.')); }
   function loadPlano() { lerPlano().then(setPlano).catch(() => toast('Erro ao carregar o plano.')); }
   function carregarEquipe() { listarEquipe().then(setEquipe).catch(() => toast('Erro ao carregar usuários.')); }
@@ -1155,6 +1186,15 @@ ${MARCA.equipe}`);
                             ? <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 60"/></svg>
                             : <span className="text-sm leading-none">📤</span>}
                         </button>
+                      )}
+                      {envioSt[r.id] && (
+                        envioSt[r.id].status === 'enviado'
+                          ? <span className="whitespace-nowrap rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700 dark:bg-green-500/20 dark:text-green-300" title="Entregue no grupo do cliente">✅ enviado</span>
+                          : envioSt[r.id].status === 'erro'
+                            ? <span className="whitespace-nowrap rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300" title={envioSt[r.id].erro || 'Falha no envio'}>⚠ erro</span>
+                            : <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300" title="Na fila do bot — envia 1 a cada ~30s. Atualiza sozinho.">
+                                <svg className="h-2.5 w-2.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 60"/></svg>na fila…
+                              </span>
                       )}
                     </div>
                   </td>

@@ -823,7 +823,7 @@ export async function historicoAposta(apostaId: number): Promise<AuditoriaItem[]
 
 // ── Envio do PDF de fechamento no grupo do cliente (o BOT é quem manda no WhatsApp) ──
 // O painel gera o PDF, manda o base64 pra cá; subimos no Storage e criamos o pedido.
-export async function enfileirarEnvioPdf(input: { grupoId: string; clienteNome: string; pdfBase64: string; legenda: string }): Promise<{ ok: boolean; erro?: string }> {
+export async function enfileirarEnvioPdf(input: { grupoId: string; clienteNome: string; pdfBase64: string; legenda: string }): Promise<{ ok: boolean; erro?: string; id?: number }> {
   await exigir('admin');
   const grupoId = String(input.grupoId || '').trim();
   if (!grupoId) return { ok: false, erro: 'Cliente sem grupo vinculado — não dá para enviar.' };
@@ -834,12 +834,28 @@ export async function enfileirarEnvioPdf(input: { grupoId: string; clienteNome: 
   const buf = Buffer.from(input.pdfBase64, 'base64');
   const up = await db.storage.from('fechamentos').upload(path, buf, { contentType: 'application/pdf', upsert: true });
   if (up.error) return { ok: false, erro: 'Falha ao subir o PDF. Tente de novo.' };
-  const { error } = await db.from('envios_pdf').insert({
+  const { data, error } = await db.from('envios_pdf').insert({
     grupo_id: grupoId, cliente_nome: input.clienteNome || null, storage_path: path,
     legenda: input.legenda || null, status: 'pendente',
-  });
+  }).select('id').single();
   if (error) return { ok: false, erro: 'Falha ao enfileirar o envio.' };
-  return { ok: true };
+  return { ok: true, id: data.id };
+}
+
+/** Status atual de vários envios (para o painel acompanhar a entrega em tempo real). */
+export type EnvioStatus = { id: number; status: 'pendente' | 'enviado' | 'erro'; erro: string | null; tentativas: number };
+export async function statusEnviosPdf(ids: number[]): Promise<EnvioStatus[]> {
+  await exigir('gestor');
+  const lista = (ids || []).filter((n) => Number.isFinite(n));
+  if (!lista.length) return [];
+  const db = createAdminClient();
+  const { data, error } = await db.from('envios_pdf').select('id,status,erro,tentativas').in('id', lista);
+  if (error) {
+    // tentativas pode não existir (migração 029 pendente) — tenta sem ela.
+    const r = await db.from('envios_pdf').select('id,status,erro').in('id', lista);
+    return (r.data ?? []).map((e) => ({ id: e.id, status: e.status, erro: e.erro ?? null, tentativas: 0 }));
+  }
+  return (data ?? []).map((e) => ({ id: e.id, status: e.status, erro: e.erro ?? null, tentativas: e.tentativas ?? 0 }));
 }
 
 // ═══════════════════ CLIENTES ═══════════════════
