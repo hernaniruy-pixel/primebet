@@ -12,7 +12,7 @@ import {
   statusBot, type BotStatus,
   lerPlano, type PlanoConfig, type UsoCota,
   sairEquipe,
-  listarEquipe, criarEquipe, resetarSenhaEquipe, definirAtivoEquipe, alterarMinhaSenha, type EquipeUser,
+  listarEquipe, criarEquipe, resetarSenhaEquipe, definirAtivoEquipe, atualizarPermissoesEquipe, alterarMinhaSenha, type EquipeUser,
   historicoAposta, type AuditoriaItem,
   enfileirarEnvioPdf, statusEnviosPdf,
   listarAcertos, registrarAcerto, excluirAcerto,
@@ -141,8 +141,8 @@ function Modal({ title, onClose, max = 'max-w-3xl', children }: { title: ReactNo
   );
 }
 
-export default function PainelModerno({ email, papel, clientesIni, afiliadosIni, apostasIni, semana }: {
-  email: string; papel: 'master' | 'admin' | 'gestor' | 'operador'; clientesIni: Cliente[]; afiliadosIni: Afiliado[]; apostasIni: ApostasPage; semana: { d1: string; d2: string };
+export default function PainelModerno({ email, papel, contasLiberado, clientesIni, afiliadosIni, apostasIni, semana }: {
+  email: string; papel: 'master' | 'admin' | 'gestor' | 'operador'; contasLiberado: boolean; clientesIni: Cliente[]; afiliadosIni: Afiliado[]; apostasIni: ApostasPage; semana: { d1: string; d2: string };
 }) {
   const router = useRouter();
   // Papéis: operador só vê bilhetes + conferência (nada financeiro); gestor/admin/master veem tudo.
@@ -212,6 +212,8 @@ export default function PainelModerno({ email, papel, clientesIni, afiliadosIni,
   const [novoUser, setNovoUser] = useState<{ nome: string; senha: string; papel: 'operador' | 'gestor' | 'admin' }>({ nome: '', senha: '', papel: 'operador' });
   const [userErro, setUserErro] = useState('');
   const [resetUser, setResetUser] = useState<{ id: number; nome: string; senha: string } | null>(null);
+  // Edição de perfil (permissões) de um operador — hoje: acesso às Contas.
+  const [permUser, setPermUser] = useState<{ id: number; nome: string; contas: boolean } | null>(null);
   // Histórico (auditoria) de um bilhete — só gestor/admin abrem.
   const [histModal, setHistModal] = useState<{ id: number; itens: AuditoriaItem[]; carregando: boolean } | null>(null);
 
@@ -700,6 +702,15 @@ ${MARCA.equipe}`);
     setEquipe((es) => es.map((x) => (x.id === u.id ? { ...x, ativo: !u.ativo } : x))); // otimista
     try { await definirAtivoEquipe(u.id, !u.ativo); } catch { carregarEquipe(); toast('Erro ao atualizar.'); }
   }
+  async function salvarPermissoes() {
+    if (!permUser) return;
+    const alvo = permUser;
+    setEquipe((es) => es.map((x) => (x.id === alvo.id ? { ...x, permissoes: { ...x.permissoes, contas: alvo.contas } } : x))); // otimista
+    setPermUser(null);
+    const r = await atualizarPermissoesEquipe(alvo.id, { contas: alvo.contas });
+    if (r.ok) toast(`Perfil de ${alvo.nome} atualizado.`);
+    else { carregarEquipe(); toast(r.erro || 'Erro ao salvar o perfil.'); }
+  }
   function abrirHistorico(id: number) {
     setHistModal({ id, itens: [], carregando: true });
     historicoAposta(id)
@@ -757,8 +768,11 @@ ${MARCA.equipe}`);
                 {ehAdmin && <button onClick={() => setModal('acertos')} className={navBtn} title="Controle de pagamentos e recebimentos dos clientes">💰 Acertos</button>}
                 <button onClick={() => setModal('faf')} className={navBtn}>📈 Fech. afiliado</button>
                 <button onClick={() => setModal('plano')} className={navBtn} title="Plano e cota de transcrições da banca">📦 Plano</button>
-                <a href="/admin/contas" className={navBtn} title="Contas usadas para replicar as apostas (controle dos donos)">💳 Contas</a>
               </>
+            )}
+            {/* Contas: financeiro sempre; operador só se o admin ligou a permissão no perfil dele. */}
+            {contasLiberado && (
+              <a href="/admin/contas" className={navBtn} title="Contas usadas para replicar as apostas">💳 Contas</a>
             )}
             {/* Conferência: todos (inclusive operador) — é o que ele usa p/ organizar os grupos. */}
             <a href="/admin/conferencia" className={navBtn} title="Conferência de grupos (imagens recebidas × transcritas)">🗂 Conferência</a>
@@ -1407,7 +1421,7 @@ ${MARCA.equipe}`);
             <div className="flex flex-col gap-4">
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {ehAdmin
-                  ? 'Operador vê só bilhetes + conferência. Gestor tem o acesso operacional completo (menos criar usuário/cliente e senha de gestor/admin). O admin (dono) não aparece na lista.'
+                  ? 'Operador vê só bilhetes + conferência. Use "⚙ Perfil" para liberar acessos extras a um operador (ex.: 💳 Contas). Gestor tem o acesso operacional completo. O admin (dono) não aparece na lista.'
                   : 'Você pode redefinir a senha dos operadores. Criar usuários é só com o admin.'}
               </p>
 
@@ -1440,10 +1454,12 @@ ${MARCA.equipe}`);
                         <div className="mt-0.5 flex items-center gap-1.5">
                           <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${u.papel === 'admin' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : u.papel === 'gestor' ? 'bg-marca-100 text-marca-700 dark:bg-marca-500/20 dark:text-marca-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300'}`}>{u.papel}</span>
                           {!u.ativo && <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-700">inativo</span>}
+                          {u.permissoes?.contas && <span title="Este operador tem acesso às Contas" className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">💳 contas</span>}
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-1.5">
                         <button onClick={() => setResetUser({ id: u.id, nome: u.nome, senha: '' })} className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">🔑 Senha</button>
+                        {ehAdmin && u.papel === 'operador' && <button onClick={() => { setResetUser(null); setPermUser({ id: u.id, nome: u.nome, contas: !!u.permissoes?.contas }); }} className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">⚙ Perfil</button>}
                         {ehAdmin && <button onClick={() => alternarAtivoUsuario(u)} className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">{u.ativo ? 'Desativar' : 'Ativar'}</button>}
                       </div>
                     </div>
@@ -1452,6 +1468,19 @@ ${MARCA.equipe}`);
                         <input className={inp} type="text" autoFocus value={resetUser.senha} onChange={(e) => setResetUser((r) => (r ? { ...r, senha: e.target.value } : r))} placeholder="nova senha (mín. 4)" />
                         <button onClick={salvarResetSenha} className="shrink-0 rounded-lg bg-marca-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-marca-700">Salvar</button>
                         <button onClick={() => setResetUser(null)} className="shrink-0 rounded-lg px-2 py-1.5 text-sm text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Cancelar</button>
+                      </div>
+                    )}
+                    {permUser?.id === u.id && (
+                      <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+                        <div className="mb-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">Permissões do perfil</div>
+                        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                          <input type="checkbox" checked={permUser.contas} onChange={(e) => setPermUser((p) => (p ? { ...p, contas: e.target.checked } : p))} />
+                          <span>💳 Contas <span className="text-xs text-slate-400">— acesso à página de contas de aposta</span></span>
+                        </label>
+                        <div className="mt-2 flex items-center gap-2">
+                          <button onClick={salvarPermissoes} className="shrink-0 rounded-lg bg-marca-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-marca-700">Salvar perfil</button>
+                          <button onClick={() => setPermUser(null)} className="shrink-0 rounded-lg px-2 py-1.5 text-sm text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Cancelar</button>
+                        </div>
                       </div>
                     )}
                   </div>

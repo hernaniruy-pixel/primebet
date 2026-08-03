@@ -305,7 +305,7 @@ function mapConta(r: ContaRow): Conta {
 }
 
 export async function listarContas(): Promise<Conta[]> {
-  await exigir('gestor');
+  await exigirContas();
   const db = createAdminClient();
   const { data, error } = await db.from('contas').select('*').order('casa', { ascending: true }).order('id', { ascending: true });
   if (error) throw error;
@@ -340,7 +340,7 @@ async function registrarMovimentos(
 }
 
 export async function criarConta(input: NovaConta): Promise<Conta> {
-  await exigir('gestor');
+  await exigirContas();
   const db = createAdminClient();
   const { data, error } = await db.from('contas').insert({
     banca_id: await bancaId(db),
@@ -357,7 +357,7 @@ export async function criarConta(input: NovaConta): Promise<Conta> {
 }
 
 export async function atualizarConta(id: number, patch: PatchConta): Promise<Conta> {
-  await exigir('gestor');
+  await exigirContas();
   const db = createAdminClient();
   // Estado atual, para saber o que mudou e registrar no histórico.
   const { data: antes } = await db.from('contas').select('*').eq('id', id).maybeSingle();
@@ -393,7 +393,7 @@ export async function lancarMovimentoConta(
   valor: number,
   ajustarSaldo = true,
 ): Promise<Conta> {
-  await exigir('gestor');
+  await exigirContas();
   if (!(valor > 0)) throw new Error('Informe um valor maior que zero.');
   const db = createAdminClient();
   const { data: antes, error: e1 } = await db.from('contas').select('*').eq('id', contaId).maybeSingle();
@@ -418,7 +418,7 @@ export async function lancarMovimentoConta(
 
 /** Histórico de movimentação de uma conta (mais recente primeiro). */
 export async function listarMovimentosConta(contaId: number): Promise<MovimentoConta[]> {
-  await exigir('gestor');
+  await exigirContas();
   const db = createAdminClient();
   const { data, error } = await db.from('contas_movimentos')
     .select('id,conta_id,tipo,valor,de,para,criado_em')
@@ -434,7 +434,7 @@ export async function listarMovimentosConta(contaId: number): Promise<MovimentoC
 }
 
 export async function excluirConta(id: number): Promise<void> {
-  await exigir('gestor');
+  await exigirContas();
   const db = createAdminClient();
   const { error } = await db.from('contas').delete().eq('id', id);
   if (error) throw error;
@@ -591,7 +591,13 @@ export async function alterarMinhaSenha(atual: string, nova: string): Promise<{ 
 }
 
 // ─────────── Usuários da equipe (admin/gestor/operador) ───────────
-export type EquipeUser = { id: number; nome: string; papel: 'admin' | 'gestor' | 'operador'; ativo: boolean };
+// Permissões extras que o admin liga por operador (além do que o papel já dá).
+// A trava REAL é no servidor (podeContas/exigirContas); o front só reflete.
+export type PermissoesEquipe = { contas?: boolean };
+export type EquipeUser = { id: number; nome: string; papel: 'admin' | 'gestor' | 'operador'; ativo: boolean; permissoes: PermissoesEquipe };
+
+// Chaves de permissão conhecidas (whitelist p/ sanitizar o que vem do front).
+const PERMS_CONHECIDAS = ['contas'] as const;
 
 /**
  * Lista a equipe conforme o poder de quem pede:
@@ -602,12 +608,15 @@ export type EquipeUser = { id: number; nome: string; papel: 'admin' | 'gestor' |
 export async function listarEquipe(): Promise<EquipeUser[]> {
   const ator = await exigir('gestor');
   const db = createAdminClient();
-  let q = db.from('equipe').select('id,nome,papel,ativo').order('papel', { ascending: true }).order('nome', { ascending: true });
+  let q = db.from('equipe').select('id,nome,papel,ativo,permissoes').order('papel', { ascending: true }).order('nome', { ascending: true });
   if (ator.tipo === 'gestor') q = q.eq('papel', 'operador');
   else if (ator.tipo === 'admin') q = q.in('papel', ['gestor', 'operador']);
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as EquipeUser[];
+  return (data ?? []).map((r) => ({
+    id: r.id as number, nome: r.nome as string, papel: r.papel as EquipeUser['papel'],
+    ativo: r.ativo as boolean, permissoes: (r.permissoes as PermissoesEquipe) ?? {},
+  }));
 }
 
 /** Cria admin/gestor/operador. Senha com hash (scrypt), nunca texto puro.
@@ -651,6 +660,50 @@ export async function definirAtivoEquipe(id: number, ativo: boolean): Promise<vo
   const { data: alvo } = await db.from('equipe').select('papel').eq('id', id).maybeSingle();
   if (alvo?.papel === 'admin' && ator.tipo !== 'master') throw new Error('Só o dono da rede (master) pode ativar/desativar um admin.');
   await db.from('equipe').update({ ativo, atualizado_em: new Date().toISOString() }).eq('id', id);
+}
+
+/**
+ * Edita o PERFIL (permissões) de um membro da equipe. É isto que o admin usa para
+ * LIGAR a opção "Contas" num operador, sem mudar o cargo dele. Só admin/master edita;
+ * perfil de admin não é mexido por aqui (evita escalar poder). Sanitiza p/ as chaves
+ * conhecidas — nada além do whitelist entra no banco.
+ */
+export async function atualizarPermissoesEquipe(id: number, permissoes: PermissoesEquipe): Promise<{ ok: boolean; erro?: string }> {
+  await exigir('admin');
+  const db = createAdminClient();
+  const { data: alvo } = await db.from('equipe').select('papel').eq('id', id).maybeSingle();
+  if (!alvo) return { ok: false, erro: 'Usuário não encontrado.' };
+  if (alvo.papel === 'admin') return { ok: false, erro: 'Não dá para editar o perfil de um admin por aqui.' };
+  const limpo: PermissoesEquipe = {};
+  for (const k of PERMS_CONHECIDAS) if (permissoes[k]) limpo[k] = true;
+  const { error } = await db.from('equipe').update({ permissoes: limpo, atualizado_em: new Date().toISOString() }).eq('id', id);
+  if (error) return { ok: false, erro: 'Não foi possível salvar as permissões.' };
+  return { ok: true };
+}
+
+// ─────────── Acesso à página/ações de CONTAS ───────────
+// Regra: master/admin/gestor sempre podem; operador só se tiver a permissão 'contas'
+// ligada no perfil. A trava fica AQUI (servidor) — o menu no front é só reflexo.
+async function permissoesDe(nome: string): Promise<PermissoesEquipe> {
+  const db = createAdminClient();
+  const { data } = await db.from('equipe').select('permissoes').ilike('nome', nome).maybeSingle();
+  return (data?.permissoes as PermissoesEquipe) ?? {};
+}
+
+/** true se o ator logado pode ver/usar as Contas (para gatear página e menu). */
+export async function podeContas(): Promise<boolean> {
+  const ator = await atorAtual();
+  if (!ator) return false;
+  if (ator.tipo !== 'operador') return true;         // master/admin/gestor
+  return !!(await permissoesDe(ator.nome)).contas;   // operador: só com permissão
+}
+
+/** Igual ao exigir(), mas para as Contas: libera financeiro OU operador com permissão. */
+async function exigirContas(): Promise<Ator> {
+  const ator = await exigirSessao();
+  if (ator.tipo !== 'operador') return ator;
+  if (!(await permissoesDe(ator.nome)).contas) throw new Error('Sem permissão para acessar as Contas.');
+  return ator;
 }
 
 // id da banca padrão (mono-banca PrimeBet) — obrigatório em clientes/afiliados/apostas.

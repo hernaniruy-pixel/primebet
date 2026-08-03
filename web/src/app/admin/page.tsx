@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { atorAtual } from '@/lib/auth-equipe';
 import { loadBase } from './data';
-import { listarApostas } from './actions';
+import { listarApostas, podeContas } from './actions';
 import { weekRange } from './types';
 import PainelModerno from './PainelModerno';
 
@@ -32,10 +32,14 @@ export default async function AdminPage() {
     : base.clientes;
   const afiliadosIni = operador ? [] : base.afiliados;
 
+  // Operador só vê o menu Contas se o admin ligou a permissão no perfil dele.
+  const contasLiberado = await podeContas();
+
   return (
     <PainelModerno
       email={ator.nome}
       papel={ator.tipo}
+      contasLiberado={contasLiberado}
       clientesIni={clientesIni}
       afiliadosIni={afiliadosIni}
       apostasIni={apostas}
