@@ -622,7 +622,7 @@ async function iniciarWhatsApp() {
         if (!cli) {
           console.log(`⚠️  Grupo "${nomeGrupo}" (${jid}) não casou com nenhum cliente cadastrado — pulei.`);
           const tsNaoVinc = await enviadoEmPorMsg(msgId);
-          const quandoNV = tsNaoVinc ? ` (bilhete de ${dataHoraBR(tsNaoVinc)})` : '';
+          const quandoNV = tsNaoVinc ? ` (bilhete de ${dataHoraBR(tsNaoVinc)})` : ` (reagido em ${dataHoraBR(new Date().toISOString())})`;
           await avisar(cliente, `⚠️ Reagi um bilhete em "${nomeGrupo}"${quandoNV}, mas o grupo não está vinculado a nenhum cliente. Cadastre o link do grupo no cliente e reaja de novo.`);
           continue;
         }
@@ -635,7 +635,7 @@ async function iniciarWhatsApp() {
         if (jaLancada) {
           console.log(`ℹ️  Reação repetida — bilhete já lançado como aposta #${jaLancada}. Ignorado.`);
           const tsJa = await enviadoEmPorMsg(msgId);
-          const qJa = tsJa ? `, bilhete de ${dataHoraBR(tsJa)}` : '';
+          const qJa = tsJa ? `, bilhete de ${dataHoraBR(tsJa)}` : `, reagido em ${dataHoraBR(new Date().toISOString())}`;
           await avisar(cliente, `ℹ️ Reação repetida ignorada: esse bilhete já está lançado como aposta #${jaLancada} (${cli.nome}${qJa}). Para corrigir, edite ou EXCLUA a aposta no painel e reaja de novo.`);
           continue;
         }
@@ -647,7 +647,7 @@ async function iniciarWhatsApp() {
           // mídia. A mensagem cobre as duas e diz o que fazer (mandar o PRINT como foto).
           console.log('ℹ️  Sem imagem para transcrever (card/link ou mídia negada). Ignorado.');
           const tsPrint = (orig && tsIso(orig)) || (await enviadoEmPorMsg(msgId));
-          const quando = tsPrint ? ` (bilhete de ${dataHoraBR(tsPrint)})` : '';
+          const quando = tsPrint ? ` (bilhete de ${dataHoraBR(tsPrint)})` : ` (reagido em ${dataHoraBR(new Date().toISOString())})`;
           await avisar(cliente, `⚠️ Reação em "${nomeGrupo}" (${cli.nome})${quando}: não consegui ler o bilhete. Se você reagiu num CARD/LINK (ex.: bookingcode da Betano), isso não funciona — peça o PRINT do bilhete e mande como FOTO. Se já era foto, reenvie e reaja de novo.`);
           continue;
         }
@@ -676,7 +676,7 @@ async function iniciarWhatsApp() {
         const semCredito = /credit balance is too low|Plans & Billing/i.test(msg);
         const aviso = semCredito
           ? '⛔ Transcrições PARADAS: a conta da Anthropic está SEM CRÉDITO. Recarregue em console.anthropic.com (Plans & Billing). Nenhum bilhete reagido será lido até lá.'
-          : `⚠️ Não consegui transcrever um bilhete reagido: ${msg.slice(0, 150)}. Reaja de novo ou lance pelo painel.`;
+          : `⚠️ Não consegui transcrever um bilhete reagido (reagido em ${dataHoraBR(new Date().toISOString())}): ${msg.slice(0, 150)}. Reaja de novo ou lance pelo painel.`;
         try { await avisar(cliente, aviso); } catch { /* silencioso */ }
       }
     }
