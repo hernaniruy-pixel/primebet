@@ -1,5 +1,37 @@
 [
  {
+  "img": 4092,
+  "nota": "bet builder detalhado (3 jogos, mercado+confronto) — Tripla 1.63",
+  "odd": 1.63,
+  "contem": [
+   "FBK Karlstad",
+   "Assyriska",
+   "Empate Anula",
+   "FC Porto",
+   "Torreense",
+   "Resultado Final",
+   "Man Utd",
+   "Atlético",
+   "Partida - Gols"
+  ]
+ },
+ {
+  "img": 4094,
+  "nota": "card Aposta Feita RECOLHIDO — nao inventar mercado nem adversario",
+  "odd": 1.56,
+  "contem": [
+   "Mais de 1,5",
+   "FC Porto",
+   "FBK Karlstad"
+  ],
+  "naoContem": [
+   "Total de Gols",
+   "Torreense",
+   "Assyriska",
+   "Resultado Final"
+  ]
+ },
+ {
   "img": 3405,
   "nota": "3 jogos mesmo mercado escanteios 80:00-Final — NUNCA deduplicar selecoes iguais",
   "odd": null,
