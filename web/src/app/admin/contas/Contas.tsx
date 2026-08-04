@@ -441,6 +441,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                   <thead>
                     <tr className="border-b border-slate-200 text-left text-[11px] uppercase tracking-wide text-slate-400">
                       <th className="py-2 pr-2">Data / hora</th>
+                      <th className="py-2 pr-2">Usuário</th>
                       <th className="py-2 pr-2">Lançamento</th>
                       <th className="py-2 pr-2 text-right">Valor</th>
                       <th className="py-2 text-right">Total depois</th>
@@ -454,6 +455,7 @@ export default function Contas({ contasIni }: { contasIni: Conta[] }) {
                       return (
                         <tr key={m.id} className="border-b border-slate-100">
                           <td className="whitespace-nowrap py-2 pr-2 text-xs text-slate-500 tabular-nums">{m.criadoEm}</td>
+                          <td className="whitespace-nowrap py-2 pr-2 text-xs font-medium text-slate-600">{m.ator || <span className="text-slate-300">—</span>}</td>
                           <td className="py-2 pr-2">
                             <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                               m.tipo === 'deposito' ? 'bg-blue-100 text-blue-700'

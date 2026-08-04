@@ -28,7 +28,8 @@ export interface MovimentoConta {
   valor: number;
   de: number;
   para: number;
-  criadoEm: string; // 'HH:mm DD-MM-AAAA'
+  criadoEm: string;       // 'HH:mm DD-MM-AAAA'
+  ator: string | null;    // quem lançou (login do usuário); null = lançamentos antigos
 }
 
 export const MOV_LABEL: Record<MovimentoConta['tipo'], string> = {

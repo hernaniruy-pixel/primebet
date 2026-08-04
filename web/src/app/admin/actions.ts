@@ -322,6 +322,7 @@ async function registrarMovimentos(
   contaId: number,
   antes: ContaRow,
   depois: ContaRow,
+  ator: Ator,   // quem está logado — vai para o histórico (os sócios veem quem lançou)
 ) {
   const campos: [MovimentoConta['tipo'], keyof ContaRow][] = [
     ['deposito', 'deposito'], ['retirada', 'retirada'], ['saldo', 'saldo'], ['em_aberto', 'em_aberto'],
@@ -330,7 +331,7 @@ async function registrarMovimentos(
     const de = Number(antes[col] ?? 0);
     const para = Number(depois[col] ?? 0);
     const valor = Number((para - de).toFixed(2));
-    return valor === 0 ? [] : [{ conta_id: contaId, tipo, valor, de, para }];
+    return valor === 0 ? [] : [{ conta_id: contaId, tipo, valor, de, para, ator_nome: ator.nome, ator_tipo: ator.tipo }];
   });
   if (!linhas.length) return;
   const { error } = await db.from('contas_movimentos').insert(linhas);
@@ -340,7 +341,7 @@ async function registrarMovimentos(
 }
 
 export async function criarConta(input: NovaConta): Promise<Conta> {
-  await exigirContas();
+  const ator = await exigirContas();
   const db = createAdminClient();
   const { data, error } = await db.from('contas').insert({
     banca_id: await bancaId(db),
@@ -352,12 +353,12 @@ export async function criarConta(input: NovaConta): Promise<Conta> {
   const row = data as ContaRow;
   // Conta que já nasce com depósito/saldo: isso também é movimento e vai para o histórico.
   const zerada = { deposito: 0, retirada: 0, saldo: 0, em_aberto: 0 } as unknown as ContaRow;
-  await registrarMovimentos(db, row.id, zerada, row);
+  await registrarMovimentos(db, row.id, zerada, row, ator);
   return mapConta(row);
 }
 
 export async function atualizarConta(id: number, patch: PatchConta): Promise<Conta> {
-  await exigirContas();
+  const ator = await exigirContas();
   const db = createAdminClient();
   // Estado atual, para saber o que mudou e registrar no histórico.
   const { data: antes } = await db.from('contas').select('*').eq('id', id).maybeSingle();
@@ -374,7 +375,7 @@ export async function atualizarConta(id: number, patch: PatchConta): Promise<Con
   if (patch.retirada !== undefined) upd.retirada = patch.retirada;
   const { data, error } = await db.from('contas').update(upd).eq('id', id).select('*').single();
   if (error) throw error;
-  if (antes) await registrarMovimentos(db, id, antes as ContaRow, data as ContaRow);
+  if (antes) await registrarMovimentos(db, id, antes as ContaRow, data as ContaRow, ator);
   return mapConta(data as ContaRow);
 }
 
@@ -393,7 +394,7 @@ export async function lancarMovimentoConta(
   valor: number,
   ajustarSaldo = true,
 ): Promise<Conta> {
-  await exigirContas();
+  const ator = await exigirContas();
   if (!(valor > 0)) throw new Error('Informe um valor maior que zero.');
   const db = createAdminClient();
   const { data: antes, error: e1 } = await db.from('contas').select('*').eq('id', contaId).maybeSingle();
@@ -412,7 +413,7 @@ export async function lancarMovimentoConta(
 
   const { data, error } = await db.from('contas').update(upd).eq('id', contaId).select('*').single();
   if (error) throw error;
-  await registrarMovimentos(db, contaId, a, data as ContaRow);
+  await registrarMovimentos(db, contaId, a, data as ContaRow, ator);
   return mapConta(data as ContaRow);
 }
 
@@ -421,7 +422,7 @@ export async function listarMovimentosConta(contaId: number): Promise<MovimentoC
   await exigirContas();
   const db = createAdminClient();
   const { data, error } = await db.from('contas_movimentos')
-    .select('id,conta_id,tipo,valor,de,para,criado_em')
+    .select('id,conta_id,tipo,valor,de,para,criado_em,ator_nome')
     .eq('conta_id', contaId).order('criado_em', { ascending: false }).limit(500);
   // Migração 018 pendente: mostra o histórico vazio em vez de estourar a tela.
   if (error && /contas_movimentos/.test(error.message)) return [];
@@ -429,7 +430,7 @@ export async function listarMovimentosConta(contaId: number): Promise<MovimentoC
   return (data ?? []).map((r) => ({
     id: r.id, contaId: r.conta_id, tipo: r.tipo as MovimentoConta['tipo'],
     valor: Number(r.valor), de: Number(r.de ?? 0), para: Number(r.para ?? 0),
-    criadoEm: fmtTs(r.criado_em),
+    criadoEm: fmtTs(r.criado_em), ator: (r.ator_nome as string | null) ?? null,
   }));
 }
 
