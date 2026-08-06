@@ -31,7 +31,9 @@ export const metadata: Metadata = {
   // iOS: "Adicionar à Tela de Início" abre em TELA CHEIA (sem a moldura branca
   // do Safari). status bar translúcida sobre o fundo escuro.
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: MARCA.nome },
-  other: { "mobile-web-app-capable": "yes" },
+  // O Next 16 só emite "mobile-web-app-capable"; o iOS antigo/Safari ainda exige o
+  // meta com prefixo apple- p/ abrir o atalho em TELA CHEIA. Forçamos os dois.
+  other: { "apple-mobile-web-app-capable": "yes", "mobile-web-app-capable": "yes" },
   openGraph: {
     title: MARCA.nome,
     description: "Sistema de gestão.",
