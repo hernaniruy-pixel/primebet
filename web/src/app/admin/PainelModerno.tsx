@@ -1250,8 +1250,8 @@ ${MARCA.equipe}`);
                   ['A pagar', acertoRes.tot.aPagar, 'text-emerald-600 dark:text-emerald-400'],
                   ['Pago', acertoRes.tot.pago, 'text-emerald-600 dark:text-emerald-400'],
                   ['Falta pagar', acertoRes.tot.faltaPagar, 'text-amber-600 dark:text-amber-400'],
-                  ['A receber', acertoRes.tot.aReceber, 'text-sky-600 dark:text-sky-400'],
-                  ['Recebido', acertoRes.tot.recebido, 'text-sky-600 dark:text-sky-400'],
+                  ['A receber', acertoRes.tot.aReceber, 'text-rose-600 dark:text-rose-400'],
+                  ['Recebido', acertoRes.tot.recebido, 'text-rose-600 dark:text-rose-400'],
                   ['Falta receber', acertoRes.tot.faltaReceber, 'text-amber-600 dark:text-amber-400'],
                 ] as [string, number, string][]).map(([l, v, cls]) => (
                   <div key={l} className="rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50">
@@ -1263,7 +1263,7 @@ ${MARCA.equipe}`);
             )}
 
             <p className="mb-2 text-[11px] text-slate-500 dark:text-slate-400">
-              O saldo vem do fechamento ao vivo. <b className="text-emerald-600 dark:text-emerald-400">Pagar</b> = o cliente ganhou; <b className="text-sky-600 dark:text-sky-400">Receber</b> = o cliente perdeu. Lançar não altera bilhete algum — só registra o dinheiro acertado.
+              O saldo vem do fechamento ao vivo. <b className="text-emerald-600 dark:text-emerald-400">Pagar</b> = o cliente ganhou; <b className="text-rose-600 dark:text-rose-400">Receber</b> = o cliente perdeu. Lançar não altera bilhete algum — só registra o dinheiro acertado.
             </p>
 
             <div className="overflow-x-auto"><table className="w-full text-xs">
@@ -1286,7 +1286,7 @@ ${MARCA.equipe}`);
                       <td className="px-2 py-1.5">
                         {r.direcao === 'pagar'
                           ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">Ganhou · pagar</span>
-                          : <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">Perdeu · receber</span>}
+                          : <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">Perdeu · receber</span>}
                       </td>
                       <td className="px-2 py-1.5 text-right font-semibold tabular-nums">R$ {fmt(r.devido)}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums text-slate-500 dark:text-slate-400">R$ {fmt(r.liquidado)}</td>
@@ -1301,7 +1301,7 @@ ${MARCA.equipe}`);
                         <div className="flex items-center gap-1.5">
                           <input inputMode="decimal" placeholder="R$" value={draft.valor} onChange={(e) => setAcertoLanc((s) => ({ ...s, [r.clienteId]: { ...draft, valor: e.target.value } }))} className={`${cinp} w-20`} />
                           <input placeholder="obs (opcional)" value={draft.obs} onChange={(e) => setAcertoLanc((s) => ({ ...s, [r.clienteId]: { ...draft, obs: e.target.value } }))} className={`${cinp} w-28`} />
-                          <button onClick={() => lancarAcerto(r)} className={`rounded-md px-2.5 py-1 text-[11px] font-medium text-white ${r.direcao === 'pagar' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'}`}>{r.direcao === 'pagar' ? 'Pagar' : 'Receber'}</button>
+                          <button onClick={() => lancarAcerto(r)} className={`rounded-md px-2.5 py-1 text-[11px] font-medium text-white ${r.direcao === 'pagar' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}`}>{r.direcao === 'pagar' ? 'Pagar' : 'Receber'}</button>
                         </div>
                       </td>
                       <td className="px-2 py-1.5 text-center">
@@ -1319,7 +1319,7 @@ ${MARCA.equipe}`);
                                 {r.movimentos.map((m) => (
                                   <div key={m.id} className="flex items-center gap-2 text-[11px]">
                                     <span className="tabular-nums text-slate-400">{m.quando}</span>
-                                    <span className={`rounded px-1.5 py-0.5 font-semibold ${m.tipo === 'pago' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300'}`}>{m.tipo === 'pago' ? 'pago' : 'recebido'}</span>
+                                    <span className={`rounded px-1.5 py-0.5 font-semibold ${m.tipo === 'pago' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'}`}>{m.tipo === 'pago' ? 'pago' : 'recebido'}</span>
                                     <span className="font-semibold tabular-nums">R$ {fmt(m.valor)}</span>
                                     <span className="text-slate-500 dark:text-slate-400">por {m.ator}</span>
                                     {m.obs && <span className="truncate text-slate-400">· {m.obs}</span>}
