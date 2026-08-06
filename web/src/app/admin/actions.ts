@@ -699,6 +699,16 @@ export async function podeContas(): Promise<boolean> {
   return !!(await permissoesDe(ator.nome)).contas;   // operador: só com permissão
 }
 
+/**
+ * Checagem LEVE de sessão para a UI (NÃO lança). true = ainda autenticado.
+ * Serve quando um "Salvar" falha: em produção o Next MASCARA a mensagem do erro
+ * (o "Não autenticado" some), então o front pergunta aqui se a sessão caiu e mostra
+ * "recarregue e entre de novo" em vez do texto técnico assustador.
+ */
+export async function sessaoAtiva(): Promise<boolean> {
+  try { return (await atorAtual()) !== null; } catch { return false; }
+}
+
 /** Igual ao exigir(), mas para as Contas: libera financeiro OU operador com permissão. */
 async function exigirContas(): Promise<Ator> {
   const ator = await exigirSessao();

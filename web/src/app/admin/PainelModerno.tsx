@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow, AcertosResp, AcertoCliente } from './types';
 import { partesTs, statusContestacao } from './types';
 import {
-  criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao, aceitarContestacao,
+  criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao, aceitarContestacao, sessaoAtiva,
   criarCliente, atualizarCliente, excluirCliente, criarAfiliado, atualizarAfiliado, excluirAfiliado,
   fechamentoClientes, fechamentoAfiliados, bilhetesCliente, listarDespesasPeriodo,
   statusBot, type BotStatus,
@@ -139,6 +139,19 @@ function Modal({ title, onClose, max = 'max-w-3xl', children }: { title: ReactNo
       </div>
     </div>
   );
+}
+
+// Alerta padrão quando um "Salvar" de aposta falha. Em produção o Next MASCARA a
+// mensagem do erro (o "Não autenticado" vira um texto técnico genérico), então aqui
+// checamos a sessão direto: se caiu, mostramos "recarregue e entre de novo" — a causa
+// nº1 desse erro — em vez do texto assustador. Se ainda está logado, mostra o motivo.
+async function alertaFalhaSalvar(id: number, msg: string, textoQuandoLogado: string) {
+  const logado = await sessaoAtiva().catch(() => true); // se a checagem falhar, não afirma expiração
+  if (!logado) {
+    alert(`⚠️ A aposta #${id} NÃO foi salva.\n\nSua sessão expirou. Recarregue a página e entre de novo — a aposta continua na fila.`);
+  } else {
+    alert(`⚠️ A aposta #${id} NÃO foi salva.\n\nMotivo: ${msg}\n\n${textoQuandoLogado}`);
+  }
 }
 
 export default function PainelModerno({ email, papel, contasLiberado, clientesIni, afiliadosIni, apostasIni, semana }: {
@@ -328,7 +341,10 @@ export default function PainelModerno({ email, papel, contasLiberado, clientesIn
       setRegs((rs) => rs.map((r) => (r.id === id ? reg : r)));
     } catch {
       if (prev) setRegs((rs) => rs.map((r) => (r.id === id ? prev : r)));
-      toast('Erro ao salvar — alteração desfeita.');
+      // Sessão expirada é a causa nº1 (o Next mascara o "Não autenticado"): avisa claro.
+      const logado = await sessaoAtiva().catch(() => true);
+      if (!logado) alert('⚠️ Sua sessão expirou. Recarregue a página e entre de novo — a alteração foi desfeita, nada foi salvo.');
+      else toast('Erro ao salvar — alteração desfeita.');
     }
   }
   function resolverCt(id: number) {
@@ -400,7 +416,7 @@ export default function PainelModerno({ email, papel, contasLiberado, clientesIn
         if (draftAntesEd) setDrafts((dr) => ({ ...dr, [id]: draftAntesEd }));
         const msg = e instanceof Error ? e.message : String(e);
         console.error('saveReg (EM ABERTO) falhou:', e);
-        alert(`⚠️ A aposta #${id} NÃO foi salva.\n\nMotivo: ${msg}\n\nA edição foi mantida. Tente de novo.`);
+        await alertaFalhaSalvar(id, msg, 'A edição foi mantida. Tente de novo.');
       }
       return;
     }
@@ -442,12 +458,8 @@ export default function PainelModerno({ email, papel, contasLiberado, clientesIn
       const msg = e instanceof Error ? e.message : String(e);
       console.error('saveReg falhou:', e);
       // alert (e não toast): o operador PRECISA ver que a aposta continua em aberto.
-      alert(
-        `⚠️ A aposta #${id} NÃO foi salva.\n\nMotivo: ${msg}\n\n` +
-        (/autenticad/i.test(msg)
-          ? 'Sua sessão expirou. Recarregue a página e entre de novo.'
-          : 'A aposta voltou para a fila. Tente salvar novamente.'),
-      );
+      // O helper checa a sessão (o Next mascara o "Não autenticado" em produção).
+      await alertaFalhaSalvar(id, msg, 'A aposta voltou para a fila. Tente salvar novamente.');
     }
   }
   async function delReg(id: number) { if (!confirm('Excluir este registro?')) return; try { await excluirAposta(id); setRegs((rs) => rs.filter((r) => r.id !== id)); reload(); } catch { toast('Erro ao excluir.'); } }
