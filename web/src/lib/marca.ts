@@ -10,34 +10,37 @@
 //  próprio deploy), então valem tanto no servidor quanto no navegador.
 // ════════════════════════════════════════════════════════════════
 
-const env = (k: string, padrao: string): string => {
-  const v = process.env[k];
-  return v && v.trim() ? v.trim() : padrao;
-};
+// IMPORTANTE: no cliente, o Next só embute (inline) uma NEXT_PUBLIC_* quando o
+// acesso é LITERAL — process.env.NEXT_PUBLIC_X. Acesso por chave dinâmica
+// (process.env[k]) NÃO é inlinado e volta ao padrão no navegador (o server ainda
+// lê certo em runtime, então dava divergência: título certo, logo/nome no padrão).
+// Por isso cada variável é referenciada estaticamente abaixo.
+const pick = (v: string | undefined, padrao: string): string =>
+  v && v.trim() ? v.trim() : padrao;
 
 export const MARCA = {
   // Identidade
-  nome: env('NEXT_PUBLIC_MARCA_NOME', 'PrimeBet'),
+  nome: pick(process.env.NEXT_PUBLIC_MARCA_NOME, 'PrimeBet'),
   // Domínio próprio da banca (aparece no login e é o link do site do cliente).
-  site: env('NEXT_PUBLIC_MARCA_SITE', 'www.trackertipster.site'),
-  siteUrl: env('NEXT_PUBLIC_MARCA_SITE_URL', 'https://trackertipster.site/'),
+  site: pick(process.env.NEXT_PUBLIC_MARCA_SITE, 'www.trackertipster.site'),
+  siteUrl: pick(process.env.NEXT_PUBLIC_MARCA_SITE_URL, 'https://trackertipster.site/'),
   // Assinatura no rodapé dos PDFs. Padrão = marca do provedor (Tracker Tipster).
   // Um cliente pode trocar por algo próprio via NEXT_PUBLIC_MARCA_RODAPE.
-  rodapePdf: env('NEXT_PUBLIC_MARCA_RODAPE', 'desenvolvido por www.trackertipster.site'),
+  rodapePdf: pick(process.env.NEXT_PUBLIC_MARCA_RODAPE, 'desenvolvido por www.trackertipster.site'),
   // Assinatura das mensagens de WhatsApp (ex.: legenda do fechamento).
-  equipe: env('NEXT_PUBLIC_MARCA_EQUIPE', 'Equipe PrimeBet'),
+  equipe: pick(process.env.NEXT_PUBLIC_MARCA_EQUIPE, 'Equipe PrimeBet'),
   // Página do bot (QR / health) do cliente — link "reconectar" no topo do painel.
-  botUrl: env('NEXT_PUBLIC_BOT_URL', 'https://primebet-production.up.railway.app/?t=primebet2026'),
+  botUrl: pick(process.env.NEXT_PUBLIC_BOT_URL, 'https://primebet-production.up.railway.app/?t=primebet2026'),
 
   // Cores (hex). Usadas direto em PDF (jsPDF precisa de hex/RGB) e injetadas como
   // variáveis CSS em layout.tsx (--marca / --marca-esc / --marca-claro).
-  cor: env('NEXT_PUBLIC_MARCA_COR', '#DAA520'),        // dourado principal
-  corEsc: env('NEXT_PUBLIC_MARCA_COR_ESC', '#B8860B'), // dourado escuro (botões, bordas)
-  corClaro: env('NEXT_PUBLIC_MARCA_COR_CLARO', '#F0D060'), // dourado claro (realces)
+  cor: pick(process.env.NEXT_PUBLIC_MARCA_COR, '#DAA520'),        // dourado principal
+  corEsc: pick(process.env.NEXT_PUBLIC_MARCA_COR_ESC, '#B8860B'), // dourado escuro (botões, bordas)
+  corClaro: pick(process.env.NEXT_PUBLIC_MARCA_COR_CLARO, '#F0D060'), // dourado claro (realces)
   // Base da rampa do painel (bg-marca-*/text-marca-*). Lê a MESMA env da cor
   // principal, mas cai em amber-500 quando não definida — assim a PrimeBet fica
   // idêntica e um cliente que define NEXT_PUBLIC_MARCA_COR pinta o painel todo.
-  corRamp: env('NEXT_PUBLIC_MARCA_COR', '#f59e0b'),
+  corRamp: pick(process.env.NEXT_PUBLIC_MARCA_COR, '#f59e0b'),
 };
 
 /** '#RRGGBB' → [r,g,b] para o jsPDF (setDrawColor/setTextColor). */

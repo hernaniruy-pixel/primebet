@@ -17,6 +17,8 @@ create or replace function public.restaurar_demo()
 returns void
 language plpgsql
 as $$
+declare
+  v_banca bigint;
 begin
   -- Zera os dados operacionais (mantém equipe/logins e config). CASCADE cobre
   -- qualquer tabela dependente. RESTART IDENTITY reinicia os ids.
@@ -32,6 +34,15 @@ begin
     public.clientes,
     public.afiliados
     restart identity cascade;
+
+  -- A migração 006 tornou banca_id NOT NULL em afiliados/clientes/apostas. A
+  -- banca (linha em public.bancas) não é apagada pelo truncate acima. Fixamos o
+  -- banca_id como DEFAULT das 3 tabelas para os inserts abaixo não precisarem
+  -- repetir a coluna em cada linha.
+  select id into v_banca from public.bancas order by id limit 1;
+  execute format('alter table public.afiliados alter column banca_id set default %s', v_banca);
+  execute format('alter table public.clientes  alter column banca_id set default %s', v_banca);
+  execute format('alter table public.apostas   alter column banca_id set default %s', v_banca);
 
   -- ── AFILIADOS (supervisores) ──
   insert into public.afiliados (id, nome, comissao_pct) values
