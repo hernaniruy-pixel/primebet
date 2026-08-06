@@ -17,7 +17,7 @@ function hexRGB(hex: string): [number, number, number] {
   return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [53, 214, 76];
 }
 
-export default function FundoAnimado() {
+export default function FundoAnimado({ zIndex = 0 }: { zIndex?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -39,14 +39,14 @@ export default function FundoAnimado() {
       W = c.width = window.innerWidth;
       H = c.height = window.innerHeight;
       dots.length = 0;
-      const n = Math.min(70, Math.round(W / 20));
+      const n = Math.min(110, Math.round(W / 16));
       for (let i = 0; i < n; i++) {
         dots.push({
           x: Math.random() * W,
           y: Math.random() * H,
-          vy: -(0.12 + Math.random() * 0.35),
-          r: Math.random() * 1.6 + 0.5,
-          a: Math.random() * 0.5 + 0.15,
+          vy: -(0.14 + Math.random() * 0.4),
+          r: Math.random() * 1.7 + 0.7,
+          a: Math.random() * 0.55 + 0.28,
           g: Math.random() > 0.5,
         });
       }
@@ -76,7 +76,7 @@ export default function FundoAnimado() {
     <canvas
       ref={ref}
       aria-hidden
-      style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }}
+      style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex, pointerEvents: 'none' }}
     />
   );
 }
