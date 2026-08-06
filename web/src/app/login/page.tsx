@@ -2,14 +2,19 @@
 
 import { useActionState, useState } from 'react';
 import Image from 'next/image';
-import { entrar, type LoginState } from './actions';
+import { entrar, verificarCodigo, type LoginState } from './actions';
 import { MARCA } from '@/lib/marca';
 
 const inicial: LoginState = {};
 
 export default function LoginPage() {
   const [estado, formAction, pendente] = useActionState(entrar, inicial);
+  const [estadoCod, codAction, pendCod] = useActionState(verificarCodigo, inicial);
   const [verSenha, setVerSenha] = useState(false);
+
+  // Mostra a etapa do código (2FA) quando a senha foi aceita e pediu código,
+  // e continua nela enquanto o código estiver errado. Volta pra senha se expirar.
+  const mostrarCodigo = (estado.etapa === 'codigo' || estadoCod.etapa === 'codigo') && estadoCod.etapa !== 'senha';
 
   return (
     <>
@@ -69,10 +74,49 @@ export default function LoginPage() {
               >
                 {MARCA.nome}
               </div>
-              <div style={{ color: '#8ba468', fontSize: 12, marginTop: 2, letterSpacing: '.02em' }}>Acesso ao sistema</div>
+              <div style={{ color: '#8ba468', fontSize: 12, marginTop: 2, letterSpacing: '.02em' }}>
+                {mostrarCodigo ? 'Verificação em duas etapas' : 'Acesso ao sistema'}
+              </div>
             </div>
           </div>
 
+          {mostrarCodigo ? (
+            <form action={codAction}>
+              <div style={{ color: '#a9bd82', fontSize: 12.5, lineHeight: 1.6, marginBottom: 14, textAlign: 'center' }}>
+                Digite o código de 6 dígitos do seu app autenticador
+                <br />
+                <span style={{ color: '#7d8a63' }}>(ou um código de recuperação)</span>
+              </div>
+
+              <label className="lg-lbl">CÓDIGO</label>
+              <input
+                name="codigo"
+                className="lg-inp"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                placeholder="000000"
+                maxLength={14}
+                style={{ textAlign: 'center', letterSpacing: '.3em', fontSize: 20, fontWeight: 700 }}
+              />
+
+              {estadoCod.erro && (
+                <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>{estadoCod.erro}</div>
+              )}
+
+              <button type="submit" className="lg-btn" disabled={pendCod} style={{ marginTop: 8 }}>
+                {pendCod ? 'Verificando…' : 'Confirmar código →'}
+              </button>
+
+              <div
+                onClick={() => window.location.reload()}
+                style={{ color: '#8ba468', fontSize: 12, cursor: 'pointer', textAlign: 'center', marginTop: 14 }}
+              >
+                ← Voltar ao login
+              </div>
+            </form>
+          ) : (
           <form action={formAction}>
             <label className="lg-lbl">USUÁRIO</label>
             <input
@@ -154,6 +198,7 @@ export default function LoginPage() {
               {pendente ? 'Entrando…' : 'Entrar no painel →'}
             </button>
           </form>
+          )}
 
           <div style={{ fontSize: 11.5, textAlign: 'center', marginTop: 22, lineHeight: 1.75 }}>
             <div style={{ color: '#cdb15f', fontWeight: 700 }}>© 2026 Tracker Tipster</div>

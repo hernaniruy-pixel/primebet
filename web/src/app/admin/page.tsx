@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { atorAtual } from '@/lib/auth-equipe';
+import { precisa2fa, SUJEITO_MASTER } from '@/lib/login-2fa';
 import { loadBase } from './data';
 import { listarApostas, podeContas } from './actions';
 import { weekRange } from './types';
@@ -10,6 +11,9 @@ export const dynamic = 'force-dynamic';
 export default async function AdminPage() {
   const ator = await atorAtual();          // admin (dono), gestor ou operador
   if (!ator) redirect('/login');
+
+  // 2FA obrigatório para o master: sem 2FA ativo, vai cadastrar antes de usar o painel.
+  if (ator.tipo === 'master' && !(await precisa2fa(SUJEITO_MASTER))) redirect('/admin/seguranca');
 
   const semana = weekRange();
   const [base, apostas] = await Promise.all([

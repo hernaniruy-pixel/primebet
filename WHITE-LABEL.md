@@ -86,10 +86,20 @@ idempotentes (`if not exists` / `drop ... if exists`). Os arquivos estão em
 | 026 | Papel `admin` na equipe (multi-admin: master cria admins dos donos) |
 | 027 | `login_rate` — trava anti-força-bruta no login |
 | 028 | `acertos` — controle de pagamentos/recebimentos dos clientes |
+| 029 | `envios_pdf` — tentativas de envio de PDF pelo bot |
+| 030 | `equipe.permissoes` — permissões por operador (ex.: Contas) |
+| 031 | `contas_movimentos.ator_*` — quem lançou cada movimento de conta |
+| 032 | `login_2fa` + `login_eventos` — 2FA (TOTP) e auditoria de acessos |
 
 > Depois das migrações, crie o usuário **master** no Supabase Auth do cliente (e-mail =
 > `ADMIN_EMAIL`, com uma senha). Ele loga como `admin` e, no painel (👥 Usuários), cria os
 > logins **Admin** dos donos do cliente.
+>
+> **2FA obrigatório do master:** no primeiro login o master é levado a `/admin/seguranca`
+> para cadastrar a verificação em duas etapas (escaneia um QR num app autenticador e salva
+> os códigos de recuperação) — só depois disso o painel libera. Os **Admins** (donos) podem
+> ligar o 2FA se quiserem, na mesma tela (🔐 Segurança), que também mostra a **auditoria de
+> acessos** (quem entrou, quando, IP, dispositivo).
 
 ## 6) Regras do modelo (herdadas, não reimplementar)
 

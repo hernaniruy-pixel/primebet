@@ -794,6 +794,9 @@ ${MARCA.equipe}`);
             {podeFinanceiro && (
               <button onClick={() => { setNovoUser({ nome: '', senha: '', papel: 'operador' }); setUserErro(''); setResetUser(null); setModal('usuarios'); }} className={navBtn} title="Usuários da equipe (operador/gestor)">👥 Usuários</button>
             )}
+            {ehAdmin && (
+              <a href="/admin/seguranca" className={navBtn} title="2FA e histórico de acessos">🔐 Segurança</a>
+            )}
             <button onClick={toggleTheme} title="Tema" className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
             {/* O e-mail saiu do corpo da tela (ocupava espaço e o topo já diz onde você
                 está). Fica aqui no título: passe o mouse para ver a conta logada. */}
