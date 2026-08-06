@@ -17,6 +17,20 @@ import { limparEquipeCookie } from '@/lib/equipe-session';
 import { hashSenha, conferirSenha } from '@/lib/senha';
 import { createClient } from '@/lib/supabase/server';
 
+// ═══════════════════ MODO DEMO ═══════════════════
+// Só existe na instância de DEMONSTRAÇÃO (env server-only PRIMEBET_DEMO=1).
+// Zera e recarrega os dados de exemplo via RPC restaurar_demo() (ver
+// supabase/seed-demo.sql, que NÃO é aplicado em clientes reais). Dupla trava:
+// env + papel admin. Num cliente real o env não existe → recusa de cara.
+export async function restaurarDemo(): Promise<{ ok: boolean; erro?: string }> {
+  if (process.env.PRIMEBET_DEMO !== '1') return { ok: false, erro: 'Disponível apenas na demonstração.' };
+  await exigir('admin');
+  const db = createAdminClient();
+  const { error } = await db.rpc('restaurar_demo');
+  if (error) return { ok: false, erro: error.message };
+  return { ok: true };
+}
+
 // ═══════════════════ LISTAGEM / FECHAMENTO (paginação no servidor) ═══════════════════
 export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
   const ator = await exigir('operador');

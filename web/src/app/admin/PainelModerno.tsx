@@ -16,6 +16,7 @@ import {
   historicoAposta, type AuditoriaItem,
   enfileirarEnvioPdf, statusEnviosPdf,
   listarAcertos, registrarAcerto, excluirAcerto,
+  restaurarDemo,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
@@ -154,8 +155,8 @@ async function alertaFalhaSalvar(id: number, msg: string, textoQuandoLogado: str
   }
 }
 
-export default function PainelModerno({ email, papel, contasLiberado, clientesIni, afiliadosIni, apostasIni, semana }: {
-  email: string; papel: 'master' | 'admin' | 'gestor' | 'operador'; contasLiberado: boolean; clientesIni: Cliente[]; afiliadosIni: Afiliado[]; apostasIni: ApostasPage; semana: { d1: string; d2: string };
+export default function PainelModerno({ email, papel, demo = false, contasLiberado, clientesIni, afiliadosIni, apostasIni, semana }: {
+  email: string; papel: 'master' | 'admin' | 'gestor' | 'operador'; demo?: boolean; contasLiberado: boolean; clientesIni: Cliente[]; afiliadosIni: Afiliado[]; apostasIni: ApostasPage; semana: { d1: string; d2: string };
 }) {
   const router = useRouter();
   // Papéis: operador só vê bilhetes + conferência (nada financeiro); gestor/admin/master veem tudo.
@@ -796,6 +797,18 @@ ${MARCA.equipe}`);
             )}
             {ehAdmin && (
               <a href="/admin/seguranca" className={navBtn} title="2FA e histórico de acessos">🔐 Segurança</a>
+            )}
+            {demo && ehAdmin && (
+              <button
+                onClick={async () => {
+                  if (!confirm('Restaurar a demo aos dados de exemplo? Isso apaga o estado atual e recarrega os bilhetes/clientes de amostra.')) return;
+                  const r = await restaurarDemo();
+                  if (r.ok) { toast('Demo restaurada.'); setTimeout(() => location.reload(), 400); }
+                  else toast(r.erro || 'Não foi possível restaurar.');
+                }}
+                className={navBtn}
+                title="Zera e recarrega os dados de exemplo da demonstração"
+              >♻ Restaurar demo</button>
             )}
             <button onClick={toggleTheme} title="Tema" className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
             {/* O e-mail saiu do corpo da tela (ocupava espaço e o topo já diz onde você

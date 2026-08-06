@@ -39,10 +39,14 @@ export default async function AdminPage() {
   // Operador só vê o menu Contas se o admin ligou a permissão no perfil dele.
   const contasLiberado = await podeContas();
 
+  // Instância de demonstração: habilita o botão "Restaurar demo" e a faixa DEMO.
+  const demo = process.env.NEXT_PUBLIC_DEMO === '1';
+
   return (
     <PainelModerno
       email={ator.nome}
       papel={ator.tipo}
+      demo={demo}
       contasLiberado={contasLiberado}
       clientesIni={clientesIni}
       afiliadosIni={afiliadosIni}
