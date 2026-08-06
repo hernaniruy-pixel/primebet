@@ -219,12 +219,12 @@ export default function LoginPage() {
             <div style={{ color: '#cdb15f', fontWeight: 700 }}>© 2026 Tracker Tipster</div>
             <div style={{ color: '#8ba468' }}>Desenvolvedora de Softwares e Automações</div>
             <a
-              href="https://wa.me/5567991995885"
+              href="https://wa.me/5567992011361"
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: '#a9bd82', textDecoration: 'none', display: 'inline-block', marginTop: 3 }}
             >
-              Contato: (67) 99199-5885
+              Contato: (67) 99201-1361
             </a>
             <a
               href="https://trackertipster.site/"
