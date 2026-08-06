@@ -18,6 +18,9 @@ const geistMono = Geist_Mono({
 // theme-color escurecem a barra em vez de branco.
 export const viewport: Viewport = {
   themeColor: MARCA.fundo,
+  // Deixa o conteúdo ir até as bordas (embaixo da barra de status / notch) —
+  // com apple-mobile-web-app-capable, o atalho na tela inicial abre em tela cheia.
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
@@ -25,6 +28,10 @@ export const metadata: Metadata = {
   title: MARCA.nome,
   description: "Sistema de gestão.",
   robots: { index: false, follow: false },
+  // iOS: "Adicionar à Tela de Início" abre em TELA CHEIA (sem a moldura branca
+  // do Safari). status bar translúcida sobre o fundo escuro.
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: MARCA.nome },
+  other: { "mobile-web-app-capable": "yes" },
   openGraph: {
     title: MARCA.nome,
     description: "Sistema de gestão.",

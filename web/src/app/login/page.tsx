@@ -33,14 +33,11 @@ export default function LoginPage() {
           background:var(--bg) url('/galaxy.jpg') center/cover no-repeat;filter:brightness(.42) saturate(.55) hue-rotate(65deg)}
         .pb-login::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
           background:radial-gradient(60% 48% at 50% 20%,color-mix(in srgb,var(--a) 22%,transparent),transparent 62%),radial-gradient(48% 42% at 80% 30%,color-mix(in srgb,var(--a2) 20%,transparent),transparent 62%),linear-gradient(color-mix(in srgb,var(--bg) 60%,transparent),color-mix(in srgb,var(--bg) 92%,#000 6%))}
-        /* Fundo animado ligado: base quase-preta (igual a logo Tracker) + brilho
-           SUTIL; o glow (::after) desce p/ z0 e as partículas (canvas z1) ficam
-           por cima. Nada de borrões fortes — o neon é discreto. */
-        .pb-login.anim{background:radial-gradient(135% 105% at 50% -20%,#0b171a 0%,#070d10 42%,#04080a 100%)}
+        /* Fundo animado ligado: quase-preto puro (igual a logo Tracker), SEM borrões
+           de cor. As partículas (canvas z1) são o único destaque. */
+        .pb-login.anim{background:radial-gradient(140% 110% at 50% -20%,#0a1214 0%,#060b0d 45%,#04080a 100%)}
         .pb-login.anim::before{display:none}
-        .pb-login.anim::after{z-index:0;background:
-          radial-gradient(44% 36% at 50% 6%,color-mix(in srgb,var(--a) 13%,transparent),transparent 58%),
-          radial-gradient(38% 40% at 85% 42%,color-mix(in srgb,var(--a2) 10%,transparent),transparent 60%)}
+        .pb-login.anim::after{display:none}
         .lg-box{position:relative;z-index:2;width:100%;max-width:360px;
           background:linear-gradient(180deg,color-mix(in srgb,var(--bg) 82%,#fff 5%),color-mix(in srgb,var(--bg) 90%,#000 6%));
           border:1px solid color-mix(in srgb,var(--a) 30%,transparent);border-radius:18px;padding:30px 26px;
