@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { MARCA } from "@/lib/marca";
@@ -12,6 +12,13 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+// Cor da UI do navegador no mobile (barra de status). Segue o fundo da marca —
+// demo escuro (#05090c), PrimeBet no seu padrão. Navegadores que respeitam
+// theme-color escurecem a barra em vez de branco.
+export const viewport: Viewport = {
+  themeColor: MARCA.fundo,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(MARCA.siteUrl),
