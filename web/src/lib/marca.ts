@@ -32,6 +32,18 @@ export const MARCA = {
   // Página do bot (QR / health) do cliente — link "reconectar" no topo do painel.
   botUrl: pick(process.env.NEXT_PUBLIC_BOT_URL, 'https://primebet-production.up.railway.app/?t=primebet2026'),
 
+  // Logo do cliente. Arquivo em /public. Padrão = escudo PrimeBet (logo.jpg).
+  // Um cliente troca via NEXT_PUBLIC_MARCA_LOGO (ex.: '/logo-tracker.jpeg').
+  logo: pick(process.env.NEXT_PUBLIC_MARCA_LOGO, '/logo.jpg'),
+  // Cor de FUNDO do app (login + trás do painel). Padrão = verde-escuro PrimeBet.
+  fundo: pick(process.env.NEXT_PUBLIC_MARCA_FUNDO, '#08120a'),
+  // Segunda cor do gradiente de destaque (ex.: verde→ciano da Tracker). Sem env,
+  // cai na cor escura — assim a PrimeBet segue com o degradê dourado de sempre.
+  cor2: pick(process.env.NEXT_PUBLIC_MARCA_COR2, pick(process.env.NEXT_PUBLIC_MARCA_COR_ESC, '#B8860B')),
+  // Fundo animado (partículas subindo, temadas pela cor da marca). OFF por padrão
+  // (PrimeBet não muda); a demo/clientes que quiserem ligam com NEXT_PUBLIC_MARCA_BG_ANIM=1.
+  bgAnim: process.env.NEXT_PUBLIC_MARCA_BG_ANIM === '1',
+
   // Cores (hex). Usadas direto em PDF (jsPDF precisa de hex/RGB) e injetadas como
   // variáveis CSS em layout.tsx (--marca / --marca-esc / --marca-claro).
   cor: pick(process.env.NEXT_PUBLIC_MARCA_COR, '#DAA520'),        // dourado principal
