@@ -293,6 +293,19 @@ export default function PainelModerno({ email, papel, demo = false, contasLibera
     return () => { alive = false; };
   }, [debFiltros.dt1, debFiltros.dt2, reloadKey, podeFinanceiro]);
 
+  // Fechamento do período — só usado no Modelo B para o P&L de banca (o cashback é
+  // semanal e não está nos totais por bilhete). Traz o `modo` e os totais líquidos.
+  // No Modelo A a tela não muda (o bloco de KPIs continua na lógica de comissão).
+  const [fechPeriodo, setFechPeriodo] = useState<FechCliResp['g'] | null>(null);
+  useEffect(() => {
+    if (!podeFinanceiro) return;
+    let alive = true;
+    fechamentoClientes(debFiltros.dt1 || null, debFiltros.dt2 || null)
+      .then((r) => { if (alive) setFechPeriodo(r.g); })
+      .catch(() => { if (alive) setFechPeriodo(null); });
+    return () => { alive = false; };
+  }, [debFiltros.dt1, debFiltros.dt2, reloadKey, podeFinanceiro]);
+
   // Atualizar/recarregar DESCARTA rascunhos não salvos (status pendente volta ao real).
   const reload = () => { setDrafts({}); setReloadKey((k) => k + 1); };
   const navBtn = 'shrink-0 whitespace-nowrap rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/15';
@@ -846,7 +859,16 @@ ${MARCA.equipe}`);
             const cliFiltrado = f.nome ? clientes.find((c) => c.id === Number(f.nome)) : null;
             const recorte = !!(f.id || f.nome || f.st || f.jogo || f.dc || f.oddMin || f.oddMax
               || f.valMin || f.valMax || f.bl || f.adv || f.irr || f.aba === 'pend');
-            const lucro = totals.comissao - totals.comissao_afiliado - (recorte ? 0 : despPeriodo);
+            // Modelo B (cashback sobre perda): a casa banca. Resultado de banca = o que
+            // fica dos jogadores (= − saldo líquido deles, já com o cashback). Vem do
+            // fechamento do período (o cashback é semanal, não está nos totais por bilhete).
+            const cbMode = fechPeriodo?.modo === 'cashback_perda';
+            const gsl = Number(fechPeriodo?.sl ?? 0);       // resultado líquido dos jogadores (c/ cashback)
+            const gcb = Number(fechPeriodo?.cm ?? 0);       // cashback devolvido no período
+            const resultadoBanca = -gsl;                    // o que fica pra casa
+            const lucro = cbMode
+              ? resultadoBanca - (recorte ? 0 : despPeriodo)
+              : totals.comissao - totals.comissao_afiliado - (recorte ? 0 : despPeriodo);
             const rotuloLucro = cliFiltrado ? `lucro gerado por ${cliFiltrado.nome}`
               : recorte ? 'lucro do filtro (sem despesas)'
                 : 'lucro do período';
@@ -855,7 +877,7 @@ ${MARCA.equipe}`);
                 <Kpi icone="⇄" cor="blue" titulo="Entrada" valor={tot(totals.entradas)} valorCls={entCls(totals.entradas)} sub={`${total} linhas`} />
                 <Kpi icone="🕐" cor="violet" titulo="Em aberto" valor={tot(totals.em_aberto_total)} valorCls={abertoCls(totals.em_aberto_total)} sub={`${totals.em_aberto_qtd} linhas`} />
                 {/* Financeiro da banca — só gestor/admin. Operador vê só Entrada e Em aberto. */}
-                {podeFinanceiro && (
+                {podeFinanceiro && !cbMode && (
                   <>
                     <Kpi icone="📈" cor="slate" titulo="Saldo bruto" valor={tot(totals.saldo_bruto)} valorCls={clrCls(totals.saldo_bruto)} sub="ganho/perda dos bilhetes" />
                     <Kpi icone="✓" cor="emerald" titulo="Saldo líquido" valor={tot(totals.saldo_liquido)} valorCls={clrCls(totals.saldo_liquido)} sub="resultado dos clientes"
@@ -870,6 +892,25 @@ ${MARCA.equipe}`);
                          dica={recorte
                            ? 'Comissão ganha − Comissão dos afiliados, apenas do que está filtrado. As despesas são da banca inteira e por isso ficam de fora aqui.'
                            : 'Lucro = Comissão ganha − Comissão dos afiliados − Despesas do período. A banca só ganha comissão em bilhete GREEN.'} />
+                  </>
+                )}
+                {/* Modelo B: a casa BANCA — o P&L é de banca, e é um conceito de PERÍODO
+                    (o cashback é semanal). Por isso os cartões de banca degradam p/ "—"
+                    quando há filtro estreito (recorte), igual as despesas. */}
+                {podeFinanceiro && cbMode && (
+                  <>
+                    <Kpi icone="📈" cor="slate" titulo="Saldo bruto" valor={tot(totals.saldo_bruto)} valorCls={clrCls(totals.saldo_bruto)} sub="ganho/perda dos bilhetes" />
+                    <Kpi icone="✓" cor="emerald" titulo="Resultado dos jogadores" valor={recorte ? '—' : tot(gsl)} valorCls={recorte ? 'text-slate-300 dark:text-slate-600' : clrCls(gsl)} sub={recorte ? 'período (limpe o filtro)' : 'já com o cashback'}
+                         dica="Quanto os jogadores ficaram no período, já com o cashback devolvido. Positivo = os jogadores ganharam. É o dinheiro deles, não o lucro da casa." />
+                    <Kpi icone="🏦" cor="rose" titulo="Resultado de banca" valor={recorte ? '—' : tot(resultadoBanca)} valorCls={recorte ? 'text-slate-300 dark:text-slate-600' : clrCls(resultadoBanca)} sub={recorte ? 'não se aplica ao filtro' : 'o que fica dos jogadores'}
+                         dica="A casa banca o jogo: ganha o que os jogadores perdem e paga o que ganham. Já líquido do cashback devolvido." />
+                    <Kpi icone="↩" cor="rose" titulo="Cashback devolvido" valor={recorte ? '—' : tot(gcb)} valorCls={recorte ? 'text-slate-300 dark:text-slate-600' : comCls(gcb)} sub={recorte ? 'período' : 'custo (já no resultado)'} />
+                    <Kpi icone="💸" cor="rose" titulo="Despesas" href="/admin/despesas"
+                         valor={recorte ? '—' : tot(despPeriodo)} valorCls={recorte ? 'text-slate-300 dark:text-slate-600' : comCls(despPeriodo)}
+                         sub={recorte ? 'não se aplica ao filtro 🔗' : 'do período 🔗'}
+                         dica={recorte ? 'As despesas são da banca inteira — não pertencem a um filtro de apostas. Limpe os filtros para ver o lucro do período.' : 'Despesas do período (vêm do grupo de despesa no WhatsApp). Clique para ver a lista.'} />
+                    <Kpi icone="★" cor="destaque" titulo="Resumo total" valor={recorte ? '—' : tot(lucro)} valorCls={recorte ? 'text-slate-300 dark:text-slate-600' : clrCls(lucro)} sub={recorte ? 'lucro do período (limpe o filtro)' : 'lucro do período'}
+                         dica="Lucro = Resultado de banca − Despesas do período. A casa lucra com quem perde (menos o cashback) e paga quem ganha." />
                   </>
                 )}
               </div>

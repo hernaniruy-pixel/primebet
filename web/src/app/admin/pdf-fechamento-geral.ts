@@ -46,7 +46,11 @@ export function gerarPdfFechamentoGeral({ banca = MARCA.nome, g, rows = [], desp
   const M = 40;
   const temIntervalo = !!(dt1 && dt2);
   const periodo = temIntervalo ? `${brDate(dt1)} a ${brDate(dt2)}` : 'Todo o período';
-  const lucro = lucroPeriodo(g.cm, g.caf, despesas);
+  const cbMode = g.modo === 'cashback_perda';
+  // Modelo B: a casa banca — lucro = resultado de banca (o que fica dos jogadores, já
+  // líquido do cashback) − despesas. Modelo A: comissão − afiliados − despesas.
+  const resultadoBanca = -g.sl;
+  const lucro = cbMode ? resultadoBanca - despesas : lucroPeriodo(g.cm, g.caf, despesas);
 
   // ── Cabeçalho ──
   doc.setFont('helvetica', 'bold');
@@ -90,7 +94,10 @@ export function gerarPdfFechamentoGeral({ banca = MARCA.nome, g, rows = [], desp
   autoTable(doc, {
     startY: y1,
     head: [['Apuração do lucro', 'Valor']],
-    body: [
+    body: cbMode ? [
+      ['Resultado de banca (líq. do cashback)', `R$ ${money(resultadoBanca)}`],
+      ['(-) Despesas do período', `R$ ${money(despesas)}`],
+    ] : [
       ['Comissão ganha (receita)', `R$ ${money(g.cm)}`],
       ['(-) Comissão dos afiliados', `R$ ${money(g.caf)}`],
       ['(-) Despesas do período', `R$ ${money(despesas)}`],
@@ -126,8 +133,8 @@ export function gerarPdfFechamentoGeral({ banca = MARCA.nome, g, rows = [], desp
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(120, 120, 120);
-  doc.text('Lucro = Comissão ganha - Comissão dos afiliados - Despesas.', M, y2);
-  doc.text('A comissão incide sobre cada bilhete GREEN; em bilhete perdido não há comissão.', M, y2 + 12);
+  doc.text(cbMode ? 'Lucro = Resultado de banca - Despesas do período.' : 'Lucro = Comissão ganha - Comissão dos afiliados - Despesas.', M, y2);
+  doc.text(cbMode ? 'A casa banca o jogo: ganha o que os jogadores perdem, paga o que ganham e devolve o cashback sobre a perda da semana.' : 'A comissão incide sobre cada bilhete GREEN; em bilhete perdido não há comissão.', M, y2 + 12);
 
   // ── Desempenho por cliente (detalhamento p/ os sócios) ──
   if (rows.length) {
@@ -135,7 +142,7 @@ export function gerarPdfFechamentoGeral({ banca = MARCA.nome, g, rows = [], desp
     const ordenadas = [...rows].sort((a, b) => b.sl - a.sl);
     autoTable(doc, {
       startY: y2 + 30,
-      head: [['Cliente', 'Apostado', 'Em aberto', 'Saldo bruto', 'Comissão', 'Saldo líq.']],
+      head: [['Cliente', 'Apostado', 'Em aberto', 'Saldo bruto', cbMode ? 'Cashback' : 'Comissão', 'Saldo líq.']],
       body: ordenadas.map((r) => [
         wa(r.nome), money(r.val), money(r.ab), money(r.sb), money(r.cm), money(r.sl),
       ]),
