@@ -97,11 +97,14 @@ begin
         v_st := 'EM ABERTO';
       else
         v_r := random();
+        -- Vantagem de banca (~9% do turnover): os jogadores perdem no agregado, como
+        -- numa banca real. Assim o Modelo B (cashback sobre perda) mostra a casa
+        -- LUCRANDO; no Modelo A a casa segue com a comissão dos greens que sobram.
         v_st := case
-          when v_r < 0.50 then 'GREEN'
-          when v_r < 0.72 then 'RED'
-          when v_r < 0.82 then 'MEIO GREEN'
-          when v_r < 0.90 then 'MEIO RED'
+          when v_r < 0.30 then 'GREEN'
+          when v_r < 0.76 then 'RED'
+          when v_r < 0.84 then 'MEIO GREEN'
+          when v_r < 0.92 then 'MEIO RED'
           when v_r < 0.96 then 'REEMBOLSO'
           else 'EM ABERTO' end;
       end if;
@@ -118,7 +121,7 @@ begin
   insert into public.despesas (banca_id, descricao, valor, data, grupo_nome, msg_id)
   select v_banca,
     (array['Gasolina','Uber','Internet','Aluguel sala','Cafe equipe','Material escritorio','Energia','Agua','Marketing','Telefone','Manutencao PC','Almoco equipe'])[n],
-    (50 + (n * 37) % 550)::numeric,
+    (30 + (n * 17) % 120)::numeric,   -- despesas menores: no Modelo A a comissão ainda supera as despesas
     now() - ((n * 2) || ' days')::interval,
     'Despesas demo', 'seed-desp-' || n
   from generate_series(1, 12) as g(n);
