@@ -5,6 +5,9 @@ const BOOT = Date.now(); // para medir uptime via /health (diagnóstico de rein�
 // Commit em produção — a Railway injeta RAILWAY_GIT_COMMIT_SHA no deploy. Expor no
 // /health tira a adivinhação de "o deploy novo já subiu?": basta comparar o SHA.
 const COMMIT = (process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT || 'dev').slice(0, 7);
+// Nome exibido nas telas do bot (QR). Padrão PrimeBet; cada instância troca via
+// MARCA_NOME no ambiente (ex.: demo = "Tracker Tipster").
+const MARCA = process.env.MARCA_NOME || 'PrimeBet';
 
 // Estado atual do pareamento, alimentado pelos eventos do WhatsApp.
 let estado = { qr: null, pronto: false };
@@ -86,7 +89,7 @@ function iniciarWebQR() {
     if (estado.pronto) return res.end(`${head}<meta http-equiv="refresh" content="15"><h2>✅ Bot conectado</h2><p>Tudo certo. Pode fechar.</p>`);
     if (!estado.qr) return res.end(`${head}<meta http-equiv="refresh" content="4"><h2>Aguardando QR…</h2>`);
     const dataUrl = await QR.toDataURL(estado.qr, { width: 320, margin: 2 });
-    res.end(`${head}<meta http-equiv="refresh" content="20"><h2>PrimeBet — parear o bot</h2><img src="${dataUrl}" alt="QR"><p>WhatsApp do bot → Aparelhos conectados → Conectar um aparelho</p><small>O código renova sozinho.</small>`);
+    res.end(`${head}<meta http-equiv="refresh" content="20"><h2>${MARCA} — parear o bot</h2><img src="${dataUrl}" alt="QR"><p>WhatsApp do bot → Aparelhos conectados → Conectar um aparelho</p><small>O código renova sozinho.</small>`);
   }).listen(port, () => console.log(`🌐 Página do QR ativa na porta ${port}`));
 }
 
