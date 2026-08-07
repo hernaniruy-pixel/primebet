@@ -158,11 +158,21 @@ let permitidosEm = 0;
 const PERMITIDOS_TTL = 2 * 60 * 1000; // recarrega do banco a cada 2 min (cliente novo entra sozinho)
 let despesaJid = null;
 
+// Padrões dos grupos especiais. Por PADRÃO casam por palavra (/despesa/, /avisos|alerta/)
+// — comportamento da PrimeBet, intocado. Uma instância cujo número está em MUITOS grupos
+// (ex.: o dono, que participa dos grupos de vários clientes) pode fixar o NOME EXATO via
+// env — GRUPO_DESPESA_NOME / GRUPO_AVISOS_NOME — pra o bot NÃO pegar o grupo de outro
+// cliente com "despesa"/"avisos" no nome. Ex. na demo: GRUPO_DESPESA_NOME="Despesas demo".
+const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const DESPESA_RE = process.env.GRUPO_DESPESA_NOME ? new RegExp(escRe(process.env.GRUPO_DESPESA_NOME), 'i') : /despesa/i;
+const AVISOS_RE = process.env.GRUPO_AVISOS_NOME ? new RegExp(escRe(process.env.GRUPO_AVISOS_NOME), 'i') : /avisos|alerta/i;
+
 /** Acha os grupos especiais (despesa/alertas) pelo nome, usando o catálogo já em memória. */
 function acharGruposEspeciais() {
+  despesaJid = null; // recomeça a cada (re)conexão, senão fica preso num grupo antigo
   for (const [jid, nome] of nomeCache) {
-    if (/despesa/i.test(nome)) despesaJid = jid;
-    if (/avisos|alerta/i.test(nome)) setGrupoAvisos(jid);
+    if (DESPESA_RE.test(nome)) despesaJid = jid;
+    if (AVISOS_RE.test(nome)) setGrupoAvisos(jid);
   }
   console.log(`   grupo de despesas: ${despesaJid ? `"${nomeCache.get(despesaJid)}"` : '⚠️ não encontrado'}`);
 }
