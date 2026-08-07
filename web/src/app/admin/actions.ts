@@ -31,6 +31,25 @@ export async function restaurarDemo(): Promise<{ ok: boolean; erro?: string }> {
   return { ok: true };
 }
 
+// Alterna o MODELO DE FECHAMENTO da demo entre A (comissão sobre ganho) e B
+// (cashback sobre perda) — para demonstrar os dois formatos na apresentação.
+// Só na demo (env PRIMEBET_DEMO=1) + admin. Recalcula os saldos por bilhete no
+// modelo novo (dispara o trigger calc_aposta).
+export async function alternarModeloDemo(): Promise<{ ok: boolean; modo?: import('./types').ModoFechamento; erro?: string }> {
+  if (process.env.PRIMEBET_DEMO !== '1') return { ok: false, erro: 'Disponível apenas na demonstração.' };
+  await exigir('admin');
+  const db = createAdminClient();
+  const { data: b, error: e1 } = await db.from('bancas').select('id, modo_fechamento').order('id').limit(1).single();
+  if (e1 || !b) return { ok: false, erro: e1?.message || 'Banca não encontrada.' };
+  const modo: import('./types').ModoFechamento = b.modo_fechamento === 'cashback_perda' ? 'comissao_ganho' : 'cashback_perda';
+  const { error: e2 } = await db.from('bancas').update({ modo_fechamento: modo }).eq('id', b.id);
+  if (e2) return { ok: false, erro: e2.message };
+  // toca as apostas p/ o trigger recalcular saldo_liquido/comissão no modelo novo
+  const { error: e3 } = await db.from('apostas').update({ atualizado_em: new Date().toISOString() }).eq('banca_id', b.id);
+  if (e3) return { ok: false, erro: e3.message };
+  return { ok: true, modo };
+}
+
 // ═══════════════════ LISTAGEM / FECHAMENTO (paginação no servidor) ═══════════════════
 export async function listarApostas(f: FiltroApostas): Promise<ApostasPage> {
   const ator = await exigir('operador');

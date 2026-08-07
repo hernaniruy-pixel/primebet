@@ -17,6 +17,7 @@ import {
   enfileirarEnvioPdf, statusEnviosPdf,
   listarAcertos, registrarAcerto, excluirAcerto,
   restaurarDemo,
+  alternarModeloDemo,
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
@@ -809,6 +810,19 @@ ${MARCA.equipe}`);
                 className={navBtn}
                 title="Zera e recarrega os dados de exemplo da demonstração"
               >♻ Restaurar demo</button>
+            )}
+            {demo && ehAdmin && (
+              <button
+                onClick={async () => {
+                  const r = await alternarModeloDemo();
+                  if (r.ok) {
+                    toast(r.modo === 'cashback_perda' ? 'Modelo B — cashback sobre a perda da semana' : 'Modelo A — comissão sobre o ganho');
+                    setTimeout(() => location.reload(), 500);
+                  } else toast(r.erro || 'Não foi possível alternar o modelo.');
+                }}
+                className={navBtn}
+                title="Alterna a casa entre Modelo A (comissão sobre ganho) e Modelo B (cashback sobre perda) — só na demo"
+              >⇄ Modelo A/B</button>
             )}
             <button onClick={toggleTheme} title="Tema" className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-slate-100 transition hover:bg-white/15">{dark ? '☀' : '🌙'}</button>
             {/* O e-mail saiu do corpo da tela (ocupava espaço e o topo já diz onde você
