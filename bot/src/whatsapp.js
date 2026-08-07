@@ -21,7 +21,7 @@ const qrcode = require('qrcode-terminal');
 const { AUTH_PATH, regraPorEmoji, OPERADORES, GRUPO_AVISOS_LINK } = require('./config');
 const { transcreverBilhetes } = require('./transcrever');
 const { parseValor, parseValorMensagem } = require('./valor');
-const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId, gruposDeClientes, aprenderGrupoPorMensagem } = require('./ingest');
+const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId, gruposDeClientes, aprenderGrupoPorMensagem, configDespesa, salvarGrupoDespesaId } = require('./ingest');
 const {
   registrarImagemRecebida, marcarReagida, listarPedidosPendentes, marcarPedido,
   baixarThumbBase64, thumbPathPorMsg, legendaPorMsg, anexarTextoAUltimaImagem, msgJsonPorMsg, enviadoEmPorMsg,
@@ -174,14 +174,41 @@ const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const DESPESA_RE = process.env.GRUPO_DESPESA_NOME ? new RegExp(escRe(process.env.GRUPO_DESPESA_NOME), 'i') : /despesa/i;
 const AVISOS_RE = process.env.GRUPO_AVISOS_NOME ? new RegExp(escRe(process.env.GRUPO_AVISOS_NOME), 'i') : /avisos|alerta/i;
 
-/** Acha os grupos especiais (despesa/alertas) pelo nome, usando o catálogo já em memória. */
+// Config do grupo de DESPESA por LINK (preferida ao match por nome). O admin cola o
+// link no painel; o bot resolve o JID e lê SÓ esse grupo — sem risco de pegar outro
+// grupo com "despesa" no nome. Sem link configurado, cai no comportamento por nome.
+let despesaLink = null;        // link colado no painel
+let despesaIdConfig = null;    // JID já resolvido (bancas.grupo_despesa_id)
+let tentativasDespesa = 0;     // teto de tentativas de resolver o link (como nos clientes)
+
+/** (Re)lê a config de despesa do banco. Reseta o contador se o link mudou. */
+async function carregarConfigDespesa() {
+  try {
+    const cfg = await configDespesa();
+    if ((cfg.link || null) !== despesaLink) tentativasDespesa = 0; // link novo: tenta de novo
+    despesaLink = cfg.link || null;
+    despesaIdConfig = cfg.grupoId || null;
+  } catch (e) { console.log('   (config de despesa:', e.message, ')'); }
+}
+
+/** Define o grupo de despesa: 1º pelo LINK resolvido (assertivo), senão pelo NOME (legado). */
 function acharGruposEspeciais() {
   despesaJid = null; // recomeça a cada (re)conexão, senão fica preso num grupo antigo
   for (const [jid, nome] of nomeCache) {
-    if (DESPESA_RE.test(nome)) despesaJid = jid;
     if (AVISOS_RE.test(nome)) setGrupoAvisos(jid);
   }
-  console.log(`   grupo de despesas: ${despesaJid ? `"${nomeCache.get(despesaJid)}"` : '⚠️ não encontrado'}`);
+  if (despesaIdConfig) {
+    // Link resolvido: lê SÓ este grupo (ignora o nome).
+    despesaJid = despesaIdConfig;
+  } else if (despesaLink) {
+    // Link colado mas ainda não resolvido: aguarda o resolverDespesa (NÃO cai no nome,
+    // pra não ler o grupo errado nesse meio-tempo).
+    despesaJid = null;
+  } else {
+    // Sem link configurado: comportamento legado por NOME (PrimeBet).
+    for (const [jid, nome] of nomeCache) { if (DESPESA_RE.test(nome)) despesaJid = jid; }
+  }
+  console.log(`   grupo de despesas: ${despesaJid ? `"${nomeCache.get(despesaJid) || despesaJid}"` : (despesaLink ? '⏳ resolvendo link…' : '⚠️ não encontrado')}`);
 }
 
 async function gruposPermitidos(forcar = false) {
@@ -568,6 +595,7 @@ async function iniciarWhatsApp() {
       // Catálogo de grupos (1 chamada) -> nomes p/ achar despesa/alertas e p/ os logs,
       // sem precisar de um groupMetadata por grupo.
       await carregarNomesDeGrupos(sock);
+      await carregarConfigDespesa();
       acharGruposEspeciais();
       const perm = await gruposPermitidos(true);
       console.log(`🔒 lendo apenas ${perm.size} grupos (clientes + despesa + alertas) de ${nomeCache.size} em que o número está`);
@@ -755,6 +783,7 @@ function iniciarPollerPedidos() {
       if (Date.now() - ultimoVinculo >= VINCULO_INTERVALO) {
         ultimoVinculo = Date.now();
         await resolverVinculos(sock);
+        await resolverDespesa(sock);
       }
     } catch (e) {
       console.error('poller pedidos:', e.message);
@@ -841,6 +870,38 @@ async function resolverVinculos(sock) {
       console.log(`   (não resolvi o link do cliente #${c.id}: ${e.message} — tentativa ${n}/${MAX_TENTATIVAS})`);
       if (n >= MAX_TENTATIVAS) console.log(`   ⛔ desisti do link do cliente #${c.id}. Corrija o link no painel (o bot tenta de novo no próximo reinício).`);
     }
+  }
+}
+
+/**
+ * Resolve o LINK do grupo de despesa (colado no painel) para o JID interno.
+ * Recarrega a config a cada passada (o admin pode ter colado/trocado o link sem
+ * reiniciar o bot). Mesmo teto de tentativas dos clientes, pra não martelar a API.
+ */
+async function resolverDespesa(sock) {
+  await carregarConfigDespesa();            // pega link/id atual do painel
+  if (despesaIdConfig) return;              // já resolvido no banco
+  if (!despesaLink) return;                 // sem link: usa o legado por nome
+  if (tentativasDespesa >= MAX_TENTATIVAS) return;
+  try {
+    const code = String(despesaLink).trim().replace(/\?.*$/, '').split('/').filter(Boolean).pop();
+    if (!code) { tentativasDespesa = MAX_TENTATIVAS; return; }
+    const info = await sock.groupGetInviteInfo(code);
+    const gid = info && info.id;
+    if (gid) {
+      await salvarGrupoDespesaId(String(gid));
+      despesaIdConfig = String(gid);
+      tentativasDespesa = 0;
+      acharGruposEspeciais();
+      await gruposPermitidos(true);          // passa a ler o grupo de despesa AGORA
+      console.log(`🔗 grupo de despesa vinculado pelo link -> ${gid}`);
+    } else {
+      tentativasDespesa++;
+    }
+  } catch (e) {
+    tentativasDespesa++;
+    console.log(`   (não resolvi o link de despesa: ${e.message} — tentativa ${tentativasDespesa}/${MAX_TENTATIVAS})`);
+    if (tentativasDespesa >= MAX_TENTATIVAS) console.log('   ⛔ desisti do link de despesa. Confira o link no painel (tenta de novo no próximo reinício).');
   }
 }
 

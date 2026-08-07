@@ -112,8 +112,10 @@ begin
                 || ' (Odd ' || replace(v_odd::text, '.', ',') || ')'
                 || chr(10) || '- ' || mercados[1 + floor(random() * 7)::int];
       v_casa := casas[1 + floor(random() * 5)::int];
+      -- Baixa liquidez entra DESLIGADA por padrão (é opção do cliente na área Clientes;
+      -- o admin liga quando a casa cobrar). O trigger herda o flag do cliente no INSERT.
       insert into public.apostas (cliente_id, data, jogo, odd, valor, status, casa, origem, baixa_liquidez)
-        values (v_cli, v_dt, v_jogo, v_odd, v_val, v_st, v_casa, 'manual', random() < 0.08);
+        values (v_cli, v_dt, v_jogo, v_odd, v_val, v_st, v_casa, 'manual', false);
     end loop;
   end loop;
 

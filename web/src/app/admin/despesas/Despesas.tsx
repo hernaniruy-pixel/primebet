@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { listarDespesas, listarDespesasPeriodo, excluirDespesa } from '../actions';
+import { listarDespesas, listarDespesasPeriodo, excluirDespesa, setGrupoDespesaLink, type ConfigDespesa } from '../actions';
 import { gerarPdfDespesas } from './pdf-despesas';
 import type { DespesasResp, SemanaDespesas } from './types';
 import { MARCA } from '@/lib/marca';
@@ -9,8 +9,10 @@ import { MARCA } from '@/lib/marca';
 const brl = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDia = (s: string) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
 
-export default function Despesas({ dadosIni }: { dadosIni: DespesasResp }) {
+export default function Despesas({ dadosIni, cfgIni }: { dadosIni: DespesasResp; cfgIni: ConfigDespesa }) {
   const [dados, setDados] = useState<DespesasResp>(dadosIni);
+  const [cfg, setCfg] = useState<ConfigDespesa>(cfgIni);
+  const [linkInput, setLinkInput] = useState(cfgIni.grupoDespesaLink ?? '');
   const [aba, setAba] = useState<'atual' | 'passada' | 'periodo'>('atual');
   const [dt1, setDt1] = useState('');
   const [dt2, setDt2] = useState('');
@@ -43,6 +45,10 @@ export default function Despesas({ dadosIni }: { dadosIni: DespesasResp }) {
     });
   }
 
+  function salvarLinkDespesa() {
+    startTransition(async () => { setCfg(await setGrupoDespesaLink(linkInput.trim() || null)); });
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800">
       <header className="bg-gradient-to-r from-[#13200a] to-[#1e2f10] text-white">
@@ -62,6 +68,24 @@ export default function Despesas({ dadosIni }: { dadosIni: DespesasResp }) {
       </header>
 
       <div className="mx-auto max-w-4xl px-4 py-5">
+        {/* Grupo de despesas por LINK: o bot lê SÓ esse grupo (evita pegar outro
+            grupo que tenha "despesa" no nome). */}
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
+          <div className="mb-1 text-sm font-semibold text-slate-700">Grupo de despesas (link)</div>
+          <div className="mb-2 text-[12px] text-slate-500">Cole o link do grupo de despesas. O bot lê <b>só</b> esse grupo — sem risco de ler outro grupo que tenha &ldquo;despesa&rdquo; no nome.</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input value={linkInput} onChange={(e) => setLinkInput(e.target.value)} placeholder="https://chat.whatsapp.com/..." className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-marca-500" />
+            <button onClick={salvarLinkDespesa} disabled={carregando} className="rounded-lg bg-[#13200a] px-3 py-1.5 text-sm font-medium text-[#DAA520] hover:opacity-90 disabled:opacity-50">Salvar</button>
+          </div>
+          <div className="mt-2 text-[12px]">
+            {cfg.grupoDespesaId
+              ? <span className="text-emerald-600">✅ Vinculado — o bot está lendo só este grupo.</span>
+              : cfg.grupoDespesaLink
+                ? <span className="text-amber-600">⏳ Link salvo — o bot vincula em ~1 min.</span>
+                : <span className="text-slate-400">Sem link: o bot usa o grupo cujo nome contém &ldquo;despesa&rdquo; (modo antigo).</span>}
+          </div>
+        </div>
+
         {/* abas + total */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">

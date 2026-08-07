@@ -322,6 +322,26 @@ export async function excluirDespesa(id: number): Promise<void> {
   if (error) throw error;
 }
 
+// Grupo de despesa por LINK: o bot lê SÓ o grupo desse link (em vez de achar por
+// nome e arriscar pegar outro grupo com "despesa" no nome).
+export interface ConfigDespesa { grupoDespesaLink: string | null; grupoDespesaId: string | null }
+
+export async function getConfigDespesa(): Promise<ConfigDespesa> {
+  await exigir('gestor');
+  const db = createAdminClient();
+  const { data } = await db.from('bancas').select('grupo_despesa_link, grupo_despesa_id').eq('id', await bancaId(db)).single();
+  return { grupoDespesaLink: data?.grupo_despesa_link ?? null, grupoDespesaId: data?.grupo_despesa_id ?? null };
+}
+
+export async function setGrupoDespesaLink(link: string | null): Promise<ConfigDespesa> {
+  await exigir('gestor');
+  const db = createAdminClient();
+  // Link mudou → zera o id resolvido para o bot re-resolver o grupo certo.
+  const { error } = await db.from('bancas').update({ grupo_despesa_link: link || null, grupo_despesa_id: null }).eq('id', await bancaId(db));
+  if (error) throw error;
+  return { grupoDespesaLink: link || null, grupoDespesaId: null };
+}
+
 // ═══════════════════ CONTAS (controle dos donos) ═══════════════════
 interface ContaRow {
   id: number; casa: string | null; login: string | null; nome: string | null; cpf: string | null;
@@ -959,6 +979,7 @@ export async function statusEnviosPdf(ids: number[]): Promise<EnvioStatus[]> {
 export interface NovoClienteInput {
   nome: string; senha?: string; calcao?: number; desconto?: number;
   comissao?: number; comissaoSup?: number; sup?: string | null; grupoLink?: string | null;
+  baixaLiquidez?: boolean;
 }
 const gerarSlug = () => Math.random().toString(36).slice(2, 8);
 
@@ -979,6 +1000,7 @@ export async function criarCliente(input: NovoClienteInput): Promise<Cliente> {
     calcao: input.calcao ?? 0, desconto: input.desconto ?? 0,
     comissao_pct: input.comissao ?? 0, afiliado_id: afiliadoId,
     afiliado_comissao_pct: input.comissaoSup ?? 0,
+    baixa_liquidez: input.baixaLiquidez ?? false,
     link: `/${gerarSlug()}/${nome}`,
     grupo_link: input.grupoLink || null,
   }).select('*').single();
@@ -988,7 +1010,7 @@ export async function criarCliente(input: NovoClienteInput): Promise<Cliente> {
 }
 
 export interface PatchCliente {
-  nome?: string; s?: string; on?: boolean; cal?: number; desc?: number; com?: number; sup?: string | null; af?: number; link?: string | null; grupoLink?: string | null;
+  nome?: string; s?: string; on?: boolean; cal?: number; desc?: number; com?: number; sup?: string | null; af?: number; bl?: boolean; link?: string | null; grupoLink?: string | null;
 }
 
 /**
@@ -1009,6 +1031,7 @@ export async function atualizarCliente(id: number, patch: PatchCliente): Promise
   if (patch.desc !== undefined) upd.desconto = patch.desc;
   if (patch.com !== undefined) upd.comissao_pct = patch.com;
   if (patch.af !== undefined) upd.afiliado_comissao_pct = patch.af;
+  if (patch.bl !== undefined) upd.baixa_liquidez = patch.bl;
   if (patch.link !== undefined) upd.link = patch.link || null;
   // Link do grupo mudou -> grava e zera o grupo_id para o bot re-resolver.
   if (patch.grupoLink !== undefined) { upd.grupo_link = patch.grupoLink || null; upd.grupo_id = null; }

@@ -21,6 +21,7 @@ import {
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
+import { gerarPdfFechamentoAfiliados } from './pdf-fechamento-afiliados';
 import { MARCA } from '@/lib/marca';
 import { fmtOdd, fmtMoney, parseNumBR } from './num';
 
@@ -191,7 +192,7 @@ export default function PainelModerno({ email, papel, demo = false, contasLibera
   // A configuração (cota, preço, renovação, zerar) fica no admin MASTER do Tracker.
   const [plano, setPlano] = useState<{ config: PlanoConfig; uso: UsoCota } | null>(null);
   const [wpp, setWpp] = useState({ cId: '', jogo: '', odd: '', val: '', dc: '' });
-  const [novoCli, setNovoCli] = useState({ open: false, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '', grupoLink: '' });
+  const [novoCli, setNovoCli] = useState({ open: false, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '', bl: false, grupoLink: ''});
   const [novoAf, setNovoAf] = useState({ open: false, nome: '', com: '0' });
   const [obsModal, setObsModal] = useState<{ id: number; text: string } | null>(null);
   // Editor do TEXTO do bilhete (jogo) — abre pelo lápis no canto da aposta.
@@ -524,7 +525,7 @@ export default function PainelModerno({ email, papel, demo = false, contasLibera
   async function saveCli(id: number) {
     const c = clientes.find((x) => x.id === id); if (!c) return;
     try {
-      const res = await atualizarCliente(id, { nome: c.nome, s: c.s, on: c.on, cal: c.cal, desc: c.desc, com: c.com, sup: c.sup, af: c.af, link: c.link, grupoLink: c.grupoLink });
+      const res = await atualizarCliente(id, { nome: c.nome, s: c.s, on: c.on, cal: c.cal, desc: c.desc, com: c.com, sup: c.sup, af: c.af, bl: c.bl, link: c.link, grupoLink: c.grupoLink });
       setClientes((cs) => cs.map((x) => (x.id === id ? res.cliente : x))); reload(); toast('Cliente salvo!');
     } catch { toast('Erro ao salvar cliente.'); }
   }
@@ -538,11 +539,11 @@ export default function PainelModerno({ email, papel, demo = false, contasLibera
       toast('Cliente excluído.');
     } catch { toast('Erro ao excluir cliente.'); }
   }
-  function novoCliente() { setNovoCli({ open: true, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '', grupoLink: '' }); }
+  function novoCliente() { setNovoCli({ open: true, nome: '', senha: '', cal: '', desc: '0.01', com: '6', af: '0', sup: '', bl: false, grupoLink: '' }); }
   async function salvarNovoCliente() {
     if (!novoCli.nome.trim()) { alert('Informe o nome.'); return; }
     try {
-      const c = await criarCliente({ nome: novoCli.nome, senha: novoCli.senha, calcao: Number(novoCli.cal) || 0, desconto: Number(novoCli.desc) || 0, comissao: Number(novoCli.com) || 0, comissaoSup: Number(novoCli.af) || 0, sup: novoCli.sup || null, grupoLink: novoCli.grupoLink || null });
+      const c = await criarCliente({ nome: novoCli.nome, senha: novoCli.senha, calcao: Number(novoCli.cal) || 0, desconto: Number(novoCli.desc) || 0, comissao: Number(novoCli.com) || 0, comissaoSup: Number(novoCli.af) || 0, sup: novoCli.sup || null, baixaLiquidez: novoCli.bl, grupoLink: novoCli.grupoLink || null });
       setClientes((cs) => [...cs, c].sort((a, b) => a.nome.localeCompare(b.nome))); setNovoCli((s) => ({ ...s, open: false })); toast('Cliente criado!');
     } catch { toast('Erro ao criar cliente.'); }
   }
@@ -1179,7 +1180,7 @@ ${MARCA.equipe}`);
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead><tr className="text-left text-slate-400">
-                  <th className="px-2 py-2 font-medium" title="Nº sequencial por ordem alfabética. Passe o mouse para ver o ID interno.">#</th><th className="px-2 py-2 font-medium">Nome</th><th className="px-2 py-2 font-medium">Senha</th><th className="px-2 py-2 font-medium">Ativo</th><th className="px-2 py-2 font-medium">Calção</th><th className="px-2 py-2 font-medium">Desc.</th><th className="px-2 py-2 font-medium">Com.%</th><th className="px-2 py-2 font-medium">Supervisor</th><th className="px-2 py-2 font-medium">C.Afil.%</th><th className="px-2 py-2 font-medium">Grupo (link)</th><th className="px-2 py-2 font-medium sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">Ações</th>
+                  <th className="px-2 py-2 font-medium" title="Nº sequencial por ordem alfabética. Passe o mouse para ver o ID interno.">#</th><th className="px-2 py-2 font-medium">Nome</th><th className="px-2 py-2 font-medium">Senha</th><th className="px-2 py-2 font-medium">Ativo</th><th className="px-2 py-2 font-medium">Calção</th><th className="px-2 py-2 font-medium">Desc.</th><th className="px-2 py-2 font-medium">Com.%</th><th className="px-2 py-2 font-medium">Supervisor</th><th className="px-2 py-2 font-medium">C.Afil.%</th><th className="px-2 py-2 font-medium text-center" title="Baixa liquidez: quando ligada, a casa desconta a taxa de baixa liquidez dos bilhetes deste cliente. Padrão: desligada.">BL</th><th className="px-2 py-2 font-medium">Grupo (link)</th><th className="px-2 py-2 font-medium sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">Ações</th>
                 </tr></thead>
                 <tbody>{cliSorted.map((c, i) => (
                   <tr key={c.id} className="border-t border-slate-100 dark:border-slate-800">
@@ -1199,6 +1200,7 @@ ${MARCA.equipe}`);
                     <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-14`} value={c.com} onChange={(e) => updCli(c.id, { com: Number(e.target.value) })} /></td>
                     <td className="px-2 py-1.5"><select className={`${cinp} w-32`} value={c.sup ?? '—'} onChange={(e) => updCli(c.id, { sup: e.target.value === '—' ? null : e.target.value })}><option>—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></td>
                     <td className="px-2 py-1.5"><input type="number" step="0.01" className={`${cinp} w-14`} value={c.af} onChange={(e) => updCli(c.id, { af: Number(e.target.value) })} /></td>
+                    <td className="px-2 py-1.5 text-center"><input type="checkbox" className="h-4 w-4 accent-marca-600" checked={c.bl} onChange={(e) => updCli(c.id, { bl: e.target.checked })} title="Baixa liquidez deste cliente" /></td>
                     <td className="px-2 py-1.5"><div className="flex items-center gap-1.5"><input className={`${cinp} w-44`} placeholder="link do grupo" value={c.grupoLink ?? ''} onChange={(e) => updCli(c.id, { grupoLink: e.target.value })} /><StatusGrupo ativo={c.on} link={c.grupoLink} grupoId={c.grupoId} /></div></td>
                     <td className="px-2 py-1.5 sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800">
                       <div className="flex gap-1.5">
@@ -1418,6 +1420,7 @@ ${MARCA.equipe}`);
               <div><span className={lbl}>Data fim</span><input type="date" className={inp} value={faf.dt2} onChange={(e) => setFaf((f) => ({ ...f, dt2: e.target.value, period: '' }))} /></div>
               <div><span className={lbl}>Período</span><select className={inp} value={faf.period} onChange={(e) => { const p = periodDates(e.target.value); setFaf({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); loadFaf(p.d1, p.d2); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta semana</option><option value="semana_ant">Semana passada</option></select></div>
               <button onClick={() => loadFaf(faf.dt1, faf.dt2)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Buscar</button>
+              <button onClick={() => { if (!fafData.rows.length) { toast('Nada para exportar no período.'); return; } gerarPdfFechamentoAfiliados({ banca: MARCA.nome, g: fafData.g, rows: fafData.rows, dt1: faf.dt1, dt2: faf.dt2 }); }} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800" title="Baixar o PDF deste fechamento para enviar aos supervisores">📄 Exportar PDF</button>
             </div>
             <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {([['Logins', fafData.g.logins, false], ['Entrada', fafData.g.val, true], ['Em aberto', fafData.g.ab, true], ['Saldo bruto', fafData.g.sb, true], ['Comissão', fafData.g.cm, true], ['Saldo líquido', fafData.g.sl, true]] as [string, number, boolean][]).map(([l, v, money]) => (
@@ -1634,6 +1637,7 @@ ${MARCA.equipe}`);
                 <div><span className={lbl}>Comissão afiliado %</span><input type="number" step="0.01" className={inp} value={novoCli.af} onChange={(e) => setNovoCli((s) => ({ ...s, af: e.target.value }))} /></div>
               </div>
               <div><span className={lbl}>Supervisor</span><select className={inp} value={novoCli.sup} onChange={(e) => setNovoCli((s) => ({ ...s, sup: e.target.value }))}><option value="">—</option>{afiliados.map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}</select></div>
+              <label className="flex items-center gap-2 py-1"><input type="checkbox" className="h-4 w-4 accent-marca-600" checked={novoCli.bl} onChange={(e) => setNovoCli((s) => ({ ...s, bl: e.target.checked }))} /><span className="text-sm text-slate-600 dark:text-slate-300">Baixa liquidez <span className="text-slate-400">(padrão: desligada — ligue só se a casa cobrar)</span></span></label>
               <div><span className={lbl}>Link do grupo (WhatsApp)</span><input className={inp} placeholder="https://chat.whatsapp.com/..." value={novoCli.grupoLink} onChange={(e) => setNovoCli((s) => ({ ...s, grupoLink: e.target.value }))} /><div className="mt-1 text-[11px] text-slate-400">Cole o link do grupo deste cliente. O bot resolve e vincula os bilhetes a ele.</div></div>
               <div className="text-[11px] text-slate-400">O link de acesso é gerado automaticamente.</div>
               <div className="mt-1 flex justify-end gap-2"><button onClick={() => setNovoCli((s) => ({ ...s, open: false }))} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">Cancelar</button><button onClick={salvarNovoCliente} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Cadastrar</button></div>

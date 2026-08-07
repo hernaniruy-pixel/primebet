@@ -30,7 +30,7 @@ export default async function AdminPage() {
   const clientesIni = operador
     ? base.clientes.map((c) => ({
         id: c.id, nome: c.nome, on: c.on,
-        s: '', cal: 0, desc: 0, com: 0, af: 0, sup: null,
+        s: '', cal: 0, desc: 0, com: 0, af: 0, sup: null, bl: false,
         link: null, grupoLink: null, grupoId: null,
       }))
     : base.clientes;

@@ -123,6 +123,19 @@ async function salvarGrupoId(clienteId, grupoId) {
   await sb.from('clientes').update({ grupo_id: grupoId }).eq('id', clienteId);
 }
 
+/** Config do grupo de DESPESA da banca: link colado no painel + id já resolvido. */
+async function configDespesa() {
+  const id = await bancaPadrao();
+  const { data } = await sb.from('bancas').select('grupo_despesa_link, grupo_despesa_id').eq('id', id).single();
+  return { link: (data && data.grupo_despesa_link) || null, grupoId: (data && data.grupo_despesa_id) || null };
+}
+
+/** Grava o JID do grupo de despesa resolvido a partir do link. */
+async function salvarGrupoDespesaId(grupoId) {
+  const id = await bancaPadrao();
+  await sb.from('bancas').update({ grupo_despesa_id: grupoId }).eq('id', id);
+}
+
 /**
  * Aprende o grupo_id de um cliente a partir de uma MENSAGEM REAL do grupo.
  *
@@ -163,5 +176,5 @@ async function aprenderGrupoPorMensagem(jid, nomeGrupo) {
 module.exports = {
   sb, bancaPadrao, buscarClientePorNome, listarClientes, registrarBilhete,
   acharClientePorGrupo, acharCliente, vinculosPendentes, salvarGrupoId, gruposDeClientes,
-  aprenderGrupoPorMensagem,
+  aprenderGrupoPorMensagem, configDespesa, salvarGrupoDespesaId,
 };
