@@ -1,7 +1,7 @@
 const _SDK = require('@anthropic-ai/sdk');
 const Anthropic = _SDK.Anthropic || _SDK.default || _SDK;
 const { ANTHROPIC_API_KEY, MODELO, regraPorEmoji } = require('./config');
-const { valorDaLegenda } = require('./valor');
+const { valorDaLegenda, valoresDaLegenda } = require('./valor');
 
 const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
@@ -14,6 +14,7 @@ Leia a imagem e devolva SOMENTE um JSON válido (sem markdown, sem comentários,
   "valor": number | null,// valor apostado em R$ (somente o número). null se não aparecer.
   "casa": string | null, // CASA DE APOSTA / descarrego. null se não identificar.
   "revisar": boolean     // true SÓ quando for uma TABELA de odds marcada à mão (ver regra). false para cupom/bilhete normal.
+  // "apostas": [ {jogo, odd, valor, casa, revisar}, ... ]  // OPCIONAL — inclua SÓ quando a imagem tiver 2+ bilhetes SEPARADOS (ver regra "MÚLTIPLOS BILHETES").
 }
 
 Regras de leitura:
@@ -40,6 +41,7 @@ Regras de leitura:
 - VALOR EM MILHARES ("k"/"mil"): um número seguido de "k" ou "mil" é MILHARES — "2k" e "2 mil" = 2000, "1,5k" = 1500, "3k" = 3000, "500" = 500 (sem sufixo, fica como está). Vale tanto para o valor lido na IMAGEM quanto para o que vier junto do bilhete.
 - VALOR: leia o VALOR APOSTADO / ENTRADA / STAKE — o quanto foi apostado (rótulos como "Aposta", "Valor da aposta", "Stake", "Entrada"). NUNCA use o RETORNO / GANHO POTENCIAL / "possível retorno" / "prêmio" no lugar do valor apostado. NUNCA use o SALDO / "Saldo" da conta (costuma aparecer no topo do cupom, ex.: "Saldo R$7.624,77") como valor — isso é o dinheiro em conta, não a aposta. Se o campo de aposta estiver vazio ou só houver saldo/retorno, use null. Converta para número (remova "R$" e separadores de milhar).
 - NÃO invente dados: se a odd, o valor ou a casa não estiverem visíveis com clareza, use null. Chutar um número errado é pior do que devolver null.
+- MÚLTIPLOS BILHETES NA MESMA IMAGEM: às vezes o print traz DOIS OU MAIS cupons SEPARADOS e INDEPENDENTES na mesma imagem — cada um com seu PRÓPRIO confronto/seleções, sua PRÓPRIA odd total e seu PRÓPRIO valor apostado (ex.: a Betano deixa montar 2 apostas na mesma tela; o print empilha "Aposta 1" e "Aposta 2", ou dois cupons um embaixo do outro). SÓ NESSE CASO, devolva um campo EXTRA "apostas": um ARRAY em que cada item é um objeto {jogo, odd, valor, casa, revisar} montado com as MESMAS regras acima, NA ORDEM em que aparecem (de cima para baixo). Preencha TAMBÉM os campos de topo (jogo/odd/valor/casa/revisar) com o PRIMEIRO bilhete. ATENÇÃO: isso vale só para cupons REALMENTE separados (bilhetes distintos, cada um com sua odd e seu valor). Uma ÚNICA aposta COMBINADA/múltipla (várias seleções, mas UMA odd total e UM valor só) NÃO é múltiplos bilhetes — continua sendo UM só, SEM o campo "apostas".
 - Responda APENAS com o JSON.`;
 
 /** Chama o modelo de visão e devolve o JSON bruto transcrito a partir da IMAGEM apenas.
@@ -146,13 +148,37 @@ function aplicaRegra(dados, emoji, legenda = '') {
   return out;
 }
 
-/** Transcreve a imagem e aplica regra do emoji + valor da legenda (caso 2). */
-async function transcreverBilhete(base64, emoji, mediaType = 'image/jpeg', legenda = '') {
+/**
+ * Transcreve a imagem e devolve UMA OU MAIS apostas (lista `finais`).
+ * Uma imagem normal -> 1 bilhete. Print com 2+ cupons separados (a IA devolve
+ * `dados.apostas`) -> N bilhetes. Os valores da legenda ("500 125") são casados
+ * POR ORDEM: o 1º valor no 1º bilhete, o 2º no 2º, e assim por diante. Um valor só
+ * (ou legenda com um valor) vai no 1º bilhete; os demais mantêm o valor da imagem.
+ */
+async function transcreverBilhetes(base64, emoji, mediaType = 'image/jpeg', legenda = '') {
   const regra = regraPorEmoji(emoji);
   if (!regra) throw new Error('Emoji de gatilho inválido: ' + emoji);
   const { dados, usage, modelo } = await transcreverImagem(base64, mediaType);
-  const final = aplicaRegra(dados, emoji, legenda);
-  return { bruto: dados, final, emoji: regra.emoji, regra, usage, modelo };
+
+  // Lista de bilhetes: `apostas` quando a IA achou cupons separados; senão, o objeto raiz.
+  const lista = (Array.isArray(dados.apostas) && dados.apostas.length) ? dados.apostas : [dados];
+  const valores = valoresDaLegenda(legenda); // [] quando a legenda não é valor(es)
+  const mascaraValor = regra.mascara.includes('valor');
+
+  const finais = lista.map((d, i) => {
+    const f = aplicaRegra(d, emoji, ''); // sem legenda aqui: o valor é tratado por índice abaixo
+    if (mascaraValor) { f.valor = null; return f; } // emoji 🔵/⚠️ deixa em aberto de propósito
+    if (i < valores.length) f.valor = valores[i]; // legenda vence a imagem, bilhete a bilhete
+    return f;
+  });
+
+  return { bruto: dados, finais, emoji: regra.emoji, regra, usage, modelo };
 }
 
-module.exports = { transcreverBilhete, transcreverImagem, aplicaRegra, limparJogo, PROMPT };
+/** Compatibilidade: transcreve e devolve SÓ o primeiro bilhete (usa transcreverBilhetes). */
+async function transcreverBilhete(base64, emoji, mediaType = 'image/jpeg', legenda = '') {
+  const r = await transcreverBilhetes(base64, emoji, mediaType, legenda);
+  return { bruto: r.bruto, final: r.finais[0], emoji: r.emoji, regra: r.regra, usage: r.usage, modelo: r.modelo };
+}
+
+module.exports = { transcreverBilhete, transcreverBilhetes, transcreverImagem, aplicaRegra, limparJogo, PROMPT };

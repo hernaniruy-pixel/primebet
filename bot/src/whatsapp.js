@@ -19,7 +19,7 @@ const path = require('path');
 const pino = require('pino');
 const qrcode = require('qrcode-terminal');
 const { AUTH_PATH, regraPorEmoji, OPERADORES, GRUPO_AVISOS_LINK } = require('./config');
-const { transcreverBilhete } = require('./transcrever');
+const { transcreverBilhetes } = require('./transcrever');
 const { parseValor, parseValorMensagem } = require('./valor');
 const { registrarBilhete, acharCliente, vinculosPendentes, salvarGrupoId, gruposDeClientes, aprenderGrupoPorMensagem } = require('./ingest');
 const {
@@ -89,10 +89,17 @@ function noDeImagem(m) {
 }
 
 /** Miniatura EMBUTIDA na própria mensagem (preview de link/card) — último recurso
- *  quando não há mídia baixável. Vem inline, não precisa de download. */
+ *  quando não há mídia baixável. Vem inline, não precisa de download.
+ *  IMPORTANTE: uma FOTO/documento-imagem normal também traz um jpegThumbnail embutido.
+ *  Se o download cheio for negado (403), essa miniatura é o que salva o print de
+ *  virar "sem miniatura" (a linha entrava vazia na Conferência e não dava p/ reagir). */
 function thumbEmbutida(m) {
   const msg = conteudoInterno(m);
-  const th = (msg.extendedTextMessage && msg.extendedTextMessage.jpegThumbnail)
+  const noImg = noDeImagem(m); // foto/card/documento-imagem, mesmo aninhado
+  const th = (noImg && noImg.node && noImg.node.jpegThumbnail)
+    || (msg.imageMessage && msg.imageMessage.jpegThumbnail)
+    || (msg.documentMessage && msg.documentMessage.jpegThumbnail)
+    || (msg.extendedTextMessage && msg.extendedTextMessage.jpegThumbnail)
     || (msg.interactiveMessage && msg.interactiveMessage.header && msg.interactiveMessage.header.jpegThumbnail)
     || (msg.templateMessage && msg.templateMessage.hydratedTemplate && msg.templateMessage.hydratedTemplate.jpegThumbnail);
   if (!th) return null;
@@ -265,18 +272,28 @@ async function baixarBase64(sock, m) {
     const info = noDeImagem(m);
     if (info) alvo = { key: m.key, message: info.tipo === 'document' ? { documentMessage: info.node } : { imageMessage: info.node } };
   }
-  try {
-    return await baixar(alvo);
-  } catch (e) {
-    const st = (e && (e.output && e.output.statusCode)) || (e && e.message) || '';
-    console.log(`   (download falhou: ${e.message} — pedindo reenvio da mídia ao WhatsApp…)`);
+  const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
+  // 1ª rodada: 2 tentativas rápidas. Logo que a mensagem chega, o servidor de mídia às
+  // vezes ainda não liberou a URL e devolve um erro passageiro — uma 2ª tentativa em
+  // ~800ms costuma resolver sem precisar incomodar o aparelho pedindo reenvio.
+  let ultimo = null;
+  for (let i = 0; i < 2; i++) {
     try {
-      const atualizada = await sock.updateMediaMessage(alvo === m ? m : alvo);
-      return await baixar(atualizada || alvo);
-    } catch (e2) {
-      console.log(`   (reenvio também falhou: ${e2.message}${st ? ` | 1ª: ${st}` : ''})`);
-      throw e;
+      return await baixar(alvo);
+    } catch (e) {
+      ultimo = e;
+      if (i === 0) { console.log(`   (download falhou (${e.message}); tentando de novo em 800ms…)`); await pausa(800); }
     }
+  }
+  // 2ª rodada: pede ao WhatsApp para REENVIAR a mídia e tenta mais uma vez.
+  const st = (ultimo && ultimo.output && ultimo.output.statusCode) || (ultimo && ultimo.message) || '';
+  console.log('   (ainda falhou — pedindo reenvio da mídia ao WhatsApp…)');
+  try {
+    const atualizada = await sock.updateMediaMessage(alvo === m ? m : alvo);
+    return await baixar(atualizada || alvo);
+  } catch (e2) {
+    console.log(`   (reenvio também falhou: ${e2.message}${st ? ` | 1ª: ${st}` : ''})`);
+    throw ultimo || e2;
   }
 }
 
@@ -465,17 +482,26 @@ const ehGrupoTeste = (nome) => /^\s*teste\s+print\b/i.test(String(nome || ''));
 
 async function lancarAposta({ sock, base64, mime, emoji, legenda = '', oddManual = null, valorManual = null, clienteId, grupoId, grupoNome, msgId, keyParaReagir = null, enviadoEm = null }) {
   const regra = regraPorEmoji(emoji) || { emoji, mascara: [] };
-  const { bruto, final } = await transcreverBilhete(base64, '⚪', mime, legenda);
-  if (regra.mascara.includes('odd')) final.odd = parseOdd(oddManual);
-  if (regra.mascara.includes('valor')) final.valor = parseValor(valorManual);
-  // A aposta é do momento em que o cliente mandou o print — não de quando o operador reagiu.
-  const aposta = await registrarBilhete(final, { clienteId, grupoId, enviadoEm, teste: ehGrupoTeste(grupoNome) });
-  await marcarReagida(msgId, { apostaId: aposta.id, emoji: regra.emoji, grupoId, grupoNome, clienteId });
+  // A imagem pode conter MAIS DE UM bilhete (2 cupons separados no mesmo print) — a
+  // transcrição devolve uma LISTA. Cada bilhete vira uma aposta; a reação sai uma vez só.
+  const { bruto, finais } = await transcreverBilhetes(base64, '⚪', mime, legenda);
+  const teste = ehGrupoTeste(grupoNome);
+  const apostas = [];
+  for (const final of finais) {
+    // odd/valor manual do painel (pedido) só faz sentido p/ 1 bilhete — aplica em todos
+    // (o caso multi-bilhete não usa manual: vem da reação, sem odd/valor forçado).
+    if (regra.mascara.includes('odd')) final.odd = parseOdd(oddManual);
+    if (regra.mascara.includes('valor')) final.valor = parseValor(valorManual);
+    // A aposta é do momento em que o cliente mandou o print — não de quando o operador reagiu.
+    apostas.push(await registrarBilhete(final, { clienteId, grupoId, enviadoEm, teste }));
+  }
+  // Vincula a mensagem à 1ª aposta (a trava anti-duplicata usa esse vínculo).
+  await marcarReagida(msgId, { apostaId: apostas[0].id, emoji: regra.emoji, grupoId, grupoNome, clienteId });
   if (keyParaReagir && sock) {
     try { await sock.sendMessage(grupoId, { react: { text: regra.emoji, key: keyParaReagir } }); }
     catch (e) { console.log('   (não consegui reagir na imagem do grupo:', e.message, ')'); }
   }
-  return { bruto, aposta };
+  return { bruto, apostas, aposta: apostas[0] };
 }
 
 // ─────────── adaptador p/ o avisos.js (mantém aquele arquivo intacto) ───────────
@@ -674,12 +700,13 @@ async function iniciarWhatsApp() {
         console.log(`\n📩 ${regra.emoji} ${regra.label} | grupo "${nomeGrupo}" → cliente ${cli.nome}`);
         // A hora do PRINT: da memória (mensagem original) ou da linha da Conferência.
         const enviadoEm = (orig && tsIso(orig)) || (await enviadoEmPorMsg(msgId));
-        const { bruto, aposta } = await lancarAposta({
+        const { bruto, apostas } = await lancarAposta({
           sock, base64, mime, emoji, legenda, enviadoEm,
           clienteId: cli.id, grupoId: jid, grupoNome: nomeGrupo, msgId,
         });
         console.log('   ↳ lido:', JSON.stringify(bruto));
-        console.log(`   ✅ aposta #${aposta.id} gravada (odd ${aposta.odd}, valor ${aposta.valor}, casa "${aposta.casa}", EM ABERTO)`);
+        if (apostas.length > 1) console.log(`   🧾 ${apostas.length} bilhetes lidos numa imagem só`);
+        for (const ap of apostas) console.log(`   ✅ aposta #${ap.id} gravada (odd ${ap.odd}, valor ${ap.valor}, casa "${ap.casa}", EM ABERTO)`);
       } catch (e) {
         const msg = String((e && e.message) || e);
         console.error('❌ Erro ao processar reação:', msg);
@@ -766,7 +793,7 @@ async function processarPedido(sock, p) {
 
     const emoji = p.pedido_emoji || '⚪';
     console.log(`\n🖱  lançar do dashboard | grupo "${p.grupo_nome}" | ${emoji} | imagem: ${fonte}`);
-    const { aposta } = await lancarAposta({
+    const { apostas } = await lancarAposta({
       sock, base64, mime, emoji, legenda: p.legenda || '',
       oddManual: p.pedido_odd, valorManual: p.pedido_valor,
       clienteId: p.cliente_id, grupoId: p.grupo_id, grupoNome: p.grupo_nome,
@@ -774,7 +801,8 @@ async function processarPedido(sock, p) {
       enviadoEm: p.enviado_em || null, // hora do print, não do clique em Lançar
     });
     await marcarPedido(p.id, 'feito');
-    console.log(`   ✅ aposta #${aposta.id} lançada do dashboard (odd ${aposta.odd}, valor ${aposta.valor})${keyRef ? ' + reagiu no grupo' : ''}`);
+    const ap = apostas[0];
+    console.log(`   ✅ aposta #${ap.id} lançada do dashboard (odd ${ap.odd}, valor ${ap.valor})${apostas.length > 1 ? ` +${apostas.length - 1} bilhete(s) na mesma imagem` : ''}${keyRef ? ' + reagiu no grupo' : ''}`);
   } catch (e) {
     await marcarPedido(p.id, 'erro', String(e.message || e).slice(0, 200));
     console.error('   ❌ erro no pedido:', e.message);

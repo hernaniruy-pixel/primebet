@@ -69,7 +69,37 @@ function valorDaLegenda(texto) {
   return parseValorMensagem(semUrl); // estrito: a sobra tem que SER um valor, nada de dígito no meio de texto
 }
 
-module.exports = { parseValor, parseValorMensagem, valorDaLegenda };
+// Um token que É só um valor (com opcional k/mil). Usado para aceitar uma legenda
+// composta SÓ de valores separados (ex.: "500 125") e recusar qualquer texto no meio.
+const TOKEN_VALOR = /^(?:\d[\d.,]*)(?:k|mil)?$/i;
+
+/**
+ * VÁRIOS valores numa legenda — para o print que traz DOIS (ou mais) bilhetes na
+ * mesma imagem (a Betano deixa montar 2 apostas na mesma tela) e o cliente escreve os
+ * dois valores na legenda: "500 125" -> [500, 125], um por bilhete, NA ORDEM.
+ * Regra estrita (dinheiro): só divide quando a legenda é composta SÓ de valores
+ * (separados por espaço, "/" ou ";"). Qualquer palavra no meio ("green no 2º") -> [].
+ * A vírgula NÃO separa (é decimal brasileiro: "2,5k" continua um valor só).
+ * Legenda com um valor só -> array de 1. Nada de valor (link, frase) -> [].
+ */
+function valoresDaLegenda(texto) {
+  if (texto == null) return [];
+  const limpo = String(texto)
+    .replace(/https?:\/\/\S+/gi, ' ')                              // urls
+    .replace(/\b[\w-]+\.(?:com|br|net|org|bet|app|io)\S*/gi, ' ')  // domínios soltos
+    .replace(/\s*@\s*[\d.,]+/g, ' ')                               // notação "@ odd"
+    .replace(/r\$/gi, ' ')                                         // "R$"
+    .replace(/\b(?:valor(?:es)?|entrada|apostado?|stake)\b\s*:?/gi, ' ') // rótulos
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!limpo) return [];
+  const partes = limpo.split(/[\s;/]+/).filter(Boolean);
+  // Todas as partes têm que SER valor — senão não é uma legenda de valores.
+  if (!partes.length || !partes.every((p) => TOKEN_VALOR.test(p))) return [];
+  return partes.map((p) => parseValor(p)).filter((v) => v != null);
+}
+
+module.exports = { parseValor, parseValorMensagem, valorDaLegenda, valoresDaLegenda };
 
 // Autoteste: node src/valor.js
 if (require.main === module) {
