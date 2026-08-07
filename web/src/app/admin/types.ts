@@ -20,7 +20,8 @@ export interface FiltroApostas {
   pend?: boolean | null;  // true = só fila pendente (EM ABERTO ou contestada)
 }
 export interface FechCliRow { id: number; nome: string; cal: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number; saldoCal: number }
-export interface FechCliResp { rows: FechCliRow[]; g: { cal: number; saldoCal: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number } }
+export type ModoFechamento = 'comissao_ganho' | 'cashback_perda';
+export interface FechCliResp { rows: FechCliRow[]; g: { modo?: ModoFechamento; cal: number; saldoCal: number; val: number; ab: number; sb: number; cm: number; caf: number; sl: number } }
 
 // ── Acertos (pagamentos/recebimentos) ──
 export interface AcertoMov { id: number; tipo: 'pago' | 'recebido'; valor: number; obs: string; ator: string; quando: string }

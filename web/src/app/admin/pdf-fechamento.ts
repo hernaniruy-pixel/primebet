@@ -2,7 +2,7 @@
 // Baixa direto na máquina, no estilo do JM: FECHAMENTO_-_NOME_-_dd-mm-aaaa_A_dd-mm-aaaa.pdf
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { FechCliRow, Reg } from './types';
+import type { FechCliRow, Reg, ModoFechamento } from './types';
 import { wa } from '@/lib/pdf-winansi';
 import { alinharCabecalho, desenharPilulaStatus } from '@/lib/pdf-tabela';
 import { MARCA, corRGB } from '@/lib/marca';
@@ -39,9 +39,10 @@ export interface PdfFechamentoOpts {
   dt1: string; // YYYY-MM-DD
   dt2: string; // YYYY-MM-DD
   desc?: number; // desconto do cliente — a odd sai do PDF já descontada
+  modo?: ModoFechamento; // modelo da casa: rotula "Comissão" (A) vs "Cashback devolvido" (B)
 }
 
-export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0 }: PdfFechamentoOpts, baixar = true): { blob: Blob; nome: string } {
+export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0, modo }: PdfFechamentoOpts, baixar = true): { blob: Blob; nome: string } {
   banca = wa(banca);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
@@ -74,7 +75,7 @@ export function gerarPdfFechamento({ banca, resumo, bilhetes, dt1, dt2, desc = 0
   const cards: [string, number][] = [
     ['Calção', resumo.cal], ['Saldo calção', resumo.saldoCal],
     ['Total apostado', resumo.val], ['Em aberto', resumo.ab],
-    ['Comissão', resumo.cm], ['Saldo líquido', resumo.sl],
+    [modo === 'cashback_perda' ? 'Cashback devolvido' : 'Comissão', resumo.cm], ['Saldo líquido', resumo.sl],
   ];
   const cols = 4;
   const gap = 8;

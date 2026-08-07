@@ -577,7 +577,7 @@ export default function PainelModerno({ email, papel, demo = false, contasLibera
     setPdfBusy(row.id);
     try {
       const bilhetes = await bilhetesCliente(row.id, fech.dt1 || null, fech.dt2 || null);
-      gerarPdfFechamento({ banca: MARCA.nome, resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2, desc: cliDesc[row.id] ?? 0 });
+      gerarPdfFechamento({ banca: MARCA.nome, resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2, desc: cliDesc[row.id] ?? 0, modo: fechData.g.modo });
     } catch { toast('Erro ao gerar o PDF.'); }
     finally { setPdfBusy(null); }
   }
@@ -626,7 +626,7 @@ ${MARCA.equipe}`);
     const grupoId = cli?.grupoId || '';
     if (!grupoId) return { ok: false, erro: `${row.nome}: sem grupo vinculado.` };
     const bilhetes = await bilhetesCliente(row.id, fech.dt1 || null, fech.dt2 || null);
-    const { blob } = gerarPdfFechamento({ banca: MARCA.nome, resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2, desc: cliDesc[row.id] ?? 0 }, false);
+    const { blob } = gerarPdfFechamento({ banca: MARCA.nome, resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2, desc: cliDesc[row.id] ?? 0, modo: fechData.g.modo }, false);
     const pdfBase64 = await blobParaBase64(blob);
     const legenda = legendaEnvio.replace('{período}', periodoTexto());
     return enfileirarEnvioPdf({ grupoId, clienteNome: row.nome, pdfBase64, legenda });
@@ -1205,12 +1205,12 @@ ${MARCA.equipe}`);
               </div>
             )}
             <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {([['Calção', fechData.g.cal], ['Saldo calção', fechData.g.saldoCal], ['Total apostado', fechData.g.val], ['Em aberto', fechData.g.ab], ['Saldo bruto', fechData.g.sb], ['Comissão', fechData.g.cm], ['Com. afiliado', fechData.g.caf], ['Saldo líquido', fechData.g.sl]] as [string, number][]).map(([l, v]) => (
+              {([['Calção', fechData.g.cal], ['Saldo calção', fechData.g.saldoCal], ['Total apostado', fechData.g.val], ['Em aberto', fechData.g.ab], ['Saldo bruto', fechData.g.sb], [fechData.g.modo === 'cashback_perda' ? 'Cashback devolvido' : 'Comissão', fechData.g.cm], ['Com. afiliado', fechData.g.caf], ['Saldo líquido', fechData.g.sl]] as [string, number][]).map(([l, v]) => (
                 <div key={l} className="rounded-lg bg-slate-50 p-2.5 dark:bg-slate-800/50"><div className="text-[11px] text-slate-400">{l}</div><div className="text-sm font-semibold tabular-nums">R$ {fmt(v)}</div></div>
               ))}
             </div>
             <div className="overflow-x-auto"><table className="w-full text-xs">
-              <thead><tr className="text-left text-slate-400"><th className="px-2 py-2 font-medium">Cliente</th><th className="px-2 py-2 text-right font-medium">Calção</th><th className="px-2 py-2 text-right font-medium">Saldo calção</th><th className="px-2 py-2 text-right font-medium">Apostado</th><th className="px-2 py-2 text-right font-medium">Em aberto</th><th className="px-2 py-2 text-right font-medium">S. bruto</th><th className="px-2 py-2 text-right font-medium">Comissão</th><th className="px-2 py-2 text-right font-medium">C. afil.</th><th className="px-2 py-2 text-right font-medium">S. líquido</th><th className="px-2 py-2 text-center font-medium sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">PDF</th></tr></thead>
+              <thead><tr className="text-left text-slate-400"><th className="px-2 py-2 font-medium">Cliente</th><th className="px-2 py-2 text-right font-medium">Calção</th><th className="px-2 py-2 text-right font-medium">Saldo calção</th><th className="px-2 py-2 text-right font-medium">Apostado</th><th className="px-2 py-2 text-right font-medium">Em aberto</th><th className="px-2 py-2 text-right font-medium">S. bruto</th><th className="px-2 py-2 text-right font-medium">{fechData.g.modo === 'cashback_perda' ? 'Cashback' : 'Comissão'}</th><th className="px-2 py-2 text-right font-medium">C. afil.</th><th className="px-2 py-2 text-right font-medium">S. líquido</th><th className="px-2 py-2 text-center font-medium sticky right-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">PDF</th></tr></thead>
               <tbody>{fechData.rows.map((r) => (
                 <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800">
                   <td className="px-2 py-1.5 font-medium">{r.nome}</td>
