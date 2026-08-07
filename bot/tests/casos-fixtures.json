@@ -1,0 +1,30 @@
+[
+ {
+  "arquivo": "bet-builder-tripla.jpg",
+  "nota": "bet builder detalhado (3 jogos, mercado+confronto) — Tripla 1.63",
+  "odd": 1.63,
+  "contem": ["FBK Karlstad", "Assyriska", "Empate Anula", "FC Porto", "Torreense", "Resultado Final", "Man Utd", "Atlético", "Partida - Gols"]
+ },
+ {
+  "arquivo": "aposta-feita-recolhido.jpg",
+  "nota": "card Aposta Feita RECOLHIDO — nao inventar mercado nem adversario",
+  "odd": 1.56,
+  "contem": ["Mais de 1,5", "FC Porto", "FBK Karlstad"],
+  "naoContem": ["Total de Gols", "Torreense", "Assyriska", "Resultado Final"]
+ },
+ {
+  "arquivo": "escanteios-3jogos.jpg",
+  "nota": "3 jogos mesmo mercado escanteios 80:00-Final — NUNCA deduplicar selecoes iguais",
+  "odd": null,
+  "contem": ["Atlético Mineiro", "Bahia", "Avaí", "América Mineiro", "Novorizontino", "Criciúma", "80:00", "Escanteios"]
+ },
+ {
+  "arquivo": "multi-aposta-betano-500-125.jpg",
+  "nota": "DOIS bilhetes numa imagem (Betano Simples 2+ e 3+) — legenda '500 125' casa por ordem",
+  "legenda": "500 125",
+  "apostas": [
+   { "odd": 2.60, "valor": 500, "contem": ["Olympiacos", "NEC", "2+", "chutes"] },
+   { "odd": 6.20, "valor": 125, "contem": ["Olympiacos", "NEC", "3+", "chutes"] }
+  ]
+ }
+]
