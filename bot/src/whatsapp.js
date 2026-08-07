@@ -496,7 +496,10 @@ async function iniciarWhatsApp() {
   // Subpasta própria dentro do volume já existente (/app/.wwebjs_auth): isola as
   // credenciais da Baileys do antigo perfil do Chromium, que continua lá intocado
   // (permite voltar atrás). São poucos KB, contra os ~400 MB do perfil antigo.
-  const authDir = path.join(AUTH_PATH, 'baileys');
+  // Subpasta da sessão. Padrão 'baileys'. Um cliente/instância pode forçar uma
+  // sessão NOVA (re-parear em outro número) trocando BAILEYS_SESSION no ambiente —
+  // sem precisar apagar arquivo com o bot rodando (ele recria a sessão antiga).
+  const authDir = path.join(AUTH_PATH, process.env.BAILEYS_SESSION || 'baileys');
   fs.mkdirSync(authDir, { recursive: true });
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
   const { version } = await fetchLatestBaileysVersion();
