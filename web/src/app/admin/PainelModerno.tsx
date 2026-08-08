@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow, AcertosResp, AcertoCliente } from './types';
+import type { Afiliado, Cliente, Reg, Totals, ApostasPage, FiltroApostas, FechCliResp, FechAfResp, FechCliRow, FechAfRow, AcertosResp, AcertoCliente } from './types';
 import { partesTs, statusContestacao } from './types';
 import {
   criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao, aceitarContestacao, sessaoAtiva,
@@ -21,7 +21,7 @@ import {
 } from './actions';
 import { gerarPdfFechamento } from './pdf-fechamento';
 import { gerarPdfFechamentoGeral } from './pdf-fechamento-geral';
-import { gerarPdfFechamentoAfiliados } from './pdf-fechamento-afiliados';
+import { gerarPdfFechamentoAfiliado } from './pdf-fechamento-afiliados';
 import { MARCA } from '@/lib/marca';
 import { fmtOdd, fmtMoney, parseNumBR } from './num';
 
@@ -204,6 +204,7 @@ export default function PainelModerno({ email, papel, demo = false, contasLibera
   const [fechRes, setFechRes] = useState<FechCliResp | null>(null);
   const [fafRes, setFafRes] = useState<FechAfResp | null>(null);
   const [pdfBusy, setPdfBusy] = useState<number | null>(null); // id do cliente cujo PDF está sendo gerado
+  const [pdfAfBusy, setPdfAfBusy] = useState<string | null>(null); // nome do afiliado cujo PDF está sendo gerado
   // Filtro inicial SEM data: tem que bater com o que o servidor renderizou
   // (listarApostas({ pend:true }) — fila pendente inteira). Antes forçava "esta semana"
   // aqui, então ao hidratar o cliente rebuscava só a semana e os bilhetes do backlog
@@ -595,6 +596,20 @@ export default function PainelModerno({ email, papel, demo = false, contasLibera
       gerarPdfFechamento({ banca: MARCA.nome, resumo: row, bilhetes, dt1: fech.dt1, dt2: fech.dt2, desc: cliDesc[row.id] ?? 0, modo: fechData.g.modo });
     } catch { toast('Erro ao gerar o PDF.'); }
     finally { setPdfBusy(null); }
+  }
+  // PDF de UM afiliado (o admin baixa e envia pra ELE): resumo do afiliado + os
+  // clientes dele no mesmo período. Os clientes vêm do fechamento por cliente,
+  // filtrados por supervisor (o vínculo cliente→supervisor está no cadastro).
+  async function baixarPdfAfiliado(row: FechAfRow) {
+    if (pdfAfBusy != null) return;
+    setPdfAfBusy(row.sup);
+    try {
+      const fc = await fechamentoClientes(faf.dt1 || null, faf.dt2 || null);
+      const ids = new Set(clientes.filter((c) => c.sup === row.sup).map((c) => c.id));
+      const clientesDoAf = fc.rows.filter((r) => ids.has(r.id));
+      gerarPdfFechamentoAfiliado({ banca: MARCA.nome, afiliado: row, clientes: clientesDoAf, dt1: faf.dt1, dt2: faf.dt2 });
+    } catch { toast('Erro ao gerar o PDF.'); }
+    finally { setPdfAfBusy(null); }
   }
   // PDF do fechamento GERAL (o que os sócios imprimem). As despesas vêm do MESMO
   // período do fechamento — se o período mudar, o lucro muda junto.
@@ -1420,7 +1435,6 @@ ${MARCA.equipe}`);
               <div><span className={lbl}>Data fim</span><input type="date" className={inp} value={faf.dt2} onChange={(e) => setFaf((f) => ({ ...f, dt2: e.target.value, period: '' }))} /></div>
               <div><span className={lbl}>Período</span><select className={inp} value={faf.period} onChange={(e) => { const p = periodDates(e.target.value); setFaf({ period: e.target.value, dt1: p.d1, dt2: p.d2 }); loadFaf(p.d1, p.d2); }}><option value="">—</option><option value="hoje">Hoje</option><option value="ontem">Ontem</option><option value="semana">Esta semana</option><option value="semana_ant">Semana passada</option></select></div>
               <button onClick={() => loadFaf(faf.dt1, faf.dt2)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Buscar</button>
-              <button onClick={() => { if (!fafData.rows.length) { toast('Nada para exportar no período.'); return; } gerarPdfFechamentoAfiliados({ banca: MARCA.nome, g: fafData.g, rows: fafData.rows, dt1: faf.dt1, dt2: faf.dt2 }); }} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800" title="Baixar o PDF deste fechamento para enviar aos supervisores">📄 Exportar PDF</button>
             </div>
             <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {([['Logins', fafData.g.logins, false], ['Entrada', fafData.g.val, true], ['Em aberto', fafData.g.ab, true], ['Saldo bruto', fafData.g.sb, true], ['Comissão', fafData.g.cm, true], ['Saldo líquido', fafData.g.sl, true]] as [string, number, boolean][]).map(([l, v, money]) => (
@@ -1428,13 +1442,20 @@ ${MARCA.equipe}`);
               ))}
             </div>
             <div className="overflow-x-auto"><table className="w-full text-xs">
-              <thead><tr className="text-left text-slate-400"><th className="px-2 py-2 font-medium">Supervisor</th><th className="px-2 py-2 text-center font-medium">Logins</th><th className="px-2 py-2 text-right font-medium">Entrada</th><th className="px-2 py-2 text-right font-medium">Em aberto</th><th className="px-2 py-2 text-right font-medium">S. bruto</th><th className="px-2 py-2 text-right font-medium">Comissão</th><th className="px-2 py-2 text-right font-medium">C. afil.</th><th className="px-2 py-2 text-right font-medium">S. líquido</th></tr></thead>
+              <thead><tr className="text-left text-slate-400"><th className="px-2 py-2 font-medium">Supervisor</th><th className="px-2 py-2 text-center font-medium">Logins</th><th className="px-2 py-2 text-right font-medium">Entrada</th><th className="px-2 py-2 text-right font-medium">Em aberto</th><th className="px-2 py-2 text-right font-medium">S. bruto</th><th className="px-2 py-2 text-right font-medium">Comissão</th><th className="px-2 py-2 text-right font-medium">C. afil.</th><th className="px-2 py-2 text-right font-medium">S. líquido</th><th className="px-2 py-2 text-center font-medium">PDF</th></tr></thead>
               <tbody>{fafData.rows.map((r) => (
                 <tr key={r.sup} className="border-t border-slate-100 dark:border-slate-800">
                   <td className="px-2 py-1.5 font-medium">{r.sup}</td><td className="px-2 py-1.5 text-center tabular-nums">{r.logins}</td><td className={`px-2 py-1.5 text-right tabular-nums ${entCls(r.val)}`}>{fmt(r.val)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${entCls(r.ab)}`}>{fmt(r.ab)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${clrCls(r.sb)}`}>{fmt(r.sb)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.cm)}`}>{fmt(r.cm)}</td><td className={`px-2 py-1.5 text-right tabular-nums ${comCls(r.caf)}`}>{fmt(r.caf)}</td><td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${clrCls(r.sl)}`}>{fmt(r.sl)}</td>
+                  <td className="px-2 py-1.5 text-center">
+                    <button onClick={() => baixarPdfAfiliado(r)} disabled={pdfAfBusy != null} title={`Baixar PDF do ${r.sup} para enviar a ele`} className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-emerald-600 disabled:opacity-40 dark:border-slate-700 dark:hover:bg-slate-800">
+                      {pdfAfBusy === r.sup
+                        ? <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 60"/></svg>
+                        : <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
+                    </button>
+                  </td>
                 </tr>
               ))}
-              {fafData.rows.length === 0 && <tr><td colSpan={8} className="px-2 py-8 text-center text-slate-400">Nenhum supervisor com movimento.</td></tr>}
+              {fafData.rows.length === 0 && <tr><td colSpan={9} className="px-2 py-8 text-center text-slate-400">Nenhum supervisor com movimento.</td></tr>}
               </tbody>
             </table></div>
           </Modal>

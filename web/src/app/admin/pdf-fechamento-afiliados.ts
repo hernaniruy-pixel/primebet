@@ -1,8 +1,9 @@
-// PDF do FECHAMENTO DE AFILIADOS — o relatório que o admin baixa e envia para os
-// supervisores. Baixa direto na máquina: FECHAMENTO_AFILIADOS_<BANCA>_-_dd-mm-aaaa_A_dd-mm-aaaa.pdf
+// PDF do FECHAMENTO DE UM AFILIADO — o admin baixa o PDF do afiliado X e envia
+// pra ELE (igual ao PDF por cliente). Mostra o resumo do afiliado + os clientes dele.
+// Baixa: FECHAMENTO_AFILIADO_<NOME>_-_dd-mm-aaaa_A_dd-mm-aaaa.pdf
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { FechAfResp } from './types';
+import type { FechAfRow, FechCliRow } from './types';
 import { wa } from '@/lib/pdf-winansi';
 import { alinharCabecalho } from '@/lib/pdf-tabela';
 import { MARCA, corRGB } from '@/lib/marca';
@@ -19,15 +20,15 @@ const COR_NEG: [number, number, number] = [225, 29, 72];
 const COR_ZERO: [number, number, number] = [15, 23, 42];
 const corNum = (n: number): [number, number, number] => (n > 0 ? COR_POS : n < 0 ? COR_NEG : COR_ZERO);
 
-export interface PdfFechamentoAfiliadosOpts {
+export interface PdfFechamentoAfiliadoOpts {
   banca?: string;
-  g: FechAfResp['g'];      // totais do período
-  rows: FechAfResp['rows']; // por supervisor
+  afiliado: FechAfRow;      // totais do afiliado no período
+  clientes: FechCliRow[];   // clientes DESTE afiliado (com movimento no período)
   dt1: string;              // YYYY-MM-DD
   dt2: string;              // YYYY-MM-DD
 }
 
-export function gerarPdfFechamentoAfiliados({ banca = MARCA.nome, g, rows, dt1, dt2 }: PdfFechamentoAfiliadosOpts) {
+export function gerarPdfFechamentoAfiliado({ banca = MARCA.nome, afiliado, clientes, dt1, dt2 }: PdfFechamentoAfiliadoOpts) {
   banca = wa(banca);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
@@ -42,49 +43,64 @@ export function gerarPdfFechamentoAfiliados({ banca = MARCA.nome, g, rows, dt1, 
   doc.text(banca, M, 46);
   doc.setFontSize(12);
   doc.setTextColor(120, 113, 108);
-  doc.text('Fechamento de afiliados', W - M, 46, { align: 'right' });
+  doc.text('Fechamento de afiliado', W - M, 46, { align: 'right' });
 
   doc.setDrawColor(...corRGB(MARCA.cor));
   doc.setLineWidth(1.5);
   doc.line(M, 56, W - M, 56);
 
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(15, 23, 42);
+  doc.text(wa(afiliado.sup), M, 80);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
-  doc.text(`Período apurado: ${periodo}`, M, 78);
+  doc.text(`Período: ${periodo}`, M, 96);
 
-  // ── Total do período ──
-  autoTable(doc, {
-    startY: 94,
-    head: [['Total do período', 'Valor']],
-    body: [
-      ['Logins (clientes com movimento)', String(g.logins)],
-      ['Total apostado', `R$ ${money(g.val)}`],
-      ['Em aberto', `R$ ${money(g.ab)}`],
-      ['Saldo bruto', `R$ ${money(g.sb)}`],
-      ['Comissão da banca', `R$ ${money(g.cm)}`],
-      ['Comissão dos afiliados', `R$ ${money(g.caf)}`],
-      ['Saldo líquido', `R$ ${money(g.sl)}`],
-    ],
-    margin: { left: M, right: M },
-    styles: { font: 'helvetica', fontSize: 10, cellPadding: 6, textColor: [15, 23, 42] },
-    headStyles: { fillColor: [19, 32, 10], textColor: [218, 165, 32], fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
-    columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 140, halign: 'right', fontStyle: 'bold' } },
-    didParseCell: (d) => alinharCabecalho(d, { 1: 'right' }),
+  // ── Resumo do afiliado (grade de cartões) ──
+  const cards: [string, string][] = [
+    ['Logins (clientes)', String(afiliado.logins)],
+    ['Total apostado', `R$ ${money(afiliado.val)}`],
+    ['Em aberto', `R$ ${money(afiliado.ab)}`],
+    ['Saldo bruto', `R$ ${money(afiliado.sb)}`],
+    ['Comissão da banca', `R$ ${money(afiliado.cm)}`],
+    ['Comissão do afiliado', `R$ ${money(afiliado.caf)}`],
+    ['Saldo líquido', `R$ ${money(afiliado.sl)}`],
+  ];
+  const cols = 4;
+  const gap = 8;
+  const cw = (W - 2 * M - (cols - 1) * gap) / cols;
+  const ch = 38;
+  const y0 = 112;
+  cards.forEach(([label, val], i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = M + col * (cw + gap);
+    const y = y0 + row * (ch + gap);
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(x, y, cw, ch, 4, 4, 'FD');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(label.toUpperCase(), x + 8, y + 13);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text(val, x + 8, y + 29);
   });
+  const tableTop = y0 + 2 * (ch + gap) + 6;
 
-  // ── Por supervisor ──
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const y1 = (doc as any).lastAutoTable.finalY + 18;
-  const ordenadas = [...rows].sort((a, b) => b.caf - a.caf);
+  // ── Clientes deste afiliado ──
+  const ordenados = [...clientes].sort((a, b) => b.caf - a.caf);
   autoTable(doc, {
-    startY: y1,
-    head: [['Supervisor', 'Logins', 'Apostado', 'Em aberto', 'Saldo bruto', 'Comissão', 'C. afil.', 'Saldo líq.']],
-    body: ordenadas.map((r) => [
-      wa(r.sup), String(r.logins), money(r.val), money(r.ab), money(r.sb), money(r.cm), money(r.caf), money(r.sl),
-    ]),
-    foot: [['TOTAL', String(g.logins), money(g.val), money(g.ab), money(g.sb), money(g.cm), money(g.caf), money(g.sl)]],
+    startY: tableTop,
+    head: [['Cliente', 'Apostado', 'Em aberto', 'Saldo bruto', 'Com. afil.', 'Saldo líq.']],
+    body: ordenados.length
+      ? ordenados.map((c) => [wa(c.nome), money(c.val), money(c.ab), money(c.sb), money(c.caf), money(c.sl)])
+      : [['Sem clientes com movimento no período.', '', '', '', '', '']],
+    foot: [['TOTAL', money(afiliado.val), money(afiliado.ab), money(afiliado.sb), money(afiliado.caf), money(afiliado.sl)]],
     showFoot: 'lastPage',
     margin: { left: M, right: M },
     styles: { font: 'helvetica', fontSize: 9, cellPadding: 5, textColor: [15, 23, 42] },
@@ -93,22 +109,20 @@ export function gerarPdfFechamentoAfiliados({ banca = MARCA.nome, g, rows, dt1, 
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
       0: { cellWidth: 'auto' },
-      1: { cellWidth: 48, halign: 'center' },
+      1: { cellWidth: 74, halign: 'right' },
       2: { cellWidth: 66, halign: 'right' },
-      3: { cellWidth: 60, halign: 'right' },
-      4: { cellWidth: 66, halign: 'right', fontStyle: 'bold' },
-      5: { cellWidth: 58, halign: 'right' },
-      6: { cellWidth: 54, halign: 'right' },
-      7: { cellWidth: 66, halign: 'right', fontStyle: 'bold' },
+      3: { cellWidth: 74, halign: 'right', fontStyle: 'bold' },
+      4: { cellWidth: 70, halign: 'right' },
+      5: { cellWidth: 74, halign: 'right', fontStyle: 'bold' },
     },
     didParseCell: (data) => {
-      alinharCabecalho(data, { 1: 'center', 2: 'right', 3: 'right', 4: 'right', 5: 'right', 6: 'right', 7: 'right' });
-      // Saldo bruto (4) e saldo líquido (7) coloridos por sinal, no corpo e no total.
-      if (data.column.index === 4 || data.column.index === 7) {
+      alinharCabecalho(data, { 1: 'right', 2: 'right', 3: 'right', 4: 'right', 5: 'right' });
+      // Saldo bruto (3) e saldo líquido (5) coloridos por sinal, no corpo e no total.
+      if ((data.column.index === 3 || data.column.index === 5) && data.section !== 'head') {
         const val = data.section === 'foot'
-          ? (data.column.index === 4 ? g.sb : g.sl)
-          : (data.section === 'body' ? (data.column.index === 4 ? ordenadas[data.row.index].sb : ordenadas[data.row.index].sl) : 0);
-        if (data.section !== 'head') data.cell.styles.textColor = corNum(val);
+          ? (data.column.index === 3 ? afiliado.sb : afiliado.sl)
+          : (ordenados[data.row.index] ? (data.column.index === 3 ? ordenados[data.row.index].sb : ordenados[data.row.index].sl) : 0);
+        data.cell.styles.textColor = corNum(val);
       }
     },
     didDrawPage: () => {
@@ -125,5 +139,5 @@ export function gerarPdfFechamentoAfiliados({ banca = MARCA.nome, g, rows, dt1, 
   });
 
   const sufixo = temIntervalo ? `${brDate(dt1)}_A_${brDate(dt2)}` : 'TODO_O_PERIODO';
-  doc.save(`FECHAMENTO_AFILIADOS_${safe(banca)}_-_${sufixo}.pdf`);
+  doc.save(`FECHAMENTO_AFILIADO_${safe(afiliado.sup)}_-_${sufixo}.pdf`);
 }
