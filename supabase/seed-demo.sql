@@ -85,14 +85,15 @@ begin
     (id, nome, senha_hash, ativo, calcao, desconto, comissao_pct, afiliado_id, afiliado_comissao_pct, grupo_link) values
     (11, 'TESTE DEMO', '1234', true, 0, 0.01, 6, null, 0, 'https://chat.whatsapp.com/HQLADSgM6xz518M0UjIbLD');
 
-  -- ── APOSTAS: 6–12 por cliente nos últimos 30 dias, status variado ──
+  -- ── APOSTAS: 25–50 por cliente nos últimos 30 dias, status variado ──
+  -- Volume alto de propósito: relatórios/fechamentos cheios para a demonstração.
   for v_cli in 1..10 loop
-    v_n := 6 + floor(random() * 7)::int;
+    v_n := 25 + floor(random() * 26)::int;
     for v_k in 1..v_n loop
       v_d  := floor(random() * 30)::int;
       v_dt := now() - (v_d || ' days')::interval - (floor(random() * 13) || ' hours')::interval;
       v_odd := round((1.4 + random() * 1.6)::numeric, 2);
-      v_val := (50 + floor(random() * 20)::int * 50);
+      v_val := (50 + floor(random() * 30)::int * 50);
       if v_d <= 1 then
         v_st := 'EM ABERTO';
       else
