@@ -342,6 +342,26 @@ export async function setGrupoDespesaLink(link: string | null): Promise<ConfigDe
   return { grupoDespesaLink: link || null, grupoDespesaId: null };
 }
 
+// Taxa de baixa liquidez — UMA taxa por CASA (aplica aos clientes com BL ligada).
+export async function getBaixaLiquidezPct(): Promise<number> {
+  await exigir('gestor');
+  const db = createAdminClient();
+  const { data } = await db.from('bancas').select('baixa_liquidez_pct').eq('id', await bancaId(db)).single();
+  return Number(data?.baixa_liquidez_pct ?? 5);
+}
+
+export async function setBaixaLiquidezPct(pct: number): Promise<number> {
+  await exigir('admin');
+  const db = createAdminClient();
+  const v = Math.max(0, Math.min(100, Number(pct) || 0));
+  const id = await bancaId(db);
+  const { error } = await db.from('bancas').update({ baixa_liquidez_pct: v }).eq('id', id);
+  if (error) throw error;
+  // Recalcula as apostas: quem tem BL ligada passa a descontar a nova taxa.
+  await db.from('apostas').update({ atualizado_em: new Date().toISOString() }).eq('banca_id', id);
+  return v;
+}
+
 // ═══════════════════ CONTAS (controle dos donos) ═══════════════════
 interface ContaRow {
   id: number; casa: string | null; login: string | null; nome: string | null; cpf: string | null;

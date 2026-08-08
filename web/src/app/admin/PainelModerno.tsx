@@ -9,6 +9,7 @@ import {
   criarAposta, atualizarAposta, excluirAposta, listarApostas, resolverContestacao, aceitarContestacao, sessaoAtiva,
   criarCliente, atualizarCliente, excluirCliente, criarAfiliado, atualizarAfiliado, excluirAfiliado,
   fechamentoClientes, fechamentoAfiliados, bilhetesCliente, listarDespesasPeriodo,
+  getBaixaLiquidezPct, setBaixaLiquidezPct,
   statusBot, type BotStatus,
   lerPlano, type PlanoConfig, type UsoCota,
   sairEquipe,
@@ -205,6 +206,8 @@ export default function PainelModerno({ email, papel, demo = false, contasLibera
   const [fafRes, setFafRes] = useState<FechAfResp | null>(null);
   const [pdfBusy, setPdfBusy] = useState<number | null>(null); // id do cliente cujo PDF está sendo gerado
   const [pdfAfBusy, setPdfAfBusy] = useState<string | null>(null); // nome do afiliado cujo PDF está sendo gerado
+  const [blPctInput, setBlPctInput] = useState('5'); // taxa de baixa liquidez da casa (%)
+  const [blSaving, setBlSaving] = useState(false);
   // Filtro inicial SEM data: tem que bater com o que o servidor renderizou
   // (listarApostas({ pend:true }) — fila pendente inteira). Antes forçava "esta semana"
   // aqui, então ao hidratar o cliente rebuscava só a semana e os bilhetes do backlog
@@ -711,10 +714,18 @@ ${MARCA.equipe}`);
     return () => clearInterval(t);
   }, [envioSt]);
   function loadFaf(d1: string, d2: string) { fechamentoAfiliados(d1 || null, d2 || null).then(setFafRes).catch(() => toast('Erro no fechamento.')); }
+  function loadBlPct() { getBaixaLiquidezPct().then((v) => setBlPctInput(String(v))).catch(() => {}); }
+  async function salvarBlPct() {
+    setBlSaving(true);
+    try { const v = await setBaixaLiquidezPct(Number(blPctInput) || 0); setBlPctInput(String(v)); toast('Taxa de baixa liquidez salva.'); }
+    catch { toast('Erro ao salvar a taxa.'); }
+    finally { setBlSaving(false); }
+  }
   function loadPlano() { lerPlano().then(setPlano).catch(() => toast('Erro ao carregar o plano.')); }
   function carregarEquipe() { listarEquipe().then(setEquipe).catch(() => toast('Erro ao carregar usuários.')); }
   useEffect(() => {
     if (modal === 'fech') loadFech(fech.dt1, fech.dt2);
+    if (modal === 'cli') loadBlPct();
     if (modal === 'faf') loadFaf(faf.dt1, faf.dt2);
     if (modal === 'plano') loadPlano();
     if (modal === 'acertos') loadAcertos(acertoPer.dt1, acertoPer.dt2);
@@ -1183,6 +1194,15 @@ ${MARCA.equipe}`);
                 </div>
               );
             })()}
+
+            {/* Taxa de baixa liquidez: UMA taxa por CASA, aplicada aos clientes com o toggle BL ligado. */}
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs dark:border-slate-700">
+              <span className="font-medium text-slate-600 dark:text-slate-300">Taxa de baixa liquidez (casa)</span>
+              <input type="number" step="0.01" min="0" max="100" className={`${cinp} w-20 text-right`} value={blPctInput} onChange={(e) => setBlPctInput(e.target.value)} />
+              <span className="text-slate-400">%</span>
+              <button onClick={salvarBlPct} disabled={blSaving} className="rounded-lg bg-marca-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-marca-700 disabled:opacity-50">Salvar</button>
+              <span className="text-[11px] text-slate-400">Aplica só aos clientes com <b>BL ligada</b> (desligada por padrão).</span>
+            </div>
 
             {/* Legenda: quem opera precisa saber o que cada sinal da coluna "#" significa. */}
             <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
