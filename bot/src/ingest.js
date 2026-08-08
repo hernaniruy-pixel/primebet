@@ -120,7 +120,10 @@ async function vinculosPendentes() {
 }
 
 async function salvarGrupoId(clienteId, grupoId) {
-  await sb.from('clientes').update({ grupo_id: grupoId }).eq('id', clienteId);
+  // PRIVACIDADE: assim que resolve o grupo, APAGA o link do convite (grupo_link).
+  // Fica só o id interno (...@g.us), que sozinho não serve pra achar nem entrar no
+  // grupo. Assim não sobra no banco nenhum jeito de garimpar/alcançar os clientes.
+  await sb.from('clientes').update({ grupo_id: grupoId, grupo_link: null }).eq('id', clienteId);
 }
 
 /** Config do grupo de DESPESA da banca: link colado no painel + id já resolvido. */
@@ -130,10 +133,10 @@ async function configDespesa() {
   return { link: (data && data.grupo_despesa_link) || null, grupoId: (data && data.grupo_despesa_id) || null };
 }
 
-/** Grava o JID do grupo de despesa resolvido a partir do link. */
+/** Grava o JID do grupo de despesa resolvido e APAGA o link (mesma privacidade dos clientes). */
 async function salvarGrupoDespesaId(grupoId) {
   const id = await bancaPadrao();
-  await sb.from('bancas').update({ grupo_despesa_id: grupoId }).eq('id', id);
+  await sb.from('bancas').update({ grupo_despesa_id: grupoId, grupo_despesa_link: null }).eq('id', id);
 }
 
 /**

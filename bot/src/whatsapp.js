@@ -462,7 +462,9 @@ async function registrarImagemDeMsg(sock, m, jid, nomeGrupo) {
   await registrarImagemRecebida({
     grupoId: jid, grupoNome: nomeGrupo,
     clienteId: cli ? cli.id : null, msgId: m.key.id,
-    remetente: m.pushName || (m.key.participant || '').split('@')[0] || '',
+    // PRIVACIDADE: guardamos só o NOME (pushName), NUNCA o número de quem enviou.
+    // A casa teme que o número dos apostadores dela vaze — então nem armazenamos.
+    remetente: m.pushName || '',
     enviadoEm: tsIso(m),
     base64, // null = sem miniatura; a linha entra do mesmo jeito
     legenda,
